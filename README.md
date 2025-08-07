@@ -6,6 +6,72 @@ This document provides step-by-step instructions for running our single cell ana
 
 > **Note:** Terminal is Mac's command-line interface where you can type commands to interact with your computer.
 
+## Installation
+
+### Quick Installation (Recommended)
+
+After cloning this repository, run a single command to complete the installation:
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd Single-Cell-Analyzer
+
+# Run the installation script (choose one method)
+python install.py
+# OR
+./install
+```
+
+This single command will:
+- ✅ Create virtual environments (main + Cellpose)
+- ✅ Install all dependencies
+- ✅ Install the package in development mode
+- ✅ Detect software paths (ImageJ/Fiji)
+- ✅ Create configuration files
+- ✅ Verify the installation
+
+### After Installation
+
+Once the installation is complete, you can use the tool:
+
+```bash
+# 1. Activate the virtual environment
+source venv/bin/activate
+
+# 2. Run the analysis tool
+single-cell-analyzer
+```
+
+### Manual Installation
+
+If you prefer to install manually:
+
+```bash
+# Clone the repository
+git clone <repository-url>
+cd Single-Cell-Analyzer
+
+# Create a virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install the package in development mode
+pip install -e .
+```
+
+**Why development mode?**
+- ✅ Changes to code are immediately reflected (no reinstall needed)
+- ✅ Command-line tool available: `single-cell-analyzer`
+- ✅ Proper package imports work
+- ✅ Ideal for development and testing
+
+**Alternative installation:**
+```bash
+# Regular installation (changes require reinstall)
+pip install .
+```
+
 ## Table of Contents
 
 1. [Getting Started](#getting-started)
@@ -34,18 +100,28 @@ We've introduced a new modular command-line interface that provides a more user-
 
 ### Quick Start with Modular CLI
 
-1. **Activate the environment** (if not already activated):
-   ```bash
-   cd ~/Single-Cell-Analyzer
-   source venv/bin/activate
-   ```
+**After running `python install.py`, you can use the tool in two ways:**
 
-2. **Run the modular interface**:
-   ```bash
-   python main.py
-   ```
+**Method 1: Using the command-line tool (recommended):**
+```bash
+# Activate the environment (if not already activated)
+source venv/bin/activate
 
-3. **You'll see the colorful ASCII header and interactive menu**:
+# Run using the installed command-line tool
+single-cell-analyzer
+```
+
+**Method 2: Direct script execution:**
+```bash
+# Activate the environment (if not already activated)
+cd ~/Single-Cell-Analyzer
+source venv/bin/activate
+
+# Run the script directly
+python single_cell_analyzer/scripts/main.py
+```
+
+**You'll see the colorful ASCII header and interactive menu:**
    ```
       ███████╗ ██╗ ███╗   ██╗  ██████╗  ██╗      ███████╗      
       ██╔════╝ ██║ ████╗  ██║ ██╔════╝  ██║      ██╔════╝      
@@ -345,317 +421,3 @@ Type the number of the project file you would like to analyze. If you want to an
 Next, you'll see a prompt to select timepoints for analysis:
 
 ```
-================================================================================
-MANUAL STEP REQUIRED: select_timepoints
-================================================================================
-Review available timepoints in the raw data and decide which timepoints to use for analysis. Current experiment has timepoints: t00. Press Enter when you have made your selection. You can specify timepoints when running the script with --timepoints option.
-
-Available timepoints:
-1. t00
-
-Input options for timepoints:
-- Enter timepoints as space-separated text (e.g., 't00 t00')
-- Enter numbers from the list (e.g., '1 1')
-- Type 'all' to select all timepoints
-
-Enter your selection:
-```
-
-For `single_timepoint` data, there will only be one option (1. t00). Simply type "1" and then Enter.
-
-For `multi_timepoint` data, the program will list all available timepoints like this:
-```
-Available timepoints:
-1. t00
-2. t01
-3. t02
-4. t03
-5. t04
-```
-
-The first timepoint will always be t00. You can:
-- Type "all" to select all timepoints
-- Enter specific timepoints separated by spaces
-
-For example, to select only the first and last timepoints from the list above:
-```
-Enter your selection: 1 5
-```
-
-**Important for multi_timepoint data:** The program has a feature that tracks cells across timepoints, so each ROI number from a given dataset corresponds to the same cell throughout the analysis.
-
-### Selecting Regions
-
-After selecting timepoints, you'll be prompted to select regions for analysis:
-
-```
-================================================================================
-MANUAL STEP REQUIRED: select_regions
-================================================================================
-Review available regions in the raw data and decide which regions to use for analysis. Current experiment has regions:
-```
-
-You'll see a list of available regions like this example:
-
-```
-Available regions:
-1. Control_40minWash_TS1
-2. Control_40minWash_TS2
-3. Control_40minWash_TS3
-4. Control_MG132_40minWash_TS1
-5. Control_MG132_40minWash_TS2
-6. Control_NaAsO2_TS1
-7. Control_NaAsO2_TS2
-...and so on
-```
-
-The region names will match the file names exported from LASX. The prompt will show:
-
-```
-Input options for regions:
-- Enter regions as space-separated text (e.g., 'Control_40minWash_TS1 LSG1i_VCPi_40minWash_TS2')
-- Enter numbers from the list (e.g., '1 21')
-- Type 'all' to select all regions
-
-Enter your selection: 
-```
-
-Make your selection by entering numbers separated by spaces. For example, to analyze all Control_40minWash tile-scans from the example above:
-
-```
-Enter your selection: 1 2 3
-```
-
-**Important:** Make sure all selected regions were captured with the same channels, or the program will terminate.
-
-### Selecting Segmentation Channels
-
-After selecting regions, you'll be prompted to select channels for segmentation:
-
-```
-================================================================================
-MANUAL STEP REQUIRED: select_segmentation_channels
-================================================================================
-Review available channels for segmentation:
-
-Available channels:
-1. ch00
-2. ch01
-
-Input options for channels:
-- Enter channels as space-separated text (e.g., 'ch00 ch01')
-- Enter numbers from the list (e.g., '1 2')
-- Type 'all' to select all channels
-
-Enter your selection:
-```
-
-The channels will be in the order of capture settings configured in LASX:
-- ch00 corresponds to the channel setting at the top
-- ch01 is the second channel
-- And so on
-
-**Important:** Select the channel(s) that will be used for cell segmentation. This is typically a channel that shows cell boundaries or nuclei clearly (e.g., DAPI for nuclei or a cytoplasmic marker).
-
-Enter your channel selection and press Enter.
-
-### Selecting Analysis Channels
-
-Next, you'll be prompted to select channels for analysis:
-
-```
-================================================================================
-MANUAL STEP REQUIRED: select_analysis_channels
-================================================================================
-Review available channels for analysis:
-
-Available channels:
-1. ch00
-2. ch01
-
-Input options for channels:
-- Enter channels as space-separated text (e.g., 'ch00 ch01')
-- Enter numbers from the list (e.g., '1 2')
-- Type 'all' to select all channels
-
-Enter your selection:
-```
-
-**Important:** Select only ONE channel at a time for analysis. For example, if you are analyzing stress granules, select the channel that corresponds to G3BP1. This is the channel where you want to measure and threshold your structures of interest.
-
-Enter your channel selection and press Enter to continue with the analysis.
-
-## Step 5: Cellpose Segmentation
-
-After making all data selections, Cellpose and ImageJ will automatically open. Follow these steps to perform cell segmentation:
-
-1. Click on the Cellpose GUI window. You should see "Python" at the top of the screen next to the Apple symbol.
-
-2. Click on **File > Load image** and navigate to the output folder you specified when running the workflow.
-
-3. Go into the **preprocessed** folder and navigate through the subdirectories to find files for segmentation:
-   - The program separates files by condition and time-point
-   - There will be two layers of folders before reaching the image files
-   - Look for files starting with "bin4x4_"
-   
-   > **Note:** Cellpose cannot handle large tile-scans, so the program shrinks the files for segmentation purposes only.
-
-4. Select the file you want to segment and click **Open**.
-
-5. In the segmentation section on the left panel, find "additional settings" with an upward arrow. Click on the arrow to open the settings options.
-
-6. Configure the segmentation parameters:
-   - Next to **diameter:** enter a number in pixels that corresponds to the average size of a cell
-     - A magenta circle at the bottom of the screen shows the relative size of your selection
-     - Adjust the number until the circle roughly matches the size of your cells
-     - Typically, cells are between 70 and 150 pixels depending on cell type and pixel size
-   - Next to **niter dynamics:** enter "250"
-
-7. Click the **run CPSAM** button to start segmentation.
-
-8. When segmentation finishes, masks of different colors will appear.
-
-9. Manually remove partial cells at the edges:
-   - Go to the Drawing panel on the left
-   - Under "delete multiple ROIs" click **click-select**
-   - Click on the colored masks you want to delete
-   - Selected masks will change color to grey
-   - When all unwanted masks are selected, click **done** to delete them
-   > **Note:** The program groups cells based on relative expression level. For this reason it is important to remove partial cells at the edge of the field or grouping may not work as expected. It is also good practive to avoid analyzing partial cells because this could scew results.
-
-10. Fix incorrect segmentation if needed:
-    > **Note:** The new Cellpose-SAM model (SAM stands for <u>S</u>egment <u>A</u>nything <u>M</u>odel) makes fewer mistakes but they do still occur sometimes
-    - Delete problematic masks using the process above
-    - Manually draw new masks by:
-      - Holding down the space bar and clicking on the image
-      - Moving the cursor (no need to hold the space bar) to draw a new mask
-      - The mask will automatically display when the shape is completed
-
-11. When segmentation is complete, click **File > Save outlines as .zip archive of ROI files for ImageJ**.
-
-12. Repeat this process for all files you selected to analyze.
-
-13. When finished with all files:
-    - Close the Cellpose window
-    - Click on the Terminal window
-    - Press Enter to continue
-
-At this point, ImageJ macros will run that:
-- Resizes the segmented ROIs
-- Creates files for the individually segmented cells
-
-## Step 6: Otsu Thresholding
-
-Once the ImageJ macros complete, ImageJ will launch again for guided thresholding:
-
-1. The program groups cells with similar expression levels to allow large groups of cells to be thresholded at the same time.
-   > **Note:** This is particularly useful for experiments with polyclonal over-expression.
-
-2. A window will pop up with instructions:
-   ```
-   Please draw an oval ROI in a representative area for thresholding, then click OK.
-   ```
-
-3. An image will also appear showing individual cells with similar intensity levels.
-   > **Note:** The default for the program is 5 groups.
-
-4. Draw an oval around the area you want to threshold:
-   - For example, if analyzing stress granules from a fluorescence image of G3BP1, draw an oval around some of the stress granules
-
-5. To check how the Otsu thresholding will work with your ROI placement:
-   - Press **Shift + T** to bring up the Threshold window
-   - Select "Otsu" from the drop-down menu
-   - Click **Reset** and then **Auto**
-   - Areas identified by thresholding will appear in red
-   
-6. If the current ROI placement doesn't properly threshold all desired structures or is picking up undesired areas:
-   - Draw a new ROI around a different region
-   - Test again by clicking **Auto** from the thresholding window
-   
-7. When satisfied with the ROI placement, click **OK** on the pop-up window
-
-> **Note:** If an acceptable ROI placement doesn't exist, draw an ROI anywhere and press `OK`. There will be options later to handle situations like this.
-
-8. A new window titled "**Evaluate Cell Grouping**" will appear with the message:
-   ```
-   Based on what you see in this image, do you want to:
-   Decision:
-   ```
-   
-   Followed by a dropdown menu with two options:
-   - Continue with thresholding
-   - Go back and add one more group
-   - Ignore thresholding for this group. There are no structures to threshold in the field
-
-9. Choose the appropriate option:
-   - If the image contains cells with equal expression levels and the Otsu auto thresholding accurately identifies desired structures, select **Continue with thresholding** and click **OK** (or simply press Enter)
-   - If an image is difficult to threshold properly, select **Go back and add one more group** and click **OK**
-   - If there aren't any features in the image to threshold (for example, an image where none of the cells have stress granules or P-bodies), select **Ignore thresholding for this group. There are no structures to threshold in the field** and click **OK**
-
-10. If you selected "Go back and add one more group":
-    - A window will appear with the message:
-      ```
-      Your request for more bins has been recorded. The workflow will restart the cell grouping step with more bins. You can now close ImageJ.
-      ```
-    - Click **OK**
-    - The program will repeat the grouping step with one more group than before
-    - Continue this process until all images can be thresholded properly
-
-11. Once all images have been thresholded successfully:
-    - The ImageJ toolbar will appear
-    - A message in the log window will read:
-      ```
-      Thresholding of grouped cells completed.
-      ```
-
-12. Close ImageJ:
-    - Close the ImageJ toolbar directly, or
-    - Select **File > Quit**
-
-13. The program will automatically:
-    - Resume processing
-    - Segment the binary masks
-    - Analyze particles in the background
-    - Compile all results into a .csv file in the analysis folder of your output directory
-
-14. When the process is complete, you'll see this message in the Terminal window:
-    ```
-    SingleCellWorkflow - INFO - Workflow completed successfully
-    ```
-
-At this point, your analysis is complete and the results are ready for review.
-
-## Tips and Tricks
-
-### Terminal Navigation
-
-Here are some helpful tips for using the Terminal efficiently, saving you a lot of time when running this workflow. 
-
-1. **Command History**:
-   - Press the **Up Arrow** key to cycle through previously entered commands. The command for running the workflow is long, so by entering the command each time, you can press the **up** key and change the output folder name when analyzing a large dataset. 
-   - Type part of a previous command and then press **Up Arrow** to search through history for commands that match what you've typed. Let's say you want to rerun the workflow but don't want to type out the entire command. However, someone used the Terminal before you, and the previous workflow commands are far back in history. You can type `python sing` and then press the **up** key, and the Terminal will only cycle through commands that start with `python sing`.
-
-2. **Tab Completion**:
-   - Press the **Tab** key to auto-complete file and directory names. This will save you lots of time if you prefer to type out commands rather than copy and paste from the protocol. For example, to remove spaces from file names without coping and pasting the commands from the protocol, you can type `cd ~/ba` then `tab`, and if there are no other directories that start with "ba," it will fill in `cd ~/bash_scripts`. Similarly, if your working directory is `/Users/leelab/bash_scripts` and you type `./r` followed by `tab`, it will fill in `./replace_spaces.sh`.
-
-3. **Text Navigation**:
-The following are useful commands for typing in the Terminal:
-   - **Control + A**: Move cursor to the beginning of the line
-   - **Control + E**: Move cursor to the end of the line
-   - **Control + U**: Clear the line before the cursor
-   - **Control + K**: Clear the line after the cursor
-
-## Troubleshooting
-
-### Common Errors and Solutions
-
-I will include common errors in the workflow here, what to look for if there is an issue, and how to fix it. If you run into an unexpected error or issue, take a screenshot and document the issue.
-
-#### Need Additional Help?
-
-If you encounter persistent issues, please contact:
-- IT Support: joshua.marcus@bcm.edu
-
-## Technical Documentation
-
-For developers, installation instructions, advanced configuration, and detailed technical information, see [DOCUMENTATION.md](DOCUMENTATION.md).

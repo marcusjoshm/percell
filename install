@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Single-Cell-Analyzer Installation Wrapper
+# This script runs the Python installation script
+
+echo "Single-Cell-Analyzer Installation"
+echo "=================================="
+
+# Check if Python is available
+if ! command -v python3 &> /dev/null; then
+    echo "Error: Python 3 is not installed or not in PATH"
+    echo "Please install Python 3.11+ and try again"
+    exit 1
+fi
+
+# Run the Python installation script
+python3 install.py "$@" 

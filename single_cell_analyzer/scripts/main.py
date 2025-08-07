@@ -10,25 +10,22 @@ import os
 import argparse
 from pathlib import Path
 
-# Add src to Python path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-from src.python.core.config import Config, ConfigError
-from src.python.core.logger import PipelineLogger
-from src.python.core.cli import parse_arguments, CLIError, show_header, create_cli
-from src.python.core.pipeline import Pipeline
-from src.python.core.config import create_default_config
+# Import from the package (no sys.path manipulation needed!)
+from single_cell_analyzer.core.config import Config, ConfigError, create_default_config
+from single_cell_analyzer.core.logger import PipelineLogger
+from single_cell_analyzer.core.cli import parse_arguments, CLIError, show_header, create_cli
+from single_cell_analyzer.core.pipeline import Pipeline
 
 
 def main():
     """Main entry point for the microscopy single-cell analysis pipeline."""
     try:
         # Register all available stages
-        from src.python.modules.stage_registry import register_all_stages
+        from single_cell_analyzer.modules.stage_registry import register_all_stages
         register_all_stages()
         
         # Load configuration
-        config_path = "config/config.json"
+        config_path = "single_cell_analyzer/config/config.json"
         if not Path(config_path).exists():
             print(f"Configuration file not found: {config_path}")
             print("Creating default configuration...")
@@ -95,8 +92,8 @@ def main():
                     
                     # Automatically save the most recently used directories as defaults
                     try:
-                        from src.python.modules.directory_setup import save_recent_directories_automatically, load_config
-                        config_path = "config/config.json"
+                        from single_cell_analyzer.modules.directory_setup import save_recent_directories_automatically, load_config
+                        config_path = "single_cell_analyzer/config/config.json"
                         config = load_config(config_path)
                         save_recent_directories_automatically(config, args.input, args.output, config_path)
                     except Exception as e:
