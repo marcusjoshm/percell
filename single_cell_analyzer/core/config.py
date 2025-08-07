@@ -214,6 +214,23 @@ def create_default_config(config_path: str) -> Config:
             "output": "",
             "recent_inputs": [],
             "recent_outputs": []
+        },
+        "data_selection": {
+            "selected_datatype": None,
+            "selected_conditions": [],
+            "selected_timepoints": [],
+            "selected_regions": [],
+            "segmentation_channel": None,
+            "analysis_channels": [],
+            "experiment_metadata": {
+                "conditions": [],
+                "regions": [],
+                "timepoints": [],
+                "channels": [],
+                "region_to_channels": {},
+                "datatype_inferred": None,
+                "directory_timepoints": []
+            }
         }
     }
     
