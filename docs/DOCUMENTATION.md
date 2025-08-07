@@ -51,8 +51,8 @@ This project provides an end-to-end pipeline for analyzing single-cell microscop
 #### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/marcusjoshm/microscopy-analysis-single-cell.git
-cd microscopy-analysis-single-cell
+git clone https://github.com/marcusjoshm/Single-Cell-Analyzer.git
+cd Single-Cell-Analyzer
 ```
 
 #### 2. Run the Installation Script

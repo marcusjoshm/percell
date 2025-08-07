@@ -61,12 +61,12 @@ python -c "import pandas; print(f'Pandas version: {pandas.__version__}')"
 
 # Check Cellpose environment
 source cellpose_venv/bin/activate
-# Check Cellpose with NumPy compatibility handling
-if python -c "import cellpose; print(f'Cellpose version: {cellpose.__version__}')" 2>&1 | grep -q "numpy.*compatibility"; then
+# Check Cellpose - it doesn't have __version__ attribute, so we just verify it imports
+if python -c "import cellpose; print('Cellpose imported successfully')" 2>&1 | grep -q "numpy.*compatibility"; then
     echo -e "${YELLOW}[WARNING]${NC} NumPy compatibility warning detected - this is normal and Cellpose should work correctly"
-    python -c "import cellpose; print(f'Cellpose version: {cellpose.__version__}')" 2>/dev/null || echo "Cellpose verification completed"
+    python -c "import cellpose; print('Cellpose verification completed')" 2>/dev/null || echo "Cellpose verification completed"
 else
-    python -c "import cellpose; print(f'Cellpose version: {cellpose.__version__}')"
+    python -c "import cellpose; print('Cellpose imported successfully')"
 fi
 python -c "import torch; print(f'PyTorch version: {torch.__version__}')"
 
@@ -75,7 +75,7 @@ print_status "To use the main workflow, activate the environment with: source ve
 print_status "To use Cellpose, activate its environment with: source cellpose_venv/bin/activate"
 
 # Create a README with installation instructions
-cat > INSTALL.md << EOL
+cat > docs/INSTALL.md << EOL
 # Installation Instructions
 
 ## Prerequisites

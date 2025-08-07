@@ -37,6 +37,9 @@ build/
 logs/
 log/
 
+# Temp files created by the workflow
+docs/INSTALL.md
+
 # Data files (if they're large or confidential)
 # Uncomment if needed
 # data/

@@ -36,7 +36,7 @@ We've introduced a new modular command-line interface that provides a more user-
 
 1. **Activate the environment** (if not already activated):
    ```bash
-   cd ~/microscopy-analysis-single-cell
+   cd ~/Single-Cell-Analyzer
    source venv/bin/activate
    ```
 
@@ -221,7 +221,7 @@ In the same Terminal window:
 1. Copy and paste the following commands:
 
 ```bash
-cd ~/microscopy-analysis-single-cell
+cd ~/Single-Cell-Analyzer
 venvact
 ```
 
@@ -231,7 +231,7 @@ venvact
 
 Example of how your prompt should look:
 ```bash
-(venv) (base) ➜  microscopy-analysis-single-cell git:(main) ✗
+(venv) (base) ➜  Single-Cell-Analyzer git:(main) ✗
 ```
 
 ## Step 3: Run the Analysis Workflow
