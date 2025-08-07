@@ -1,0 +1,52 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+.env/
+.venv/
+virtualenv/
+cellpose_venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+.jupyter/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Log files
+*.log
+logs/
+log/
+
+# Data files (if they're large or confidential)
+# Uncomment if needed
+# data/
+# *.tif
+# *.csv
+
+# Output files
+# Uncomment if needed
+# output/
+# results/
+
+# Config files
+config/config.json

@@ -1,0 +1,26 @@
+# Core dependencies for Cellpose
+numpy>=1.20.0,<2.0.0  # Keep numpy < 2.0.0 for compatibility
+torch>=1.6.0
+torchvision>=0.7.0
+torchaudio>=0.6.0
+
+# Cellpose and its dependencies
+cellpose[gui]==4.0.4
+scipy>=1.7.0
+natsort>=8.0.0
+tifffile>=2021.0.0
+tqdm>=4.62.0
+opencv-python-headless>=4.5.0
+fastremap>=1.13.0
+imagecodecs>=2021.0.0
+roifile>=2021.0.0
+fill-voids>=2.0.0
+segment-anything>=1.0.0
+
+# GUI dependencies
+pyqtgraph>=0.12.4
+PyQt6>=6.4.0
+PyQt6-Qt6>=6.4.0
+PyQt6-sip>=13.4.0
+qtpy>=2.0.0
+superqt>=0.7.0 

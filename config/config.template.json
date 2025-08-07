@@ -1,0 +1,260 @@
+{
+  "name": "Microscopy Single-Cell Analysis Workflow",
+  "version": "2.0.0",
+  "description": "Complete workflow for analyzing microscopy data with different conditions and timepoints",
+    "imagej_path": null,
+  "steps": [
+    {
+      "name": "prepare_input_structure",
+      "type": "bash",
+      "path": "src/bash/prepare_input_structure.sh",
+      "args": [
+        "{input_dir}"
+      ],
+      "description": "Standardize input directory structure for LASX-exported data"
+    },
+    {
+      "name": "select_datatype",
+      "type": "manual",
+      "instructions": "Select the type of data: single_timepoint or multi_timepoint. You can specify the datatype when running the script with the --datatype option.",
+      "description": "Select the data type (single or multiple timepoints)"
+    },
+    {
+      "name": "select_condition",
+      "type": "manual",
+      "instructions": "Review available conditions: {conditions_list}. Select the conditions to analyze. You can specify conditions when running the script with the --conditions option.",
+      "description": "Select specific conditions for analysis"
+    },
+    {
+      "name": "select_timepoints",
+      "type": "manual",
+      "instructions": "Review available timepoints in the raw data and decide which timepoints to use for analysis. Current experiment has timepoints: {timepoints_list}. Press Enter when you have made your selection. You can specify timepoints when running the script with --timepoints option.",
+      "description": "Select specific timepoints for analysis"
+    },
+    {
+      "name": "select_regions",
+      "type": "manual",
+      "instructions": "Review available regions in the raw data and decide which regions to use for analysis. Current experiment has regions: {regions_list}. Press Enter when you have made your selection. You can specify regions when running the script with --regions option.",
+      "description": "Select specific regions for analysis"
+    },
+    {
+      "name": "select_segmentation_channel",
+      "type": "manual",
+      "instructions": "Select the channel to use for cell segmentation. This channel will be used for binning images and interactive segmentation. Available channels: {channels_list}",
+      "description": "Select the channel for cell segmentation"
+    },
+    {
+      "name": "select_analysis_channels",
+      "type": "manual",
+      "instructions": "Select the channels to analyze. These channels will be used for all downstream analysis steps. Available channels: {channels_list}",
+      "description": "Select channels for analysis"
+    },
+    {
+      "name": "bin_images_for_segmentation",
+      "type": "python",
+      "path": "src/python/modules/bin_images.py",
+      "args": [
+        "--input",
+        "{output_dir}/raw_data",
+        "--output",
+        "{output_dir}/preprocessed",
+        "--conditions",
+        "{conditions}",
+        "--regions",
+        "{regions}",
+        "--timepoints",
+        "{timepoints}",
+        "--channels",
+        "{segmentation_channel}",
+        "--verbose"
+      ],
+      "description": "Bin images 4x4 for cell segmentation using Python"
+    },
+    {
+      "name": "interactive_segmentation",
+      "type": "bash",
+      "path": "src/bash/launch_segmentation_tools.sh",
+      "args": [
+        "{output_dir}/preprocessed"
+      ],
+      "description": "Launch Cellpose and FIJI for interactive cell segmentation"
+    },
+    {
+      "name": "roi_tracking",
+      "type": "python",
+      "path": "src/python/modules/track_rois.py",
+      "args": [
+        "--input",
+        "{output_dir}/preprocessed",
+        "--timepoints",
+        "{timepoints}",
+        "--recursive"
+      ],
+      "description": "Track cells by matching ROIs between time points"
+    },
+    {
+      "name": "resize_rois",
+      "type": "python",
+      "path": "src/python/modules/resize_rois.py",
+      "args": [
+        "--input",
+        "{output_dir}/preprocessed",
+        "--output",
+        "{output_dir}/ROIs",
+        "--imagej",
+        "{imagej_path}",
+        "--channel",
+        "{segmentation_channel}",
+        "--macro",
+        "src/macros/resize_rois.ijm",
+        "--auto-close"
+      ],
+      "description": "Resize ROIs from binned images to match original image dimensions (uses segmentation channel as reference)"
+    },
+    {
+      "name": "duplicate_rois_for_analysis_channels",
+      "type": "python",
+      "path": "src/python/modules/duplicate_rois_for_channels.py",
+      "args": [
+        "--roi-dir",
+        "{output_dir}/ROIs",
+        "--channels",
+        "{analysis_channels}",
+        "--verbose"
+      ],
+      "description": "Create duplicate ROI files with naming conventions for each analysis channel"
+    },
+    {
+      "name": "extract_cells",
+      "type": "python",
+      "path": "src/python/modules/extract_cells.py",
+      "args": [
+        "--roi-dir",
+        "{output_dir}/ROIs",
+        "--raw-data-dir",
+        "{output_dir}/raw_data",
+        "--output-dir",
+        "{output_dir}/cells",
+        "--imagej",
+        "{imagej_path}",
+        "--macro",
+        "src/macros/extract_cells.ijm",
+        "--auto-close"
+      ],
+      "description": "Extract individual cells using ROIs and save as separate files for each analysis channel"
+    },
+    {
+      "name": "group_cells",
+      "type": "python",
+      "path": "src/python/modules/group_cells.py",
+      "args": [
+        "--cells-dir",
+        "{output_dir}/cells",
+        "--output-dir",
+        "{output_dir}/grouped_cells",
+        "--bins",
+        "{bins}",
+        "--force-clusters",
+        "--channels",
+        "{analysis_channels}"
+      ],
+      "description": "Group cells by expression level and create summed images for each analysis channel",
+      "notes": "Optional parameters available: '--clustering-method gmm' to use GMM instead of K-means (which is now the default), '--force-clusters' to ensure all bin groups are created even with similar data"
+    },
+    {
+      "name": "threshold_grouped_cells",
+      "type": "python",
+      "path": "src/python/modules/otsu_threshold_grouped_cells.py",
+      "args": [
+        "--input-dir",
+        "{output_dir}/grouped_cells",
+        "--output-dir",
+        "{output_dir}/grouped_masks",
+        "--imagej",
+        "{imagej_path}",
+        "--macro",
+        "src/macros/threshold_grouped_cells.ijm",
+        "--channels",
+        "{analysis_channels}"
+      ],
+      "description": "Threshold grouped cell images to create masks for each analysis channel"
+    },
+    {
+      "name": "combine_masks",
+      "type": "python",
+      "path": "src/python/modules/combine_masks.py",
+      "args": [
+        "--input-dir",
+        "{output_dir}/grouped_masks",
+        "--output-dir",
+        "{output_dir}/combined_masks",
+        "--channels",
+        "{analysis_channels}"
+      ],
+      "description": "Combine mask images from different bin groups into single masks for each analysis channel"
+    },
+    {
+      "name": "create_cell_masks",
+      "type": "python",
+      "path": "src/python/modules/create_cell_masks.py",
+      "args": [
+        "--roi-dir",
+        "{output_dir}/ROIs",
+        "--mask-dir",
+        "{output_dir}/combined_masks",
+        "--output-dir",
+        "{output_dir}/masks",
+        "--imagej",
+        "{imagej_path}",
+        "--macro",
+        "src/macros/create_cell_masks.ijm",
+        "--auto-close",
+        "--channels",
+        "{analysis_channels}"
+      ],
+      "description": "Create individual cell masks by applying ROIs to combined masks for each analysis channel"
+    },
+    {
+      "name": "analyze_cell_masks",
+      "type": "python",
+      "path": "src/python/modules/analyze_cell_masks.py",
+      "args": [
+        "--input",
+        "{output_dir}/masks",
+        "--output",
+        "{output_dir}/analysis",
+        "--regions",
+        "{regions}",
+        "--timepoints",
+        "{timepoints}",
+        "--imagej",
+        "{imagej_path}",
+        "--macro",
+        "src/macros/analyze_cell_masks.ijm",
+        "--channels",
+        "{analysis_channels}"
+      ],
+      "description": "Analyze cell masks using ImageJ and extract measurements for each analysis channel"
+    },
+    {
+      "name": "include_group_metadata",
+      "type": "python",
+      "path": "src/python/modules/include_group_metadata.py",
+      "args": [
+        "--grouped-cells-dir",
+        "{output_dir}/grouped_cells",
+        "--analysis-dir",
+        "{output_dir}/analysis",
+        "--output-dir",
+        "{output_dir}",
+        "--overwrite",
+        "--replace",
+        "--verbose",
+        "--channels",
+        "{analysis_channels}"
+      ],
+      "description": "Include cell group metadata in analysis results to correlate expression levels with phenotypes for each analysis channel"
+    }
+  ],
+  "cellpose_env": null
+} 

@@ -1,0 +1,23 @@
+# Core dependencies
+numpy>=1.20.0  # No version restriction needed as Cellpose runs in its own venv
+pandas>=1.3.0
+scipy>=1.7.0
+scikit-learn>=1.0.0
+matplotlib>=3.4.0
+opencv-python>=4.5.0
+
+# Image processing and analysis
+tqdm>=4.62.0
+tifffile>=2021.0.0
+natsort>=8.0.0
+read-roi>=1.6.0  # For reading ImageJ ROIs
+pillow>=9.0.0    # For image processing
+scikit-image>=0.19.0  # For image analysis
+
+# Logging and utilities
+python-json-logger>=2.0.0
+colorama>=0.4.4  # For colored terminal output
+
+# Optional: GUI dependencies
+PyQt6>=6.4.0  # For any GUI components
+pyqtgraph>=0.12.4  # For plotting 
