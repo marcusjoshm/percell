@@ -31,6 +31,9 @@ class Colors:
     BLUE = '\033[0;34m'
     NC = '\033[0m'  # No Color
 
+# Global variable for Python command
+python_cmd = 'python3.11'
+
 def print_status(message: str, color: str = Colors.GREEN):
     """Print a status message with color."""
     print(f"{color}[INFO]{Colors.NC} {message}")
@@ -45,21 +48,30 @@ def print_warning(message: str):
 
 def check_python_version():
     """Check if Python 3.11 is available."""
-    try:
-        result = subprocess.run([sys.executable, "--version"], 
-                              capture_output=True, text=True, check=True)
-        version = result.stdout.strip()
-        print_status(f"Python version: {version}")
-        
-        # Check if it's Python 3.11 or higher
-        if "3.11" in version or "3.12" in version or "3.13" in version:
-            return True
-        else:
-            print_warning(f"Python {version} detected. Python 3.11+ is recommended.")
-            return True  # Allow other versions but warn
-    except subprocess.CalledProcessError:
-        print_error("Could not determine Python version")
-        return False
+    # Try to find Python 3.11 specifically
+    python_commands = ['python3.11', 'python3.11', 'python']
+    
+    for cmd in python_commands:
+        try:
+            result = subprocess.run([cmd, "--version"], 
+                                  capture_output=True, text=True, check=True)
+            version = result.stdout.strip()
+            
+            if "3.11" in version:
+                print_status(f"Found Python 3.11: {version}")
+                # Update sys.executable to use Python 3.11
+                global python_cmd
+                python_cmd = cmd
+                return True
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            continue
+    
+    print_error("Python 3.11 is not found. Please install Python 3.11 first.")
+    print_warning("You can install it using:")
+    print_warning("  macOS: brew install python@3.11")
+    print_warning("  Ubuntu: sudo apt install python3.11")
+    print_warning("  Or download from: https://www.python.org/downloads/")
+    return False
 
 def create_virtual_environment(venv_name: str = "venv") -> bool:
     """Create a virtual environment."""
@@ -70,11 +82,11 @@ def create_virtual_environment(venv_name: str = "venv") -> bool:
         return True
     
     try:
-        print_status(f"Creating virtual environment '{venv_name}'...")
-        venv.create(venv_path, with_pip=True)
+        print_status(f"Creating virtual environment '{venv_name}' using {python_cmd}...")
+        subprocess.run([python_cmd, "-m", "venv", venv_name], check=True)
         print_status(f"Virtual environment '{venv_name}' created successfully")
         return True
-    except Exception as e:
+    except subprocess.CalledProcessError as e:
         print_error(f"Failed to create virtual environment: {e}")
         return False
 
@@ -168,7 +180,7 @@ def check_cellpose_availability() -> bool:
 def print_cellpose_guidance():
     """Print guidance about Cellpose installation."""
     print("\n" + "="*60)
-    print_warning("Cellpose Installation Guidance", Colors.YELLOW)
+    print_warning("Cellpose Installation Guidance")
     print("="*60)
     print("\nCellpose is used for interactive cell segmentation.")
     print("If you need to perform cell segmentation, you can:")
