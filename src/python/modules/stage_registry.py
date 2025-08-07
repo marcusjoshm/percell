@@ -17,8 +17,12 @@ def register_all_stages():
         ProcessSingleCellDataStage,
         ThresholdGroupedCellsStage,
         MeasureROIAreaStage,
-        AnalysisStage
+        AnalysisStage,
+        CompleteWorkflowStage
     )
+    
+    # Complete workflow stage (executes all stages in sequence)
+    register_stage('complete_workflow', order=0)(CompleteWorkflowStage)
     
     # Core processing stages (in execution order)
     register_stage('data_selection', order=1)(DataSelectionStage)

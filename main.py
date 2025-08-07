@@ -20,87 +20,13 @@ from src.python.core.pipeline import Pipeline
 from src.python.core.config import create_default_config
 
 
-def run_complete_workflow(config: Config, logger: PipelineLogger, args: argparse.Namespace) -> bool:
-    """
-    Run the complete workflow sequentially.
-    
-    Args:
-        config: Pipeline configuration
-        logger: Pipeline logger
-        args: Command line arguments
-        
-    Returns:
-        True if all stages completed successfully, False otherwise
-    """
-    stages = [
-        ('data_selection', 'Data Selection'),
-        ('segmentation', 'Single-cell Segmentation'),
-        ('process_single_cell', 'Process Single-cell Data'),
-        ('threshold_grouped_cells', 'Threshold Grouped Cells'),
-        ('measure_roi_area', 'Measure ROI Areas'),
-        ('analysis', 'Analysis')
-    ]
-    
-    for stage_name, stage_display_name in stages:
-        print(f"\n" + "="*60)
-        print(f"Starting {stage_display_name}...")
-        print("="*60)
-        
-        # Create temporary args for this stage
-        stage_args = argparse.Namespace()
-        stage_args.__dict__.update(args.__dict__)
-        
-        # Clear all stage flags and set only the current one
-        stage_args.data_selection = False
-        stage_args.segmentation = False
-        stage_args.process_single_cell = False
-        stage_args.threshold_grouped_cells = False
-        stage_args.measure_roi_area = False
-        stage_args.analysis = False
-        stage_args.complete_workflow = False
-        
-        # Set the current stage
-        setattr(stage_args, stage_name, True)
-        
-        # Create and run pipeline for this stage
-        try:
-            pipeline = Pipeline(config, logger, stage_args)
-            success = pipeline.run()
-            
-            if not success:
-                print(f"\n❌ {stage_display_name} failed!")
-                print("Workflow stopped due to stage failure.")
-                return False
-            
-            print(f"\n✅ {stage_display_name} completed successfully!")
-            
-            # Add a small delay between stages
-            import time
-            time.sleep(1)
-            
-        except Exception as e:
-            print(f"\n❌ Error in {stage_display_name}: {e}")
-            return False
-    
-    print(f"\n" + "="*60)
-    print("🎉 Complete Workflow finished successfully!")
-    print("="*60)
-    
-    # Automatically save the most recently used directories as defaults
-    try:
-        from src.python.modules.directory_setup import save_recent_directories_automatically, load_config
-        config_path = "config/config.json"
-        config = load_config(config_path)
-        save_recent_directories_automatically(config, args.input, args.output, config_path)
-    except Exception as e:
-        print(f"Note: Could not save directory defaults: {e}")
-    
-    return True
-
-
 def main():
     """Main entry point for the microscopy single-cell analysis pipeline."""
     try:
+        # Register all available stages
+        from src.python.modules.stage_registry import register_all_stages
+        register_all_stages()
+        
         # Load configuration
         config_path = "config/config.json"
         if not Path(config_path).exists():
@@ -158,13 +84,9 @@ def main():
                 log_level = "DEBUG" if args.verbose else "INFO"
                 logger = PipelineLogger(args.output, log_level=log_level)
                 
-                # Handle complete workflow differently
-                if args.complete_workflow:
-                    success = run_complete_workflow(config, logger, args)
-                else:
-                    # Create and run pipeline for single stage
-                    pipeline = Pipeline(config, logger, args)
-                    success = pipeline.run()
+                # Create and run pipeline
+                pipeline = Pipeline(config, logger, args)
+                success = pipeline.run()
                 
                 if success:
                     print("\n" + "="*60)

@@ -13,7 +13,6 @@ import argparse
 from .config import Config
 from .logger import PipelineLogger
 from .stages import get_stage_registry, StageExecutor
-from ..modules.stage_registry import register_all_stages
 
 
 class Pipeline:
@@ -40,7 +39,7 @@ class Pipeline:
         self.setup_directories()
         
         # Register all available stages
-        register_all_stages()
+        # register_all_stages() # This line is removed as per the edit hint
         
         # Create stage executor
         self.registry = get_stage_registry()
@@ -79,23 +78,28 @@ class Pipeline:
         """
         stages = []
         
-        # Add stages based on flags
-        if self.args.data_selection or self.args.complete_workflow:
+        # Handle complete workflow - if selected, run only the complete workflow stage
+        if self.args.complete_workflow:
+            stages.append('complete_workflow')
+            return stages
+        
+        # Add individual stages based on flags
+        if self.args.data_selection:
             stages.append('data_selection')
             
-        if self.args.segmentation or self.args.complete_workflow:
+        if self.args.segmentation:
             stages.append('segmentation')
             
-        if self.args.process_single_cell or self.args.complete_workflow:
+        if self.args.process_single_cell:
             stages.append('process_single_cell')
             
-        if self.args.threshold_grouped_cells or self.args.complete_workflow:
+        if self.args.threshold_grouped_cells:
             stages.append('threshold_grouped_cells')
             
-        if self.args.measure_roi_area or self.args.complete_workflow:
+        if self.args.measure_roi_area:
             stages.append('measure_roi_area')
             
-        if self.args.analysis or self.args.complete_workflow:
+        if self.args.analysis:
             stages.append('analysis')
         
         # Filter out skipped stages
