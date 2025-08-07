@@ -103,14 +103,21 @@ def install_requirements(venv_name: str, requirements_file: str) -> bool:
         subprocess.run([str(python_path), "-m", "pip", "install", "--upgrade", "pip"], 
                       check=True, capture_output=True)
         
-        # Install requirements
-        subprocess.run([str(python_path), "-m", "pip", "install", "-r", requirements_file], 
-                      check=True, capture_output=True)
+        # Install requirements with verbose output for debugging
+        result = subprocess.run([str(python_path), "-m", "pip", "install", "-r", requirements_file], 
+                              capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print_error(f"Failed to install requirements from {requirements_file}")
+            print_error(f"Error output: {result.stderr}")
+            return False
         
         print_status(f"Requirements installed successfully in '{venv_name}'")
         return True
     except subprocess.CalledProcessError as e:
         print_error(f"Failed to install requirements: {e}")
+        if hasattr(e, 'stderr') and e.stderr:
+            print_error(f"Error details: {e.stderr}")
         return False
 
 def install_package_development_mode(venv_name: str = "venv") -> bool:
@@ -136,13 +143,44 @@ def create_cellpose_venv() -> bool:
         
         # Install Cellpose requirements
         if not install_requirements("cellpose_venv", "requirements_cellpose.txt"):
+            print_warning("Cellpose installation failed. This is optional and the main workflow will still work.")
+            print_warning("You can install Cellpose manually later if needed for segmentation.")
             return False
         
         print_status("Cellpose virtual environment setup complete")
         return True
     except Exception as e:
         print_error(f"Failed to setup Cellpose environment: {e}")
+        print_warning("Cellpose installation failed. This is optional and the main workflow will still work.")
         return False
+
+def check_cellpose_availability() -> bool:
+    """Check if Cellpose is available in the cellpose_venv."""
+    cellpose_python = get_venv_python("cellpose_venv")
+    
+    try:
+        result = subprocess.run([str(cellpose_python), "-c", "import cellpose; print('Cellpose available')"], 
+                              capture_output=True, text=True)
+        return result.returncode == 0
+    except Exception:
+        return False
+
+def print_cellpose_guidance():
+    """Print guidance about Cellpose installation."""
+    print("\n" + "="*60)
+    print_warning("Cellpose Installation Guidance", Colors.YELLOW)
+    print("="*60)
+    print("\nCellpose is used for interactive cell segmentation.")
+    print("If you need to perform cell segmentation, you can:")
+    print("\n1. Try installing Cellpose manually:")
+    print("   source cellpose_venv/bin/activate")
+    print("   pip install cellpose[gui]==4.0.4")
+    print("\n2. Or use the --skip-cellpose flag to skip this step:")
+    print("   python install.py --skip-cellpose")
+    print("\n3. Or install Cellpose later when needed:")
+    print("   source cellpose_venv/bin/activate")
+    print("   pip install -r requirements_cellpose.txt")
+    print("="*60)
 
 def detect_software_paths() -> Dict[str, str]:
     """Detect software paths for configuration."""
@@ -318,7 +356,9 @@ def main():
             shutil.rmtree("cellpose_venv")
         
         if not create_cellpose_venv():
-            print_warning("Cellpose environment setup failed, but main installation continues")
+            print_cellpose_guidance()
+    else:
+        print_status("Skipping Cellpose installation as requested")
     
     # Create configuration file
     if not args.skip_config:
@@ -328,6 +368,11 @@ def main():
     # Verify installation
     if not verify_installation("venv"):
         print_warning("Installation verification failed, but installation may still work")
+    
+    # Check Cellpose availability and provide guidance
+    if not args.skip_cellpose and Path("cellpose_venv").exists():
+        if not check_cellpose_availability():
+            print_cellpose_guidance()
     
     # Print usage instructions
     print_usage_instructions()
