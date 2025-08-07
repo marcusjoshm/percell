@@ -101,7 +101,7 @@ class DataSelectionStage(StageBase):
             self.logger.info("Starting output directory structure setup...")
             
             # Use the setup_output_structure.sh script
-            script_path = Path("src/bash/setup_output_structure.sh")
+            script_path = Path("single_cell_analyzer/bash/setup_output_structure.sh")
             if not script_path.exists():
                 self.logger.error(f"setup_output_structure.sh script not found: {script_path}")
                 return False
@@ -1367,7 +1367,7 @@ class CompleteWorkflowStage(StageBase):
                     self.logger.error(f"Stage not found: {stage_name}")
                     return False
                 
-                stage = stage_class(self.config, self.logger, stage_name)
+                stage = stage_class(self.config, self.pipeline_logger, stage_name)
                 success = stage.execute(**stage_args)
                 
                 if not success:

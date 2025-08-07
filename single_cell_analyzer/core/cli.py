@@ -431,7 +431,7 @@ Examples:
             from pathlib import Path
             
             # Use the setup_output_structure.sh script
-            script_path = Path("src/bash/setup_output_structure.sh")
+            script_path = Path("single_cell_analyzer/bash/setup_output_structure.sh")
             if not script_path.exists():
                 print(f"Error: setup_output_structure.sh script not found: {script_path}")
                 return False
