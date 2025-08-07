@@ -239,6 +239,16 @@ class DataSelectionStage(StageBase):
                     self.logger.info(f"Copied {copied_in_condition} files from {condition}")
             
             self.logger.info(f"File copy completed. Total files copied: {total_copied}")
+            
+            # Check if any files were actually copied
+            if total_copied == 0:
+                self.logger.error("No files were copied. This indicates a problem with file selection or copying.")
+                self.logger.error("Please check that:")
+                self.logger.error("1. The selected conditions, timepoints, and regions exist in the input directory")
+                self.logger.error("2. The files match the expected naming patterns")
+                self.logger.error("3. The file extensions are correct (.tif)")
+                return False
+            
             return True
             
         except Exception as e:
