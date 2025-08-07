@@ -235,17 +235,14 @@ def detect_software_paths() -> Dict[str, str]:
 
 def create_config_file() -> bool:
     """Create or update the configuration file with detected paths.
-    Writes to package config and mirrors to legacy config/ if present.
+    Writes to package config at single_cell_analyzer/config/config.json only.
     """
     pkg_config_path = Path("single_cell_analyzer/config/config.json")
     pkg_template_path = Path("single_cell_analyzer/config/config.template.json")
-    legacy_dir = Path("config")
-    legacy_config_path = legacy_dir / "config.json"
-    legacy_template_path = legacy_dir / "config.template.json"
+    legacy_template_path = Path("config/config.template.json")
 
     try:
         # Load base config from existing file or template (prefer package template)
-        base_config = None
         if pkg_config_path.exists():
             with open(pkg_config_path, 'r') as f:
                 base_config = json.load(f)
@@ -265,18 +262,11 @@ def create_config_file() -> bool:
             base_config["directories"] = {}
         base_config["directories"].update(detected_paths)
 
-        # Write package config
+        # Write package config only
         pkg_config_path.parent.mkdir(parents=True, exist_ok=True)
         with open(pkg_config_path, 'w') as f:
             json.dump(base_config, f, indent=2)
         print_status(f"Configuration file written to: {pkg_config_path}")
-
-        # Mirror to legacy path if legacy config directory exists
-        if legacy_dir.exists():
-            legacy_config_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(legacy_config_path, 'w') as f:
-                json.dump(base_config, f, indent=2)
-            print_status(f"Configuration file mirrored to: {legacy_config_path}")
 
         return True
     except Exception as e:
