@@ -122,8 +122,8 @@ Examples:
         parser.add_argument(
             '--config',
             type=str,
-            default='config/config.json',
-            help='Path to configuration file (default: config/config.json)'
+            default='single_cell_analyzer/config/config.json',
+            help='Path to configuration file (default: single_cell_analyzer/config/config.json)'
         )
         
         # Processing options
@@ -260,7 +260,7 @@ Examples:
         # Load config to get default directories
         try:
             from ..modules.directory_setup import load_config
-            config_path = getattr(args, 'config', 'config/config.json')
+            config_path = getattr(args, 'config', 'single_cell_analyzer/config/config.json')
             config = load_config(config_path)
             default_input = config.get('directories', {}).get('input', '')
             default_output = config.get('directories', {}).get('output', '')
@@ -331,7 +331,7 @@ Examples:
                 from ..modules.directory_setup import load_config, save_config
                 
                 # Load current config
-                config_path = args.config if hasattr(args, 'config') else 'config/config.json'
+                config_path = args.config if hasattr(args, 'config') else 'single_cell_analyzer/config/config.json'
                 config = load_config(config_path)
                 
                 # Set default directories
