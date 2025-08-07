@@ -231,8 +231,8 @@ def main():
                         help='Directory to save thresholded mask images')
     parser.add_argument('--imagej', required=True,
                         help='Path to ImageJ executable')
-    parser.add_argument('--macro', default='src/macros/threshold_grouped_cells.ijm',
-                       help='Path to the dedicated ImageJ macro file (default: src/macros/threshold_grouped_cells.ijm)')
+    parser.add_argument('--macro', default='single_cell_analyzer/macros/threshold_grouped_cells.ijm',
+                       help='Path to the dedicated ImageJ macro file (default: single_cell_analyzer/macros/threshold_grouped_cells.ijm)')
     parser.add_argument('--auto-close', action='store_true',
                         help='Close ImageJ when the macro completes')
     parser.add_argument('--channels', nargs='+', help='Channels to process (e.g., ch00 ch02)')

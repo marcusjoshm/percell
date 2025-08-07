@@ -262,7 +262,7 @@ class DataSelectionStage(StageBase):
             self.logger.info(f"Starting input directory structure preparation: {input_path}")
             
             # Use the prepare_input_structure.sh script
-            script_path = Path("src/bash/prepare_input_structure.sh")
+            script_path = Path("single_cell_analyzer/bash/prepare_input_structure.sh")
             if not script_path.exists():
                 self.logger.error(f"prepare_input_structure.sh script not found: {script_path}")
                 return False
@@ -734,7 +734,7 @@ class SegmentationStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for segmentation stage."""
         # Check if required scripts exist
-        required_scripts = ["src/python/modules/bin_images.py", "src/bash/launch_segmentation_tools.sh"]
+        required_scripts = ["single_cell_analyzer/modules/bin_images.py", "single_cell_analyzer/bash/launch_segmentation_tools.sh"]
         for script in required_scripts:
             if not Path(script).exists():
                 self.logger.error(f"Required script not found: {script}")
@@ -776,7 +776,7 @@ class SegmentationStage(StageBase):
             
             # Step 1: Bin images for segmentation
             self.logger.info("Binning images for segmentation...")
-            bin_script = "src/python/modules/bin_images.py"
+            bin_script = "single_cell_analyzer/modules/bin_images.py"
             bin_args = [
                 "--input", f"{output_dir}/raw_data",
                 "--output", f"{output_dir}/preprocessed",
@@ -794,7 +794,7 @@ class SegmentationStage(StageBase):
                 bin_args.extend(["--channels", data_selection['segmentation_channel']])
             
             self.logger.info(f"Running bin_images.py with args: {bin_args}")
-            result = subprocess.run([bin_script] + bin_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, bin_script] + bin_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to bin images: {result.stderr}")
                 return False
@@ -803,7 +803,7 @@ class SegmentationStage(StageBase):
             
             # Step 2: Launch interactive segmentation
             self.logger.info("Launching interactive segmentation tools...")
-            seg_script = "src/bash/launch_segmentation_tools.sh"
+            seg_script = "single_cell_analyzer/bash/launch_segmentation_tools.sh"
             preprocessed_dir = f"{output_dir}/preprocessed"
             
             # Make sure the script is executable
@@ -845,9 +845,9 @@ class ProcessSingleCellDataStage(StageBase):
         """Validate inputs for process single-cell data stage."""
         # Check if required scripts exist
         required_scripts = [
-            "src/python/modules/track_rois.py", "src/python/modules/resize_rois.py", 
-            "src/python/modules/duplicate_rois_for_channels.py", "src/python/modules/extract_cells.py",
-            "src/python/modules/group_cells.py"
+            "single_cell_analyzer/modules/track_rois.py", "single_cell_analyzer/modules/resize_rois.py", 
+            "single_cell_analyzer/modules/duplicate_rois_for_channels.py", "single_cell_analyzer/modules/extract_cells.py",
+            "single_cell_analyzer/modules/group_cells.py"
         ]
         for script in required_scripts:
             if not Path(script).exists():
@@ -892,13 +892,13 @@ class ProcessSingleCellDataStage(StageBase):
             timepoints = data_selection.get('selected_timepoints', [])
             if timepoints and len(timepoints) > 1:
                 self.logger.info("Tracking ROIs across timepoints...")
-                track_script = "src/python/modules/track_rois.py"
+                track_script = "single_cell_analyzer/modules/track_rois.py"
                 track_args = [
                     "--input", f"{output_dir}/preprocessed",
                     "--timepoints"
                 ] + timepoints + ["--recursive"]
                 
-                result = subprocess.run([track_script] + track_args, capture_output=True, text=True)
+                result = subprocess.run([sys.executable, track_script] + track_args, capture_output=True, text=True)
                 if result.returncode != 0:
                     self.logger.error(f"Failed to track ROIs: {result.stderr}")
                     return False
@@ -908,17 +908,17 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 2: Resize ROIs
             self.logger.info("Resizing ROIs...")
-            resize_script = "src/python/modules/resize_rois.py"
+            resize_script = "single_cell_analyzer/modules/resize_rois.py"
             resize_args = [
                 "--input", f"{output_dir}/preprocessed",
                 "--output", f"{output_dir}/ROIs",
                 "--imagej", self.config.get('imagej_path'),
                 "--channel", data_selection.get('segmentation_channel', ''),
-                "--macro", "src/macros/resize_rois.ijm",
+                "--macro", "single_cell_analyzer/macros/resize_rois.ijm",
                 "--auto-close"
             ]
             
-            result = subprocess.run([resize_script] + resize_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, resize_script] + resize_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to resize ROIs: {result.stderr}")
                 return False
@@ -926,13 +926,13 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 3: Duplicate ROIs for analysis channels
             self.logger.info("Duplicating ROIs for analysis channels...")
-            duplicate_script = "src/python/modules/duplicate_rois_for_channels.py"
+            duplicate_script = "single_cell_analyzer/modules/duplicate_rois_for_channels.py"
             duplicate_args = [
                 "--roi-dir", f"{output_dir}/ROIs",
                 "--channels"
             ] + data_selection.get('analysis_channels', []) + ["--verbose"]
             
-            result = subprocess.run([duplicate_script] + duplicate_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, duplicate_script] + duplicate_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to duplicate ROIs: {result.stderr}")
                 return False
@@ -940,18 +940,18 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 4: Extract cells
             self.logger.info("Extracting cells...")
-            extract_script = "src/python/modules/extract_cells.py"
+            extract_script = "single_cell_analyzer/modules/extract_cells.py"
             extract_args = [
                 "--roi-dir", f"{output_dir}/ROIs",
                 "--raw-data-dir", f"{output_dir}/raw_data",
                 "--output-dir", f"{output_dir}/cells",
                 "--imagej", self.config.get('imagej_path'),
-                "--macro", "src/macros/extract_cells.ijm",
+                "--macro", "single_cell_analyzer/macros/extract_cells.ijm",
                 "--auto-close",
                 "--channels"
             ] + data_selection.get('analysis_channels', [])
             
-            result = subprocess.run([extract_script] + extract_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, extract_script] + extract_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to extract cells: {result.stderr}")
                 return False
@@ -959,7 +959,7 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 5: Group cells
             self.logger.info("Grouping cells...")
-            group_script = "src/python/modules/group_cells.py"
+            group_script = "single_cell_analyzer/modules/group_cells.py"
             group_args = [
                 "--cells-dir", f"{output_dir}/cells",
                 "--output-dir", f"{output_dir}/grouped_cells",
@@ -968,7 +968,7 @@ class ProcessSingleCellDataStage(StageBase):
                 "--channels"
             ] + data_selection.get('analysis_channels', [])
             
-            result = subprocess.run([group_script] + group_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, group_script] + group_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to group cells: {result.stderr}")
                 return False
@@ -995,7 +995,7 @@ class ThresholdGroupedCellsStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for threshold grouped cells stage."""
         # Check if required scripts exist
-        required_scripts = ["src/python/modules/otsu_threshold_grouped_cells.py"]
+        required_scripts = ["single_cell_analyzer/modules/otsu_threshold_grouped_cells.py"]
         for script in required_scripts:
             if not Path(script).exists():
                 self.logger.error(f"Required script not found: {script}")
@@ -1035,19 +1035,19 @@ class ThresholdGroupedCellsStage(StageBase):
             
             # Threshold grouped cells
             self.logger.info("Thresholding grouped cells...")
-            threshold_script = "src/python/modules/otsu_threshold_grouped_cells.py"
+            threshold_script = "single_cell_analyzer/modules/otsu_threshold_grouped_cells.py"
             threshold_args = [
                 "--input-dir", f"{output_dir}/grouped_cells",
                 "--output-dir", f"{output_dir}/grouped_masks",
                 "--imagej", self.config.get('imagej_path'),
-                "--macro", "src/macros/threshold_grouped_cells.ijm",
+                "--macro", "single_cell_analyzer/macros/threshold_grouped_cells.ijm",
                 "--channels"
             ]
             # Add analysis channels as separate arguments (matching original workflow)
             for channel in data_selection.get('analysis_channels', []):
                 threshold_args.append(channel)
             
-            result = subprocess.run([threshold_script] + threshold_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, threshold_script] + threshold_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to threshold grouped cells: {result.stderr}")
                 return False
@@ -1074,13 +1074,13 @@ class MeasureROIAreaStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for measure ROI area stage."""
         # Check if required module exists
-        module_path = Path("src/python/modules/measure_roi_area.py")
+        module_path = Path("single_cell_analyzer/modules/measure_roi_area.py")
         if not module_path.exists():
             self.logger.error(f"Required module not found: {module_path}")
             return False
             
         # Check if required macro exists
-        macro_path = Path("src/macros/measure_roi_area.ijm")
+        macro_path = Path("single_cell_analyzer/macros/measure_roi_area.ijm")
         if not macro_path.exists():
             self.logger.error(f"Required macro not found: {macro_path}")
             return False
@@ -1177,8 +1177,8 @@ class AnalysisStage(StageBase):
         """Validate inputs for analysis stage."""
         # Check if required scripts exist
         required_scripts = [
-            "src/python/modules/combine_masks.py", "src/python/modules/create_cell_masks.py",
-            "src/python/modules/analyze_cell_masks.py", "src/python/modules/include_group_metadata.py"
+            "single_cell_analyzer/modules/combine_masks.py", "single_cell_analyzer/modules/create_cell_masks.py",
+            "single_cell_analyzer/modules/analyze_cell_masks.py", "single_cell_analyzer/modules/include_group_metadata.py"
         ]
         for script in required_scripts:
             if not Path(script).exists():
@@ -1220,7 +1220,7 @@ class AnalysisStage(StageBase):
             
             # Step 1: Combine masks
             self.logger.info("Combining masks...")
-            combine_script = "src/python/modules/combine_masks.py"
+            combine_script = "single_cell_analyzer/modules/combine_masks.py"
             combine_args = [
                 "--input-dir", f"{output_dir}/grouped_masks",
                 "--output-dir", f"{output_dir}/combined_masks",
@@ -1230,7 +1230,7 @@ class AnalysisStage(StageBase):
             for channel in data_selection.get('analysis_channels', []):
                 combine_args.append(channel)
             
-            result = subprocess.run([combine_script] + combine_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, combine_script] + combine_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to combine masks: {result.stderr}")
                 return False
@@ -1238,13 +1238,13 @@ class AnalysisStage(StageBase):
             
             # Step 2: Create cell masks
             self.logger.info("Creating cell masks...")
-            create_masks_script = "src/python/modules/create_cell_masks.py"
+            create_masks_script = "single_cell_analyzer/modules/create_cell_masks.py"
             create_masks_args = [
                 "--roi-dir", f"{output_dir}/ROIs",
                 "--mask-dir", f"{output_dir}/combined_masks",
                 "--output-dir", f"{output_dir}/masks",
                 "--imagej", self.config.get('imagej_path'),
-                "--macro", "src/macros/create_cell_masks.ijm",
+                "--macro", "single_cell_analyzer/macros/create_cell_masks.ijm",
                 "--auto-close",
                 "--channels"
             ]
@@ -1252,7 +1252,7 @@ class AnalysisStage(StageBase):
             for channel in data_selection.get('analysis_channels', []):
                 create_masks_args.append(channel)
             
-            result = subprocess.run([create_masks_script] + create_masks_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, create_masks_script] + create_masks_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to create cell masks: {result.stderr}")
                 return False
@@ -1260,12 +1260,12 @@ class AnalysisStage(StageBase):
             
             # Step 3: Analyze cell masks
             self.logger.info("Analyzing cell masks...")
-            analyze_script = "src/python/modules/analyze_cell_masks.py"
+            analyze_script = "single_cell_analyzer/modules/analyze_cell_masks.py"
             analyze_args = [
                 "--input", f"{output_dir}/masks",
                 "--output", f"{output_dir}/analysis",
                 "--imagej", self.config.get('imagej_path'),
-                "--macro", "src/macros/analyze_cell_masks.ijm",
+                "--macro", "single_cell_analyzer/macros/analyze_cell_masks.ijm",
                 "--channels"
             ]
             # Add analysis channels as separate arguments (matching original workflow)
@@ -1278,7 +1278,7 @@ class AnalysisStage(StageBase):
             if data_selection.get('selected_timepoints'):
                 analyze_args.extend(["--timepoints"] + data_selection['selected_timepoints'])
             
-            result = subprocess.run([analyze_script] + analyze_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, analyze_script] + analyze_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to analyze cell masks: {result.stderr}")
                 return False
@@ -1286,7 +1286,7 @@ class AnalysisStage(StageBase):
             
             # Step 4: Include group metadata
             self.logger.info("Including group metadata...")
-            metadata_script = "src/python/modules/include_group_metadata.py"
+            metadata_script = "single_cell_analyzer/modules/include_group_metadata.py"
             metadata_args = [
                 "--grouped-cells-dir", f"{output_dir}/grouped_cells",
                 "--analysis-dir", f"{output_dir}/analysis",
@@ -1300,7 +1300,7 @@ class AnalysisStage(StageBase):
             for channel in data_selection.get('analysis_channels', []):
                 metadata_args.append(channel)
             
-            result = subprocess.run([metadata_script] + metadata_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, metadata_script] + metadata_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to include group metadata: {result.stderr}")
                 return False

@@ -421,8 +421,8 @@ def main():
                         help='Output directory for individual cell masks')
     parser.add_argument('--imagej', required=True,
                         help='Path to ImageJ executable')
-    parser.add_argument('--macro', default='src/macros/create_cell_masks.ijm',
-                       help='Path to the dedicated ImageJ macro file (default: src/macros/create_cell_masks.ijm)')
+    parser.add_argument('--macro', default='single_cell_analyzer/macros/create_cell_masks.ijm',
+                       help='Path to the dedicated ImageJ macro file (default: single_cell_analyzer/macros/create_cell_masks.ijm)')
     parser.add_argument('--auto-close', action='store_true',
                         help='Close ImageJ when the macro completes')
     parser.add_argument('--verbose', '-v', action='store_true',

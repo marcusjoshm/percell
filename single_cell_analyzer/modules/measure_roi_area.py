@@ -253,6 +253,7 @@ def find_roi_image_pairs(input_dir, output_dir):
                 search_patterns = [
                     f"**/{base_name}{img_ext}",  # Exact match
                     f"**/*{base_name}*{img_ext}",  # Contains base name
+                    f"**/*{base_name.split('_')[0]}*{base_name.split('_')[1]}*{base_name.split('_')[2]}*{img_ext}",  # Match region, channel, timepoint
                 ]
                 
                 for pattern in search_patterns:
@@ -327,7 +328,7 @@ def measure_roi_areas(input_dir, output_dir, imagej_path, auto_close=True):
             return True  # Not an error, just nothing to do
         
         # Get macro template path
-        macro_template = Path(__file__).parent.parent.parent / "macros" / "measure_roi_area.ijm"
+        macro_template = Path(__file__).parent.parent / "macros" / "measure_roi_area.ijm"
         
         if not macro_template.exists():
             logger.error(f"Macro template not found: {macro_template}")
@@ -335,6 +336,24 @@ def measure_roi_areas(input_dir, output_dir, imagej_path, auto_close=True):
         
         success_count = 0
         total_count = len(pairs)
+        
+        # Test ImageJ availability first
+        if pairs:
+            test_macro = create_macro_with_parameters(
+                str(macro_template), pairs[0][0], pairs[0][1], pairs[0][2], auto_close
+            )
+            
+            if test_macro:
+                try:
+                    if not run_imagej_macro(imagej_path, test_macro, auto_close):
+                        logger.error("ImageJ is not working properly. Please check Java installation and ImageJ configuration.")
+                        logger.error("ROI area measurement cannot proceed without a working ImageJ installation.")
+                        return False
+                finally:
+                    try:
+                        os.remove(test_macro)
+                    except Exception as e:
+                        logger.warning(f"Could not remove test macro file: {e}")
         
         for roi_file, image_file, csv_file in pairs:
             logger.info(f"Processing pair {success_count + 1}/{total_count}")
@@ -361,6 +380,8 @@ def measure_roi_areas(input_dir, output_dir, imagej_path, auto_close=True):
                         logger.warning(f"Macro completed but CSV file not found: {csv_file}")
                 else:
                     logger.error(f"Failed to run ImageJ macro for {roi_file}")
+                    # Stop processing if ImageJ fails consistently
+                    break
                 
             finally:
                 # Clean up temporary macro file

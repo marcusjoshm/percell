@@ -1,81 +1,78 @@
 {
-    "imagej_path": "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx",
-    "cellpose_path": "/Users/joshuamarcus/Single-Cell-Analyzer/cellpose_venv/bin/python3",
-    "python_path": "/Users/joshuamarcus/Single-Cell-Analyzer/cellpose_venv/bin/python3",
-    "fiji_path": "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx",
-    "analysis": {
-        "default_bins": 5,
-        "segmentation_model": "cyto",
-        "cell_diameter": 100,
-        "niter_dynamics": 250,
-        "flow_threshold": 0.4,
-        "cellprob_threshold": 0
-    },
-    "output": {
-        "create_subdirectories": true,
-        "save_intermediate": true,
-        "compression": "lzw",
-        "overwrite": false
-    },
-    "directories": {
-        "input": "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted",
-        "output": "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted_analysis_U2OS_As_Rep_2",
-        "recent_inputs": [
-            "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted",
-            "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted/U2OS_As_Rep_1",
-            "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted/U2OS\\ As\\ Rep\\ 1"
-        ],
-        "recent_outputs": [
-            "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted_analysis_U2OS_As_Rep_2",
-            "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted_analysis_U2OS_As_Rep_1",
-            "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted_analysis_A549_As_Rep_2",
-            "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted_analysis_U2OS_As_Rep1"
-        ]
-    },
-    "data_selection": {
-        "selected_datatype": "single_timepoint",
-        "selected_conditions": [
-            "U2OS_As_Rep_2"
-        ],
-        "selected_timepoints": [
-            "t00"
-        ],
-        "selected_regions": [
-            "R1_MAX",
-            "R2_MAX",
-            "R3_MAX",
-            "R4_MAX"
-        ],
-        "segmentation_channel": "ch01",
-        "analysis_channels": [
-            "ch01"
-        ],
-        "experiment_metadata": {
-            "conditions": [
-                "U2OS_As_Rep_1",
-                "U2OS_As_Rep_2",
-                "U2OS_Washout_Rep_2",
-                "A549_As_Rep_2",
-                "U2OS_Washout_Rep_1"
-            ],
-            "regions": [
-                "R1_MAX",
-                "R2_MAX",
-                "R3_MAX",
-                "R4_MAX"
-            ],
-            "timepoints": [
-                "t00"
-            ],
-            "channels": [
-                "ch00",
-                "ch01"
-            ],
-            "region_to_channels": {},
-            "datatype_inferred": "single_timepoint",
-            "directory_timepoints": [
-                "timepoint_1"
-            ]
-        }
+  "imagej_path": "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx",
+  "cellpose_path": "/Users/joshuamarcus/Single-Cell-Analyzer/cellpose_venv/bin/python3",
+  "python_path": "/Users/joshuamarcus/Single-Cell-Analyzer/cellpose_venv/bin/python3",
+  "fiji_path": "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx",
+  "analysis": {
+    "default_bins": 5,
+    "segmentation_model": "cyto",
+    "cell_diameter": 100,
+    "niter_dynamics": 250,
+    "flow_threshold": 0.4,
+    "cellprob_threshold": 0
+  },
+  "output": {
+    "create_subdirectories": true,
+    "save_intermediate": true,
+    "compression": "lzw",
+    "overwrite": false
+  },
+  "directories": {
+    "input": "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted",
+    "output": "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted_analysis_U2OS_As_Rep_2",
+    "recent_inputs": [
+      "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted",
+      "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted/U2OS_As_Rep_1",
+      "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted/U2OS\\ As\\ Rep\\ 1"
+    ],
+    "recent_outputs": [
+      "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted_analysis_U2OS_As_Rep_2",
+      "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted_analysis_U2OS_As_Rep_1",
+      "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted_analysis_A549_As_Rep_2",
+      "/Volumes/NX-01-A/2025-07-31_export/STED_stacks_MAX_sorted_analysis_U2OS_As_Rep1"
+    ]
+  },
+  "data_selection": {
+    "selected_datatype": "single_timepoint",
+    "selected_conditions": [
+      "U2OS_As_Rep_1"
+    ],
+    "selected_timepoints": [
+      "t00"
+    ],
+    "selected_regions": [
+      "R1_MAX"
+    ],
+    "segmentation_channel": "ch00",
+    "analysis_channels": [
+      "ch00"
+    ],
+    "experiment_metadata": {
+      "conditions": [
+        "U2OS_As_Rep_1",
+        "U2OS_As_Rep_2",
+        "U2OS_Washout_Rep_2",
+        "A549_As_Rep_2",
+        "U2OS_Washout_Rep_1"
+      ],
+      "regions": [
+        "R1_MAX",
+        "R2_MAX",
+        "R3_MAX",
+        "R4_MAX"
+      ],
+      "timepoints": [
+        "t00"
+      ],
+      "channels": [
+        "ch00",
+        "ch01"
+      ],
+      "region_to_channels": {},
+      "datatype_inferred": "single_timepoint",
+      "directory_timepoints": [
+        "timepoint_1"
+      ]
     }
+  }
 }
