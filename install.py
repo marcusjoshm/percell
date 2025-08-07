@@ -234,38 +234,50 @@ def detect_software_paths() -> Dict[str, str]:
     return paths
 
 def create_config_file() -> bool:
-    """Create the configuration file with detected paths."""
-    config_path = Path("single_cell_analyzer/config/config.json")
-    template_path = Path("single_cell_analyzer/config/config.template.json")
-    
-    if config_path.exists():
-        print_status("Configuration file already exists")
-        return True
-    
-    if not template_path.exists():
-        print_error("Configuration template not found")
-        return False
-    
+    """Create or update the configuration file with detected paths.
+    Writes to package config and mirrors to legacy config/ if present.
+    """
+    pkg_config_path = Path("single_cell_analyzer/config/config.json")
+    pkg_template_path = Path("single_cell_analyzer/config/config.template.json")
+    legacy_dir = Path("config")
+    legacy_config_path = legacy_dir / "config.json"
+    legacy_template_path = legacy_dir / "config.template.json"
+
     try:
-        # Read template
-        with open(template_path, 'r') as f:
-            config = json.load(f)
-        
-        # Detect software paths
+        # Load base config from existing file or template (prefer package template)
+        base_config = None
+        if pkg_config_path.exists():
+            with open(pkg_config_path, 'r') as f:
+                base_config = json.load(f)
+        elif pkg_template_path.exists():
+            with open(pkg_template_path, 'r') as f:
+                base_config = json.load(f)
+        elif legacy_template_path.exists():
+            with open(legacy_template_path, 'r') as f:
+                base_config = json.load(f)
+        else:
+            print_error("No configuration template found to create config file")
+            return False
+
+        # Detect software paths and update
         detected_paths = detect_software_paths()
-        
-        # Update configuration with detected paths
-        if "directories" not in config:
-            config["directories"] = {}
-        
-        config["directories"].update(detected_paths)
-        
-        # Write configuration file
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(config_path, 'w') as f:
-            json.dump(config, f, indent=2)
-        
-        print_status(f"Configuration file created at: {config_path}")
+        if "directories" not in base_config:
+            base_config["directories"] = {}
+        base_config["directories"].update(detected_paths)
+
+        # Write package config
+        pkg_config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(pkg_config_path, 'w') as f:
+            json.dump(base_config, f, indent=2)
+        print_status(f"Configuration file written to: {pkg_config_path}")
+
+        # Mirror to legacy path if legacy config directory exists
+        if legacy_dir.exists():
+            legacy_config_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(legacy_config_path, 'w') as f:
+                json.dump(base_config, f, indent=2)
+            print_status(f"Configuration file mirrored to: {legacy_config_path}")
+
         return True
     except Exception as e:
         print_error(f"Failed to create configuration file: {e}")
