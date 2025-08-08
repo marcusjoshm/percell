@@ -335,8 +335,8 @@ def main():
                         help='Directory where individual cells will be saved')
     parser.add_argument('--imagej', required=True,
                         help='Path to ImageJ executable')
-    parser.add_argument('--macro', default='single_cell_analyzer/macros/extract_cells.ijm',
-                       help='Path to the dedicated ImageJ macro file (default: single_cell_analyzer/macros/extract_cells.ijm)')
+    parser.add_argument('--macro', default='src/macros/extract_cells.ijm',
+                       help='Path to the dedicated ImageJ macro file (default: src/macros/extract_cells.ijm)')
     parser.add_argument('--regions', '-r', nargs='+',
                         help='List of regions to process')
     parser.add_argument('--timepoints', '-t', nargs='+',

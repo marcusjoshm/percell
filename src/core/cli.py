@@ -19,6 +19,7 @@ class Colors:
     blue = '\033[34m'
     indigo = '\033[38;5;54m'
     violet = '\033[35m'
+    magenta = '\033[95m'
     reset = '\033[0m'
     bold = '\033[1m'
 
@@ -27,21 +28,14 @@ def colorize(text: str, color: str) -> str:
     return f"{Colors.bold}{color}{text}{Colors.reset}"
 
 def show_header() -> None:
-    """Display colorful Single Cell Analyzer ASCII art header"""
+    """Display colorful Per Cell ASCII art header"""
     header = [
-        " ███████╗██╗███╗   ██╗ ██████╗ ██╗    ███████╗    ██████╗███████╗██╗    ██╗     ",
-        " ██╔════╝██║████╗  ██║██╔════╝ ██║    ██╔════╝    ██╔═══╝██╔════╝██║    ██║     ",
-        " ███████╗██║██╔██╗ ██║██║  ███╗██║    █████╗      ██║    █████╗  ██║    ██║     ",
-        " ╚════██║██║██║╚██╗██║██║   ██║██║    ██╔══╝      ██║    ██╔══╝  ██║    ██║     ",
-        " ███████║██║██║ ╚████║╚██████╔╝██████╗███████╗    ██████╗███████╗██████╗██████╗ ",
-        " ╚══════╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═════╝╚══════╝    ╚═════╝╚══════╝╚═════╝╚═════╝ ",
-        "                                                                                ",
-        "         █████╗ ███╗   ██╗ █████╗ ██╗ ██╗   ██╗█████╗███████╗███████╗           ",
-        "        ██╔══██╗████╗  ██║██╔══██╗██║ ╚██╗ ██╔╝╚══██║██╔════╝██╔══██╗           ",
-        "        ███████║██╔██╗ ██║███████║██║  ╚████╔╝   ██╔╝█████╗  ██████╔╝           ",
-        "        ██╔══██║██║╚██╗██║██╔══██║██║   ╚██╔╝   ██╔╝ ██╔══╝  ██╔══██╗           ",
-        "        ██║  ██║██║ ╚████║██║  ██║██████╗██║   █████╗███████╗██║  ██║           ",
-        "        ╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝╚═════╝╚═╝   ╚════╝╚══════╝╚═╝  ╚═╝           "
+        " ███████╗ ████████╗███████╗ ███████╗████████╗██╗      ██╗                       ",
+        " ██╔═══██╗██╔═════╝██╔═══██╗██╔════╝██╔═════╝██║      ██║                       ",
+        " ███████╔╝███████╗ ███████╔╝██║     ███████╗ ██║      ██║                       ",
+        " ██╔════╝ ██╔════╝ ██╔═══██╗██║     ██╔════╝ ██║      ██║                       ",
+        " ██║      ████████╗██║   ██║███████╗████████╗████████╗████████╗                 ",
+        " ╚═╝      ╚═══════╝╚═╝   ╚═╝╚══════╝╚═══════╝╚═══════╝╚═══════╝                 "
     ]
 
     rainbow_colors = [
@@ -60,15 +54,15 @@ def show_header() -> None:
         if i < 0 or i > 20:  # Empty lines
             print(line)
         else:
-            # Color the line with specific colors for SINGLE and CELL
+            # Color the line with specific colors for PER and CELL
             colored_line = ""
             for j, char in enumerate(line):
-                # Determine which section we're in based on line number
-                if 0 <= i <= 5:  # SINGLE section (lines 3-8)
+                # Color based on column position
+                if 1 <= j <= 27:  # PER section (columns 11-38)
                     colored_line += colorize(char, Colors.green)
-                elif 7 <= i <= 12:  # CELL section (lines 10-15)
-                    colored_line += colorize(char, Colors.red)
-                else:  # ANALYZER section (lines 16-21) - no color
+                elif 28 <= j <= 80:  # CELL section (columns 39-80)
+                    colored_line += colorize(char, Colors.magenta)
+                else:  # Other characters
                     colored_line += char
             print(colored_line)
 
@@ -90,21 +84,21 @@ class PipelineCLI:
     def _create_parser(self) -> argparse.ArgumentParser:
         """Create and configure the argument parser."""
         parser = argparse.ArgumentParser(
-            description="Microscopy Single-Cell Analysis Pipeline",
+            description="Microscopy Per Cell Analysis Pipeline",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog="""
 Examples:
   # Run complete analysis workflow
-  python main.py --input /path/to/data --output /path/to/output --complete-workflow
+  percell --input /path/to/data --output /path/to/output --complete-workflow
   
   # Run data selection
-  python main.py --input /path/to/data --output /path/to/output --data-selection
+  percell --input /path/to/data --output /path/to/output --data-selection
   
   # Run segmentation
-  python main.py --input /path/to/data --output /path/to/output --segmentation
+  percell --input /path/to/data --output /path/to/output --segmentation
   
   # Run analysis
-  python main.py --input /path/to/data --output /path/to/output --analysis
+  percell --input /path/to/data --output /path/to/output --analysis
             """
         )
         
@@ -122,8 +116,8 @@ Examples:
         parser.add_argument(
             '--config',
             type=str,
-            default='single_cell_analyzer/config/config.json',
-            help='Path to configuration file (default: single_cell_analyzer/config/config.json)'
+            default='src/config/config.json',
+            help='Path to configuration file (default: src/config/config.json)'
         )
         
         # Processing options
@@ -260,7 +254,7 @@ Examples:
         # Load config to get default directories
         try:
             from ..modules.directory_setup import load_config
-            config_path = getattr(args, 'config', 'single_cell_analyzer/config/config.json')
+            config_path = getattr(args, 'config', 'src/config/config.json')
             config = load_config(config_path)
             default_input = config.get('directories', {}).get('input', '')
             default_output = config.get('directories', {}).get('output', '')
@@ -305,7 +299,9 @@ Examples:
         # Show menu
         show_header()
         print("")
-        # MENU:
+        print(colorize("🔬 Welcome single-cell microscopy analysis user! 🔬", Colors.bold))
+        print("")
+        print(colorize("MENU:", Colors.bold))
         print(colorize("1. Set Input/Output Directories", Colors.green))
         print(colorize("2. Run Complete Workflow", Colors.yellow))
         print(colorize("3. Data Selection (conditions, regions, timepoints, channels)", Colors.orange))
@@ -331,7 +327,7 @@ Examples:
                 from ..modules.directory_setup import load_config, save_config
                 
                 # Load current config
-                config_path = args.config if hasattr(args, 'config') else 'single_cell_analyzer/config/config.json'
+                config_path = args.config if hasattr(args, 'config') else 'src/config/config.json'
                 config = load_config(config_path)
                 
                 # Set default directories
@@ -431,7 +427,7 @@ Examples:
             from pathlib import Path
             
             # Use the setup_output_structure.sh script
-            script_path = Path("single_cell_analyzer/bash/setup_output_structure.sh")
+            script_path = Path("src/bash/setup_output_structure.sh")
             if not script_path.exists():
                 print(f"Error: setup_output_structure.sh script not found: {script_path}")
                 return False

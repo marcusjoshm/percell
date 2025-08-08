@@ -15,7 +15,7 @@ After cloning this repository, run a single command to complete the installation
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd Single-Cell-Analyzer
+cd percell
 
 # Run the installation script (choose one method)
 python install.py
@@ -40,7 +40,7 @@ Once the installation is complete, you can use the tool:
 source venv/bin/activate
 
 # 2. Run the analysis tool
-single-cell-analyzer
+percell
 ```
 
 ### Manual Installation
@@ -50,7 +50,7 @@ If you prefer to install manually:
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd Single-Cell-Analyzer
+cd percell
 
 # Create a virtual environment (recommended)
 python -m venv venv
@@ -62,7 +62,7 @@ pip install -e .
 
 **Why development mode?**
 - ✅ Changes to code are immediately reflected (no reinstall needed)
-- ✅ Command-line tool available: `single-cell-analyzer`
+- ✅ Command-line tool available: `percell`
 - ✅ Proper package imports work
 - ✅ Ideal for development and testing
 
@@ -108,17 +108,17 @@ We've introduced a new modular command-line interface that provides a more user-
 source venv/bin/activate
 
 # Run using the installed command-line tool
-single-cell-analyzer
+percell
 ```
 
 **Method 2: Direct script execution:**
 ```bash
 # Activate the environment (if not already activated)
-cd ~/Single-Cell-Analyzer
+cd ~/percell
 source venv/bin/activate
 
 # Run the script directly
-python single_cell_analyzer/scripts/main.py
+python src/main/main.py
 ```
 
 **You'll see the colorful ASCII header and interactive menu:**
@@ -297,7 +297,7 @@ In the same Terminal window:
 1. Copy and paste the following commands:
 
 ```bash
-cd ~/Single-Cell-Analyzer
+cd ~/percell
 venvact
 ```
 
@@ -307,7 +307,7 @@ venvact
 
 Example of how your prompt should look:
 ```bash
-(venv) (base) ➜  Single-Cell-Analyzer git:(main) ✗
+(venv) (base) ➜  percell git:(main) ✗
 ```
 
 ## Step 3: Run the Analysis Workflow

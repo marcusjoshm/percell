@@ -1,5 +1,5 @@
 """
-Single-Cell-Analyzer Package
+Percell Package
 
 A comprehensive pipeline for microscopy single-cell analysis.
 """

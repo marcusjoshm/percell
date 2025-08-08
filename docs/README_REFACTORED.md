@@ -7,7 +7,7 @@ This is the refactored version of the microscopy single-cell analysis pipeline, 
 The project has been refactored to follow a more modular and maintainable structure:
 
 ```
-Single-Cell-Analyzer/
+percell/
 ├── main.py                          # Main entry point
 ├── src/                             # Source code directory
 │   └── python/                      # Python modules

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Single-Cell-Analyzer Installation Script
+Percell Installation Script
 
-This script provides a complete installation and setup for the Single-Cell-Analyzer package.
+This script provides a complete installation and setup for the Percell package.
 It handles:
 1. Virtual environment creation
 2. Package installation
@@ -252,10 +252,10 @@ def detect_software_paths() -> Dict[str, str]:
 
 def create_config_file() -> bool:
     """Create or update the configuration file with detected paths.
-    Writes to package config at single_cell_analyzer/config/config.json only.
+    Writes to package config at percell/config/config.json only.
     """
-    pkg_config_path = Path("single_cell_analyzer/config/config.json")
-    pkg_template_path = Path("single_cell_analyzer/config/config.template.json")
+    pkg_config_path = Path("src/config/config.json")
+    pkg_template_path = Path("src/config/config.template.json")
     legacy_template_path = Path("config/config.template.json")
 
     try:
@@ -308,7 +308,7 @@ def verify_installation(venv_name: str = "venv") -> bool:
         test_imports = [
             "import numpy",
             "import pandas", 
-            "import single_cell_analyzer"
+            "import src"
         ]
         
         for import_statement in test_imports:
@@ -321,7 +321,7 @@ def verify_installation(venv_name: str = "venv") -> bool:
         print_status("Basic imports verified successfully")
         
         # Test command-line tool
-        result = subprocess.run([str(python_path), "-m", "single_cell_analyzer.scripts.main", "--help"], 
+        result = subprocess.run([str(python_path), "-m", "src.main.main", "--help"], 
                               capture_output=True, text=True)
         if result.returncode == 0:
             print_status("Command-line tool verified successfully")
@@ -338,13 +338,13 @@ def print_usage_instructions():
     print("\n" + "="*60)
     print_status("Installation completed successfully!", Colors.BLUE)
     print("="*60)
-    print("\nTo use the Single-Cell-Analyzer:")
+    print("\nTo use the Percell:")
     print("\n1. Activate the virtual environment:")
     print("   source venv/bin/activate")
     print("\n2. Run the analysis tool:")
-    print("   single-cell-analyzer")
+    print("   percell")
     print("\n   OR")
-    print("   python single_cell_analyzer/scripts/main.py")
+    print("   python src/main/main.py")
     print("\n3. For Cellpose operations, activate the Cellpose environment:")
     print("   source cellpose_venv/bin/activate")
     print("\nFor more information, see the README.md file.")
@@ -352,7 +352,7 @@ def print_usage_instructions():
 
 def main():
     """Main installation function."""
-    parser = argparse.ArgumentParser(description="Install Single-Cell-Analyzer")
+    parser = argparse.ArgumentParser(description="Install Percell")
     parser.add_argument("--skip-cellpose", action="store_true", 
                        help="Skip Cellpose virtual environment setup")
     parser.add_argument("--skip-config", action="store_true", 
@@ -362,7 +362,7 @@ def main():
     
     args = parser.parse_args()
     
-    print("Single-Cell-Analyzer Installation Script")
+    print("Percell Installation Script")
     print("="*50)
     
     # Check Python version

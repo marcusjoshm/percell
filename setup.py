@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup script for Single-Cell-Analyzer package
+Setup script for Percell package
 """
 
 from setuptools import setup, find_packages
@@ -17,14 +17,14 @@ def read_requirements():
         return [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
-    name="single-cell-analyzer",
+    name="percell",
     version="1.0.0",
     author="Joshua Marcus",
     author_email="your.email@example.com",
-    description="Microscopy Single-Cell Analysis Pipeline",
+    description="Microscopy Per Cell Analysis Pipeline",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/Single-Cell-Analyzer",
+    url="https://github.com/yourusername/percell",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -52,12 +52,12 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "single-cell-analyzer=single_cell_analyzer.scripts.main:main",
+            "percell=src.main.main:main",
         ],
     },
     include_package_data=True,
     package_data={
-        "single_cell_analyzer": [
+        "src": [
             "config/*.json",
             "bash/*.sh",
             "macros/*.ijm",

@@ -7,7 +7,7 @@
     {
       "name": "prepare_input_structure",
       "type": "bash",
-      "path": "single_cell_analyzer/bash/prepare_input_structure.sh",
+      "path": "src/bash/prepare_input_structure.sh",
       "args": [
         "{input_dir}"
       ],
@@ -52,7 +52,7 @@
     {
       "name": "bin_images_for_segmentation",
       "type": "python",
-      "path": "single_cell_analyzer/modules/bin_images.py",
+      "path": "src/modules/bin_images.py",
       "args": [
         "--input",
         "{output_dir}/raw_data",
@@ -73,7 +73,7 @@
     {
       "name": "interactive_segmentation",
       "type": "bash",
-      "path": "single_cell_analyzer/bash/launch_segmentation_tools.sh",
+      "path": "src/bash/launch_segmentation_tools.sh",
       "args": [
         "{output_dir}/preprocessed"
       ],
@@ -82,7 +82,7 @@
     {
       "name": "roi_tracking",
       "type": "python",
-      "path": "single_cell_analyzer/modules/track_rois.py",
+      "path": "src/modules/track_rois.py",
       "args": [
         "--input",
         "{output_dir}/preprocessed",
@@ -95,7 +95,7 @@
     {
       "name": "resize_rois",
       "type": "python",
-      "path": "single_cell_analyzer/modules/resize_rois.py",
+      "path": "src/modules/resize_rois.py",
       "args": [
         "--input",
         "{output_dir}/preprocessed",
@@ -106,7 +106,7 @@
         "--channel",
         "{segmentation_channel}",
         "--macro",
-        "single_cell_analyzer/macros/resize_rois.ijm",
+        "src/macros/resize_rois.ijm",
         "--auto-close"
       ],
       "description": "Resize ROIs from binned images to match original image dimensions (uses segmentation channel as reference)"
@@ -114,7 +114,7 @@
     {
       "name": "duplicate_rois_for_analysis_channels",
       "type": "python",
-      "path": "single_cell_analyzer/modules/duplicate_rois_for_channels.py",
+      "path": "src/modules/duplicate_rois_for_channels.py",
       "args": [
         "--roi-dir",
         "{output_dir}/ROIs",
@@ -127,7 +127,7 @@
     {
       "name": "extract_cells",
       "type": "python",
-      "path": "single_cell_analyzer/modules/extract_cells.py",
+      "path": "src/modules/extract_cells.py",
       "args": [
         "--roi-dir",
         "{output_dir}/ROIs",
@@ -138,7 +138,7 @@
         "--imagej",
         "{imagej_path}",
         "--macro",
-        "single_cell_analyzer/macros/extract_cells.ijm",
+        "src/macros/extract_cells.ijm",
         "--auto-close"
       ],
       "description": "Extract individual cells using ROIs and save as separate files for each analysis channel"
@@ -146,7 +146,7 @@
     {
       "name": "group_cells",
       "type": "python",
-      "path": "single_cell_analyzer/modules/group_cells.py",
+      "path": "src/modules/group_cells.py",
       "args": [
         "--cells-dir",
         "{output_dir}/cells",
@@ -164,7 +164,7 @@
     {
       "name": "threshold_grouped_cells",
       "type": "python",
-      "path": "single_cell_analyzer/modules/otsu_threshold_grouped_cells.py",
+      "path": "src/modules/otsu_threshold_grouped_cells.py",
       "args": [
         "--input-dir",
         "{output_dir}/grouped_cells",
@@ -173,7 +173,7 @@
         "--imagej",
         "{imagej_path}",
         "--macro",
-        "single_cell_analyzer/macros/threshold_grouped_cells.ijm",
+        "src/macros/threshold_grouped_cells.ijm",
         "--channels",
         "{analysis_channels}"
       ],
@@ -182,7 +182,7 @@
     {
       "name": "combine_masks",
       "type": "python",
-      "path": "single_cell_analyzer/modules/combine_masks.py",
+      "path": "src/modules/combine_masks.py",
       "args": [
         "--input-dir",
         "{output_dir}/grouped_masks",
@@ -196,7 +196,7 @@
     {
       "name": "create_cell_masks",
       "type": "python",
-      "path": "single_cell_analyzer/modules/create_cell_masks.py",
+      "path": "src/modules/create_cell_masks.py",
       "args": [
         "--roi-dir",
         "{output_dir}/ROIs",
@@ -207,7 +207,7 @@
         "--imagej",
         "{imagej_path}",
         "--macro",
-        "single_cell_analyzer/macros/create_cell_masks.ijm",
+        "src/macros/create_cell_masks.ijm",
         "--auto-close",
         "--channels",
         "{analysis_channels}"
@@ -217,7 +217,7 @@
     {
       "name": "analyze_cell_masks",
       "type": "python",
-      "path": "single_cell_analyzer/modules/analyze_cell_masks.py",
+      "path": "src/modules/analyze_cell_masks.py",
       "args": [
         "--input",
         "{output_dir}/masks",
@@ -230,7 +230,7 @@
         "--imagej",
         "{imagej_path}",
         "--macro",
-        "single_cell_analyzer/macros/analyze_cell_masks.ijm",
+        "src/macros/analyze_cell_masks.ijm",
         "--channels",
         "{analysis_channels}"
       ],
@@ -239,7 +239,7 @@
     {
       "name": "include_group_metadata",
       "type": "python",
-      "path": "single_cell_analyzer/modules/include_group_metadata.py",
+      "path": "src/modules/include_group_metadata.py",
       "args": [
         "--grouped-cells-dir",
         "{output_dir}/grouped_cells",

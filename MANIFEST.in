@@ -6,9 +6,9 @@ include install.sh
 include install.py
 include install
 
-recursive-include single_cell_analyzer/config *.json
-recursive-include single_cell_analyzer/bash *.sh
-recursive-include single_cell_analyzer/macros *.ijm
+recursive-include src/config *.json
+recursive-include src/bash *.sh
+recursive-include src/macros *.ijm
 
 global-exclude *.pyc
 global-exclude __pycache__
