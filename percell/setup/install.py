@@ -333,18 +333,47 @@ def verify_installation(venv_name: str = "venv") -> bool:
         print_error(f"Verification failed: {e}")
         return False
 
+def create_global_symlink() -> bool:
+    """Create a global symbolic link for the percell command."""
+    try:
+        # Get the current directory (project root)
+        project_root = Path.cwd()
+        venv_percell = project_root / "venv" / "bin" / "percell"
+        global_percell = Path("/usr/local/bin/percell")
+        
+        if not venv_percell.exists():
+            print_error(f"Percell command not found in virtual environment: {venv_percell}")
+            return False
+        
+        # Create the symbolic link
+        if global_percell.exists():
+            print_status("Removing existing global percell link")
+            global_percell.unlink()
+        
+        print_status("Creating global symbolic link...")
+        global_percell.symlink_to(venv_percell)
+        print_status(f"Global percell command created at: {global_percell}")
+        return True
+    except PermissionError:
+        print_warning("Permission denied creating global symlink. You may need to run with sudo.")
+        print_warning("You can create the symlink manually:")
+        print_warning(f"sudo ln -sf {venv_percell} /usr/local/bin/percell")
+        return False
+    except Exception as e:
+        print_error(f"Failed to create global symlink: {e}")
+        return False
+
 def print_usage_instructions():
     """Print usage instructions."""
     print("\n" + "="*60)
     print_status("Installation completed successfully!", Colors.BLUE)
     print("="*60)
     print("\nTo use the Percell:")
-    print("\n1. Activate the virtual environment:")
-    print("   source venv/bin/activate")
-    print("\n2. Run the analysis tool:")
+    print("\n1. Global command (recommended):")
     print("   percell")
-    print("\n   OR")
-    print("   python percell/main/main.py")
+    print("\n2. Or activate the virtual environment:")
+    print("   source venv/bin/activate")
+    print("   percell")
     print("\n3. For Cellpose operations, activate the Cellpose environment:")
     print("   source cellpose_venv/bin/activate")
     print("\nFor more information, see the README.md file.")
@@ -406,6 +435,10 @@ def main():
     # Verify installation
     if not verify_installation("venv"):
         print_warning("Installation verification failed, but installation may still work")
+    
+    # Create global symlink
+    if not create_global_symlink():
+        print_warning("Global symlink creation failed, but you can still use percell from the venv")
     
     # Check Cellpose availability and provide guidance
     if not args.skip_cellpose and Path("cellpose_venv").exists():

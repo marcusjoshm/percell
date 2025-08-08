@@ -78,6 +78,40 @@ percell
 - ✅ Proper package imports work
 - ✅ Ideal for development and testing
 
+### Troubleshooting Global Installation
+
+If the `percell` command is not found globally after installation:
+
+```bash
+# Quick fix - run this script from the project directory
+./percell/setup/fix_global_install.sh
+
+# Or manually create the symlink (replace with your actual path)
+sudo ln -sf /path/to/your/percell/venv/bin/percell /usr/local/bin/percell
+```
+
+**Common Issue**: The package is installed in the virtual environment but the global symbolic link wasn't created. This happens when:
+- You ran `pip install -e .` manually instead of using the installation script
+- The installation script didn't have permission to create the symlink
+- The symlink was accidentally removed
+
+**Symptoms**:
+- `which percell` returns nothing
+- `percell --help` says "command not found"
+- You have to navigate to the project directory and activate the venv to use percell
+
+**Solution**: Run the fix script from the project root directory. It will automatically detect your setup and create the necessary symlink.
+
+```bash
+# From the project root directory (recommended)
+./percell/setup/fix_global_install.sh
+
+# Or from anywhere, specifying the full path
+/path/to/percell/percell/setup/fix_global_install.sh
+```
+
+**Note**: The fix script is self-contained and will automatically find the correct paths regardless of where you run it from.
+
 ## Getting Started
 
 ### Input Directory Structure

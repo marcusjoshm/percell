@@ -10,6 +10,8 @@ The `percell` command is now available globally through a symbolic link in `/usr
 2. Activate the virtual environment
 3. Run the command
 
+**Status**: ✅ Working - The global installation is now functional!
+
 ## How It Works
 
 1. **Virtual Environment**: The percell package is installed in the `venv` virtual environment
@@ -85,13 +87,22 @@ If `percell` command is not found:
 
 2. Verify the virtual environment exists:
    ```bash
-   ls -la /Users/joshuamarcus/percell/venv/bin/percell
+   ls -la /Users/leelab/percell/venv/bin/percell
    ```
 
 3. Recreate the symbolic link:
    ```bash
-   ln -sf /Users/joshuamarcus/percell/venv/bin/percell /usr/local/bin/percell
+   sudo ln -sf /Users/leelab/percell/venv/bin/percell /usr/local/bin/percell
    ```
+
+**Common Issue**: If you installed the package with `pip install -e .` but the global command doesn't work, the symbolic link may not have been created. 
+
+**Quick Fix**: Run the fix script from the project root:
+```bash
+./percell/setup/fix_global_install.sh
+```
+
+Or run the installation script again or manually create the symlink as shown above.
 
 ### Permission Issues
 
