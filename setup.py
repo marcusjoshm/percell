@@ -13,18 +13,18 @@ def read_readme():
 
 # Read requirements
 def read_requirements():
-    with open("requirements.txt", "r", encoding="utf-8") as fh:
+    with open("src/setup/requirements.txt", "r", encoding="utf-8") as fh:
         return [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
     name="percell",
     version="1.0.0",
     author="Joshua Marcus",
-    author_email="your.email@example.com",
+    author_email="joshua.marcus@bcm.edu",
     description="Microscopy Per Cell Analysis Pipeline",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/percell",
+    url="https://github.com/marcusjoshm/percell",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",

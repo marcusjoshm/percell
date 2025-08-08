@@ -92,10 +92,14 @@ def main():
                     
                     # Automatically save the most recently used directories as defaults
                     try:
-                        from src.modules.directory_setup import save_recent_directories_automatically, load_config
-                        config_path = "src/config/config.json"
-                        config = load_config(config_path)
-                        save_recent_directories_automatically(config, args.input, args.output, config_path)
+                        from src.modules.directory_setup import save_recent_directories_automatically
+                        # Reload the config to get the latest data
+                        config.load()
+                        # Convert config to dict for the directory setup functions
+                        config_dict = config.to_dict()
+                        save_recent_directories_automatically(config_dict, args.input, args.output, config_path)
+                        # Reload the updated config
+                        config.load()
                     except Exception as e:
                         print(f"Note: Could not save directory defaults: {e}")
                 else:
