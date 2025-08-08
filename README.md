@@ -1,4 +1,5 @@
-# Microscopy Single Cell Analysis Workflow Protocol
+# percell
+A single cell microscopy analysis tool that integrates single cell segmentation using cellpose with imageJ macros into a single software package with an easy-to-use command line interface
 
 ## Introduction
 

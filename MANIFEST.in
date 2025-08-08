@@ -1,9 +1,8 @@
 include README.md
 include LICENSE
-include requirements.txt
-include requirements_cellpose.txt
-include install.sh
-include install.py
+include src/setup/requirements.txt
+include src/setup/requirements_cellpose.txt
+include src/setup/install.py
 include install
 
 recursive-include src/config *.json
