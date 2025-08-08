@@ -216,20 +216,37 @@ def detect_software_paths() -> Dict[str, str]:
         print_warning("ImageJ/Fiji not found in common locations")
         paths["imagej_path"] = ""
     
+    # Get Python path from main virtual environment
+    main_python = get_venv_python("venv")
+    if main_python.exists():
+        paths["python_path"] = str(main_python)
+        print_status(f"Found Python at: {main_python}")
+    else:
+        print_warning("Main Python virtual environment not found")
+        paths["python_path"] = ""
+    
     # Check for Cellpose in the cellpose_venv
     cellpose_python = get_venv_python("cellpose_venv")
-    try:
-        result = subprocess.run([str(cellpose_python), "-c", "import cellpose; print('Cellpose available')"], 
-                              capture_output=True, text=True)
-        if result.returncode == 0:
-            paths["cellpose_available"] = "true"
-            print_status("Cellpose is available in cellpose_venv")
-        else:
+    if cellpose_python.exists():
+        paths["cellpose_path"] = str(cellpose_python)
+        print_status(f"Found Cellpose Python at: {cellpose_python}")
+        
+        try:
+            result = subprocess.run([str(cellpose_python), "-c", "import cellpose; print('Cellpose available')"], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                paths["cellpose_available"] = "true"
+                print_status("Cellpose is available in cellpose_venv")
+            else:
+                paths["cellpose_available"] = "false"
+                print_warning("Cellpose not available in cellpose_venv")
+        except Exception:
             paths["cellpose_available"] = "false"
-            print_warning("Cellpose not available in cellpose_venv")
-    except Exception:
+            print_warning("Could not verify Cellpose installation")
+    else:
+        print_warning("Cellpose virtual environment not found")
+        paths["cellpose_path"] = ""
         paths["cellpose_available"] = "false"
-        print_warning("Could not verify Cellpose installation")
     
     return paths
 
@@ -256,8 +273,15 @@ def create_config_file() -> bool:
             print_error("No configuration template found to create config file")
             return False
 
-        # Detect software paths and update
+        # Detect software paths
         detected_paths = detect_software_paths()
+        
+        # Update top-level required fields
+        base_config["imagej_path"] = detected_paths.get("imagej_path", "")
+        base_config["cellpose_path"] = detected_paths.get("cellpose_path", "")
+        base_config["python_path"] = detected_paths.get("python_path", "")
+        
+        # Update directories section
         if "directories" not in base_config:
             base_config["directories"] = {}
         base_config["directories"].update(detected_paths)
