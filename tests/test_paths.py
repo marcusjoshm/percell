@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 # Add the percell package to the path
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from percell.core.paths import get_path_config, get_path, get_path_str, path_exists, list_all_paths
 

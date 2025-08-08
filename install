@@ -5,6 +5,8 @@
 
 echo "Percell Installation"
 echo "=================================="
+echo "This will install Percell globally - you'll be able to run 'percell' from any directory!"
+echo ""
 
 # Check if Python 3.11 is available
 if ! command -v python3.11 &> /dev/null; then

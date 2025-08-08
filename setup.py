@@ -21,7 +21,7 @@ setup(
     version="1.0.0",
     author="Joshua Marcus",
     author_email="joshua.marcus@bcm.edu",
-    description="Microscopy Per Cell Analysis Pipeline",
+    description="Microscopy Per Cell Analysis Pipeline - Global Installation Available",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     url="https://github.com/marcusjoshm/percell",

@@ -57,12 +57,20 @@ This single command will:
 Once the installation is complete, you can use the tool:
 
 ```bash
-# 1. Activate the virtual environment
-source venv/bin/activate
+# Option 1: Run from anywhere (recommended)
+percell
 
-# 2. Run the analysis tool
+# Option 2: Run from project directory with activated environment
+cd ~/percell
+source venv/bin/activate
 percell
 ```
+
+**Global Installation Benefits:**
+- ✅ Run `percell` from any directory
+- ✅ No need to navigate to project folder
+- ✅ No need to activate virtual environment manually
+- ✅ Works seamlessly across different terminals
 
 **Why development mode?**
 - ✅ Changes to code are immediately reflected (no reinstall needed)
@@ -195,15 +203,12 @@ We've introduced a new modular command-line interface that provides a more user-
 
 ### Quick Start with Modular CLI
 
-**After running `python percell/setup/install.py`, you can use the tool:**
+**After running `python percell/setup/install.py`, you can use the tool**
 
 ```bash
-# Activate the environment (if not already activated)
-cd ~/percell
-source venv/bin/activate
-
-# Run using the installed command-line tool
+# Enter this command in a terminal window. It will work from any working directory.
 percell
+
 ```
 
 

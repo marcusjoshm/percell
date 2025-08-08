@@ -237,6 +237,35 @@ The workflow generates the following structure in the specified output directory
 ├── .workflow_state.json  # Record of workflow progress and selections
 ```
 
+## Global Installation
+
+The application is now available globally after installation. This means you can run `percell` from any directory without needing to:
+
+- Navigate to the project folder
+- Activate the virtual environment manually
+- Use relative paths
+
+### Usage
+
+```bash
+# Run from any directory
+percell
+
+# Run with specific options
+percell --help
+percell --interactive
+percell --input /path/to/data --output /path/to/output --complete-workflow
+```
+
+### Installation Details
+
+The global installation creates:
+- A symbolic link in `/usr/local/bin/percell`
+- Points to the virtual environment's percell command
+- Automatically activates the correct environment
+
+For more details, see [GLOBAL_INSTALLATION.md](GLOBAL_INSTALLATION.md).
+
 ## Key Components
 
 1. **`single_cell_workflow.py`**: Main workflow orchestrator
@@ -247,6 +276,8 @@ The workflow generates the following structure in the specified output directory
 
 ## Recent Updates
 
+- **Global Installation**: The app now works from any directory with `percell` command
+- **Centralized Path System**: All file paths managed centrally for better maintainability
 - **Clean Architecture Implementation**: Transformed all ImageJ-related scripts to use dedicated macro templates
 - **Legacy Code Cleanup**: Removed over 2,700 lines of unused legacy infrastructure
 - **Encoding Error Fixes**: Added robust CSV reading with multiple encoding support
