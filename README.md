@@ -17,6 +17,22 @@ This document provides step-by-step instructions for running our single cell ana
 
 > **Note:** Terminal is Mac's command-line interface where you can type commands to interact with your computer.
 
+## Table of Contents
+
+1. [Installation](#installation)
+2. [Getting Started](#getting-started)
+3. [Modular CLI System (New!)](#modular-cli-system-new)
+4. [Step 1: Remove Spaces from File Names](#step-1-remove-spaces-from-file-names)
+5. [Step 2: Activate the Python Environment](#step-2-activate-the-python-environment)
+6. [Step 3: Run the Analysis Workflow](#step-3-run-the-analysis-workflow)
+7. [Step 4: Data Analysis Selection](#step-4-data-analysis-selection)
+8. [Step 5: Cellpose Segmentation](#step-5-cellpose-segmentation)
+9. [Step 6: Otsu Thresholding](#step-6-otsu-thresholding)
+10. [Tips and Tricks](#tips-and-tricks)
+11. [Troubleshooting](#troubleshooting)
+12. [Technical Documentation](#technical-documentation)
+
+
 ## Installation
 
 ### Quick Installation (Recommended)
@@ -52,48 +68,11 @@ source venv/bin/activate
 percell
 ```
 
-### Manual Installation
-
-If you prefer to install manually:
-
-```bash
-# Clone the repository
-git clone <repository-url>
-cd percell
-
-# Create a virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install the package in development mode
-pip install -e .
-```
-
 **Why development mode?**
 - ✅ Changes to code are immediately reflected (no reinstall needed)
 - ✅ Command-line tool available: `percell`
 - ✅ Proper package imports work
 - ✅ Ideal for development and testing
-
-**Alternative installation:**
-```bash
-# Regular installation (changes require reinstall)
-pip install .
-```
-
-## Table of Contents
-
-1. [Getting Started](#getting-started)
-2. [Modular CLI System (New!)](#modular-cli-system-new)
-3. [Step 1: Remove Spaces from File Names](#step-1-remove-spaces-from-file-names)
-4. [Step 2: Activate the Python Environment](#step-2-activate-the-python-environment)
-5. [Step 3: Run the Analysis Workflow](#step-3-run-the-analysis-workflow)
-6. [Step 4: Data Analysis Selection](#step-4-data-analysis-selection)
-7. [Step 5: Cellpose Segmentation](#step-5-cellpose-segmentation)
-8. [Step 6: Otsu Thresholding](#step-6-otsu-thresholding)
-9. [Tips and Tricks](#Tips-and-Tricks)
-10. [Troubleshooting](#troubleshooting)
-11. [Technical Documentation](#technical-documentation)
 
 ## Getting Started
 
