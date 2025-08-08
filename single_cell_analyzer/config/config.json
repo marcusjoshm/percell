@@ -1,43 +1,68 @@
 {
-  "imagej_path": "",
-  "cellpose_path": "",
-  "python_path": "",
-  "fiji_path": "",
-  "analysis": {
-    "default_bins": 5,
-    "segmentation_model": "cyto",
-    "cell_diameter": 100,
-    "niter_dynamics": 250,
-    "flow_threshold": 0.4,
-    "cellprob_threshold": 0
-  },
-  "output": {
-    "create_subdirectories": true,
-    "save_intermediate": true,
-    "compression": "lzw",
-    "overwrite": false
-  },
-  "directories": {
-    "input": "",
-    "output": "",
-    "recent_inputs": [],
-    "recent_outputs": []
-  },
-  "data_selection": {
-    "selected_datatype": null,
-    "selected_conditions": [],
-    "selected_timepoints": [],
-    "selected_regions": [],
-    "segmentation_channel": null,
-    "analysis_channels": [],
-    "experiment_metadata": {
-      "conditions": [],
-      "regions": [],
-      "timepoints": [],
-      "channels": [],
-      "region_to_channels": {},
-      "datatype_inferred": null,
-      "directory_timepoints": []
+    "imagej_path": "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx",
+    "cellpose_path": "",
+    "python_path": "",
+    "fiji_path": "",
+    "analysis": {
+        "default_bins": 5,
+        "segmentation_model": "cyto",
+        "cell_diameter": 100,
+        "niter_dynamics": 250,
+        "flow_threshold": 0.4,
+        "cellprob_threshold": 0
+    },
+    "output": {
+        "create_subdirectories": true,
+        "save_intermediate": true,
+        "compression": "lzw",
+        "overwrite": false
+    },
+    "directories": {
+        "input": "/Users/joshuamarcus/Documents/Sample_data",
+        "output": "/Users/joshuamarcus/Documents/Sample_data_analysis",
+        "recent_inputs": [
+            "/Users/joshuamarcus/Documents/Sample_data"
+        ],
+        "recent_outputs": [
+            "/Users/joshuamarcus/Documents/Sample_data_analysis"
+        ],
+        "cellpose_available": "true"
+    },
+    "data_selection": {
+        "selected_datatype": "single_timepoint",
+        "selected_conditions": [
+            "18h_dox_Low_G3BP1_+_JF549"
+        ],
+        "selected_timepoints": [
+            "t00"
+        ],
+        "selected_regions": [
+            "TS1_Two-Channel_Merged"
+        ],
+        "segmentation_channel": "ch01",
+        "analysis_channels": [
+            "ch01"
+        ],
+        "experiment_metadata": {
+            "conditions": [
+                "18h_dox_Low_G3BP1_+_JF549"
+            ],
+            "regions": [
+                "TS1_Two-Channel_Merged",
+                "TS2_Two-Channel_Merged"
+            ],
+            "timepoints": [
+                "t00"
+            ],
+            "channels": [
+                "ch00",
+                "ch01"
+            ],
+            "region_to_channels": {},
+            "datatype_inferred": "single_timepoint",
+            "directory_timepoints": [
+                "timepoint_1"
+            ]
+        }
     }
-  }
 }
