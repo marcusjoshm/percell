@@ -25,12 +25,10 @@ After cloning this repository, run a single command to complete the installation
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/marcusjoshm/percell.git
 cd percell
 
 # Run the installation script (choose one method)
-python src/setup/install.py
-# OR
 ./install
 ```
 
