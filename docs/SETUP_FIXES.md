@@ -19,11 +19,11 @@ This document describes the fixes made to the `setup_workflow.py` script and rel
 **Solution**:
 - Ensured all installation scripts use `requirements_cellpose.txt` which specifies `cellpose[gui]==4.0.4`
 - Removed redundant cellpose installation commands
-- Updated `requirements.txt` to not include Cellpose (since it should only be in the dedicated environment)
+- Updated `src/setup/requirements.txt` to not include Cellpose (since it should only be in the dedicated environment)
 
 ## Requirements Files Usage
 
-### `requirements.txt`
+### `src/setup/requirements.txt`
 - **Purpose**: Main workflow dependencies (excluding Cellpose)
 - **Used by**: Main workflow environment (`venv`)
 - **Installed via**: `setup_workflow.py` and `install.sh`
@@ -39,14 +39,14 @@ This document describes the fixes made to the `setup_workflow.py` script and rel
    ```bash
    python3.11 -m venv venv
    source venv/bin/activate
-   pip install -r requirements.txt
+   pip install -r src/setup/requirements.txt
    ```
 
 2. **Cellpose Environment Setup**:
    ```bash
    python3.11 -m venv cellpose_venv
    source cellpose_venv/bin/activate
-   pip install -r requirements_cellpose.txt
+   pip install -r src/setup/requirements_cellpose.txt
    ```
 
 ## Files Modified
@@ -72,7 +72,7 @@ This document describes the fixes made to the `setup_workflow.py` script and rel
    - Updated Cellpose installation to use version 4.0.4
    - Added NumPy compatibility warning handling
 
-6. **`requirements.txt`**:
+6. **`src/setup/requirements.txt`**:
    - Removed Cellpose dependency (now only in `requirements_cellpose.txt`)
 
 ## Testing

@@ -154,7 +154,7 @@ def create_cellpose_venv() -> bool:
             return False
         
         # Install Cellpose requirements
-        if not install_requirements("cellpose_venv", "requirements_cellpose.txt"):
+        if not install_requirements("cellpose_venv", "src/setup/requirements_cellpose.txt"):
             print_warning("Cellpose installation failed. This is optional and the main workflow will still work.")
             print_warning("You can install Cellpose manually later if needed for segmentation.")
             return False
@@ -191,7 +191,7 @@ def print_cellpose_guidance():
     print("   python install.py --skip-cellpose")
     print("\n3. Or install Cellpose later when needed:")
     print("   source cellpose_venv/bin/activate")
-    print("   pip install -r requirements_cellpose.txt")
+    print("   pip install -r src/setup/requirements_cellpose.txt")
     print("="*60)
 
 def detect_software_paths() -> Dict[str, str]:
@@ -379,7 +379,7 @@ def main():
         sys.exit(1)
     
     # Install main requirements
-    if not install_requirements("venv", "requirements.txt"):
+    if not install_requirements("venv", "src/setup/requirements.txt"):
         sys.exit(1)
     
     # Install package in development mode

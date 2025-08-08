@@ -104,7 +104,7 @@ source venv/bin/activate
 
 # Install main workflow dependencies
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r src/setup/requirements.txt
 ```
 
 #### 2. Cellpose Environment
@@ -116,7 +116,7 @@ source cellpose_venv/bin/activate
 
 # Install Cellpose and its dependencies
 pip install --upgrade pip
-pip install -r requirements_cellpose.txt
+pip install -r src/setup/requirements_cellpose.txt
 ```
 
 ### Environment Structure
@@ -291,7 +291,7 @@ The workflow generates the following structure in the specified output directory
 
 2. **Missing Dependencies**
    - Activate environment: `source venv/bin/activate`
-   - Install packages: `pip install -r requirements.txt`
+   - Install packages: `pip install -r src/setup/requirements.txt`
 
 3. **ImageJ Path Issues**
    - Run configuration: `python setup_workflow.py --create-config`

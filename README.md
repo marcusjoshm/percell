@@ -18,7 +18,7 @@ git clone <repository-url>
 cd percell
 
 # Run the installation script (choose one method)
-python install.py
+python src/setup/install.py
 # OR
 ./install
 ```
@@ -100,7 +100,7 @@ We've introduced a new modular command-line interface that provides a more user-
 
 ### Quick Start with Modular CLI
 
-**After running `python install.py`, you can use the tool in two ways:**
+**After running `python src/setup/install.py`, you can use the tool in two ways:**
 
 **Method 1: Using the command-line tool (recommended):**
 ```bash
