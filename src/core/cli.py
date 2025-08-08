@@ -30,12 +30,12 @@ def colorize(text: str, color: str) -> str:
 def show_header() -> None:
     """Display colorful Per Cell ASCII art header"""
     header = [
-        " ███████╗ ████████╗███████╗ ███████╗████████╗██╗      ██╗                       ",
-        " ██╔═══██╗██╔═════╝██╔═══██╗██╔════╝██╔═════╝██║      ██║                       ",
-        " ███████╔╝███████╗ ███████╔╝██║     ███████╗ ██║      ██║                       ",
-        " ██╔════╝ ██╔════╝ ██╔═══██╗██║     ██╔════╝ ██║      ██║                       ",
-        " ██║      ████████╗██║   ██║███████╗████████╗████████╗████████╗                 ",
-        " ╚═╝      ╚═══════╝╚═╝   ╚═╝╚══════╝╚═══════╝╚═══════╝╚═══════╝                 "
+        "         ███████╗ ████████╗███████╗ ███████╗████████╗██╗      ██╗               ",
+        "         ██╔═══██╗██╔═════╝██╔═══██╗██╔════╝██╔═════╝██║      ██║               ",
+        "         ███████╔╝███████╗ ███████╔╝██║     ███████╗ ██║      ██║               ",
+        "         ██╔════╝ ██╔════╝ ██╔═══██╗██║     ██╔════╝ ██║      ██║               ",
+        "         ██║      ████████╗██║   ██║███████╗████████╗████████╗████████╗         ",
+        "         ╚═╝      ╚═══════╝╚═╝   ╚═╝╚══════╝╚═══════╝╚═══════╝╚═══════╝         "
     ]
 
     rainbow_colors = [
@@ -58,9 +58,9 @@ def show_header() -> None:
             colored_line = ""
             for j, char in enumerate(line):
                 # Color based on column position
-                if 1 <= j <= 27:  # PER section (columns 11-38)
+                if 1 <= j <= 35:  # PER section (columns 11-38)
                     colored_line += colorize(char, Colors.green)
-                elif 28 <= j <= 80:  # CELL section (columns 39-80)
+                elif 36 <= j <= 80:  # CELL section (columns 39-80)
                     colored_line += colorize(char, Colors.magenta)
                 else:  # Other characters
                     colored_line += char
