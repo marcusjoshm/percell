@@ -1,4 +1,6 @@
 # <p>  <b>PerCell </b> </p>
+<img src="src/art/percell_window.png" width="600" title="Percell Terminal Interface" alt="Percell Terminal Interface" align="center">
+
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![repo size](https://img.shields.io/github/repo-size/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/)
 [![License: MIT](https://img.shields.io/github/license/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/blob/main/LICENSE)
@@ -8,7 +10,7 @@
 [![Pull requests](https://img.shields.io/github/issues-pr/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/pulls)
 [![GitHub stars](https://img.shields.io/github/stars/marcusjoshm/percell?style=social)](https://github.com/marcusjoshm/percell/)
 [![GitHub forks](https://img.shields.io/github/forks/marcusjoshm/percell?style=social)](https://github.com/marcusjoshm/percell/)
-[!Percell Terminal Interface](src/art/percell_window.png)
+
 A single cell microscopy analysis tool that integrates single cell segmentation using cellpose with imageJ macros into a single software package with an easy-to-use command line interface
 
 ## Table of Contents
