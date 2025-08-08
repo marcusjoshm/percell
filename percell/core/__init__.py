@@ -7,6 +7,7 @@ This package contains the core functionality for the microscopy analysis pipelin
 - Logger: Logging framework
 - Pipeline: Main pipeline orchestrator
 - Stages: Stage execution framework
+- Utils: Utility functions for package resource management
 """
 
 from .cli import PipelineCLI, parse_arguments, create_cli, CLIError
@@ -21,6 +22,23 @@ from .stages import (
     StageError,
     register_stage, 
     get_stage_registry
+)
+from .utils import (
+    get_package_root,
+    get_package_resource,
+    get_bash_script,
+    get_config_file,
+    get_macro_file,
+    ensure_executable,
+    find_package_root_from_script
+)
+from .paths import (
+    get_path_config,
+    get_path,
+    get_path_str,
+    path_exists,
+    ensure_executable,
+    list_all_paths
 )
 
 __all__ = [
@@ -44,5 +62,18 @@ __all__ = [
     'StageExecutor',
     'StageError',
     'register_stage',
-    'get_stage_registry'
+    'get_stage_registry',
+    'get_package_root',
+    'get_package_resource',
+    'get_bash_script',
+    'get_config_file',
+    'get_macro_file',
+    'ensure_executable',
+    'find_package_root_from_script',
+    'get_path_config',
+    'get_path',
+    'get_path_str',
+    'path_exists',
+    'ensure_executable',
+    'list_all_paths'
 ] 

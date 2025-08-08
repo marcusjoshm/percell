@@ -25,13 +25,20 @@ def main():
         register_all_stages()
         
         # Load configuration
-        config_path = "percell/config/config.json"
-        if not Path(config_path).exists():
-            print(f"Configuration file not found: {config_path}")
+        from percell.core.paths import get_path_str, path_exists
+        try:
+            config_path = get_path_str("config_default")
+            if path_exists("config_default"):
+                config = Config(config_path)
+            else:
+                print(f"Configuration file not found: {config_path}")
+                print("Creating default configuration...")
+                config = create_default_config(config_path)
+        except KeyError:
+            print(f"Configuration file not found: percell/config/config.json")
             print("Creating default configuration...")
+            config_path = "percell/config/config.json"
             config = create_default_config(config_path)
-        else:
-            config = Config(config_path)
         
         # Validate configuration (but don't exit on missing software paths)
         try:
@@ -75,6 +82,12 @@ def main():
                 
                 if not stages_selected:
                     # No stages selected, just return to menu (e.g., after setting directories)
+                    continue
+                
+                # Ensure output directory is set
+                if not args.output:
+                    print("Error: Output directory is required for pipeline execution.")
+                    print("Please set the output directory using --output or through the interactive menu.")
                     continue
                 
                 # Create logger

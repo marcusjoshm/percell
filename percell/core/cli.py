@@ -424,16 +424,13 @@ Examples:
         """
         try:
             import subprocess
-            from pathlib import Path
+            from .paths import get_path, ensure_executable
             
             # Use the setup_output_structure.sh script
-            script_path = Path("percell/bash/setup_output_structure.sh")
-            if not script_path.exists():
-                print(f"Error: setup_output_structure.sh script not found: {script_path}")
-                return False
+            script_path = get_path("setup_output_structure_script")
             
             # Make sure the script is executable
-            script_path.chmod(0o755)
+            ensure_executable("setup_output_structure_script")
             
             # Run the script
             result = subprocess.run([str(script_path), input_dir, output_dir], 

@@ -101,13 +101,11 @@ class DataSelectionStage(StageBase):
             self.logger.info("Starting output directory structure setup...")
             
             # Use the setup_output_structure.sh script
-            script_path = Path("percell/bash/setup_output_structure.sh")
-            if not script_path.exists():
-                self.logger.error(f"setup_output_structure.sh script not found: {script_path}")
-                return False
+            from percell.core.paths import get_path, ensure_executable
+            script_path = get_path("setup_output_structure_script")
             
             # Make sure the script is executable
-            script_path.chmod(0o755)
+            ensure_executable("setup_output_structure_script")
             
             self.logger.info(f"Running setup_output_structure.sh with input: {self.input_dir}, output: {self.output_dir}")
             
@@ -262,13 +260,11 @@ class DataSelectionStage(StageBase):
             self.logger.info(f"Starting input directory structure preparation: {input_path}")
             
             # Use the prepare_input_structure.sh script
-            script_path = Path("percell/bash/prepare_input_structure.sh")
-            if not script_path.exists():
-                self.logger.error(f"prepare_input_structure.sh script not found: {script_path}")
-                return False
+            from percell.core.paths import get_path, ensure_executable
+            script_path = get_path("prepare_input_structure_script")
             
             # Make sure the script is executable
-            script_path.chmod(0o755)
+            ensure_executable("prepare_input_structure_script")
             
             self.logger.info(f"Running prepare_input_structure.sh with input: {input_path}")
             
@@ -734,10 +730,14 @@ class SegmentationStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for segmentation stage."""
         # Check if required scripts exist
-        required_scripts = ["percell/modules/bin_images.py", "percell/bash/launch_segmentation_tools.sh"]
-        for script in required_scripts:
-            if not Path(script).exists():
-                self.logger.error(f"Required script not found: {script}")
+        from percell.core.paths import path_exists
+        required_scripts = [
+            ("bin_images_module", "Python module"),
+            ("launch_segmentation_tools_script", "Bash script")
+        ]
+        for script_name, script_type in required_scripts:
+            if not path_exists(script_name):
+                self.logger.error(f"Required {script_type} not found: {script_name}")
                 return False
         
         # Check if data selection has been completed
@@ -776,7 +776,8 @@ class SegmentationStage(StageBase):
             
             # Step 1: Bin images for segmentation
             self.logger.info("Binning images for segmentation...")
-            bin_script = "percell/modules/bin_images.py"
+            from percell.core.paths import get_path, ensure_executable
+            bin_script = get_path("bin_images_module")
             bin_args = [
                 "--input", f"{output_dir}/raw_data",
                 "--output", f"{output_dir}/preprocessed",
@@ -794,7 +795,7 @@ class SegmentationStage(StageBase):
                 bin_args.extend(["--channels", data_selection['segmentation_channel']])
             
             self.logger.info(f"Running bin_images.py with args: {bin_args}")
-            result = subprocess.run([sys.executable, bin_script] + bin_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, str(bin_script)] + bin_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to bin images: {result.stderr}")
                 return False
@@ -803,12 +804,11 @@ class SegmentationStage(StageBase):
             
             # Step 2: Launch interactive segmentation
             self.logger.info("Launching interactive segmentation tools...")
-            seg_script = "percell/bash/launch_segmentation_tools.sh"
+            seg_script_path = get_path("launch_segmentation_tools_script")
             preprocessed_dir = f"{output_dir}/preprocessed"
             
             # Make sure the script is executable
-            seg_script_path = Path(seg_script)
-            seg_script_path.chmod(0o755)
+            ensure_executable("launch_segmentation_tools_script")
             
             # Run the script interactively (not capturing output to allow user interaction)
             self.logger.info("Starting interactive segmentation session...")
@@ -816,7 +816,7 @@ class SegmentationStage(StageBase):
             self.logger.info("Please complete your segmentation work and press Enter when done.")
             
             # Run interactively without capturing output
-            result = subprocess.run([seg_script, preprocessed_dir], 
+            result = subprocess.run([str(seg_script_path), preprocessed_dir], 
                                   stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
             if result.returncode != 0:
                 self.logger.error(f"Failed to launch segmentation tools: {result.returncode}")
@@ -844,14 +844,17 @@ class ProcessSingleCellDataStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for process single-cell data stage."""
         # Check if required scripts exist
+        from percell.core.paths import path_exists
         required_scripts = [
-                        "percell/modules/track_rois.py", "percell/modules/resize_rois.py",
-            "percell/modules/duplicate_rois_for_channels.py", "percell/modules/extract_cells.py",
-            "percell/modules/group_cells.py"
+            "track_rois_module",
+            "resize_rois_module",
+            "duplicate_rois_for_channels_module",
+            "extract_cells_module",
+            "group_cells_module"
         ]
-        for script in required_scripts:
-            if not Path(script).exists():
-                self.logger.error(f"Required script not found: {script}")
+        for script_name in required_scripts:
+            if not path_exists(script_name):
+                self.logger.error(f"Required script not found: {script_name}")
                 return False
         
         # Check if data selection has been completed
@@ -892,13 +895,14 @@ class ProcessSingleCellDataStage(StageBase):
             timepoints = data_selection.get('selected_timepoints', [])
             if timepoints and len(timepoints) > 1:
                 self.logger.info("Tracking ROIs across timepoints...")
-                track_script = "percell/modules/track_rois.py"
+                from percell.core.paths import get_path
+                track_script = get_path("track_rois_module")
                 track_args = [
                     "--input", f"{output_dir}/preprocessed",
                     "--timepoints"
                 ] + timepoints + ["--recursive"]
                 
-                result = subprocess.run([sys.executable, track_script] + track_args, capture_output=True, text=True)
+                result = subprocess.run([sys.executable, str(track_script)] + track_args, capture_output=True, text=True)
                 if result.returncode != 0:
                     self.logger.error(f"Failed to track ROIs: {result.stderr}")
                     return False
@@ -908,17 +912,18 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 2: Resize ROIs
             self.logger.info("Resizing ROIs...")
-            resize_script = "percell/modules/resize_rois.py"
+            from percell.core.paths import get_path, get_path_str
+            resize_script = get_path("resize_rois_module")
             resize_args = [
                 "--input", f"{output_dir}/preprocessed",
                 "--output", f"{output_dir}/ROIs",
                 "--imagej", self.config.get('imagej_path'),
                 "--channel", data_selection.get('segmentation_channel', ''),
-                "--macro", "percell/macros/resize_rois.ijm",
+                "--macro", get_path_str("resize_rois_macro"),
                 "--auto-close"
             ]
             
-            result = subprocess.run([sys.executable, resize_script] + resize_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, str(resize_script)] + resize_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to resize ROIs: {result.stderr}")
                 return False
@@ -926,13 +931,13 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 3: Duplicate ROIs for analysis channels
             self.logger.info("Duplicating ROIs for analysis channels...")
-            duplicate_script = "percell/modules/duplicate_rois_for_channels.py"
+            duplicate_script = get_path("duplicate_rois_for_channels_module")
             duplicate_args = [
                 "--roi-dir", f"{output_dir}/ROIs",
                 "--channels"
             ] + data_selection.get('analysis_channels', []) + ["--verbose"]
             
-            result = subprocess.run([sys.executable, duplicate_script] + duplicate_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, str(duplicate_script)] + duplicate_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to duplicate ROIs: {result.stderr}")
                 return False
@@ -940,18 +945,18 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 4: Extract cells
             self.logger.info("Extracting cells...")
-            extract_script = "percell/modules/extract_cells.py"
+            extract_script = get_path("extract_cells_module")
             extract_args = [
                 "--roi-dir", f"{output_dir}/ROIs",
                 "--raw-data-dir", f"{output_dir}/raw_data",
                 "--output-dir", f"{output_dir}/cells",
                 "--imagej", self.config.get('imagej_path'),
-                "--macro", "percell/macros/extract_cells.ijm",
+                "--macro", get_path_str("extract_cells_macro"),
                 "--auto-close",
                 "--channels"
             ] + data_selection.get('analysis_channels', [])
             
-            result = subprocess.run([sys.executable, extract_script] + extract_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, str(extract_script)] + extract_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to extract cells: {result.stderr}")
                 return False
@@ -959,7 +964,7 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 5: Group cells
             self.logger.info("Grouping cells...")
-            group_script = "percell/modules/group_cells.py"
+            group_script = get_path("group_cells_module")
             group_args = [
                 "--cells-dir", f"{output_dir}/cells",
                 "--output-dir", f"{output_dir}/grouped_cells",
@@ -968,7 +973,7 @@ class ProcessSingleCellDataStage(StageBase):
                 "--channels"
             ] + data_selection.get('analysis_channels', [])
             
-            result = subprocess.run([sys.executable, group_script] + group_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, str(group_script)] + group_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to group cells: {result.stderr}")
                 return False
@@ -995,10 +1000,11 @@ class ThresholdGroupedCellsStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for threshold grouped cells stage."""
         # Check if required scripts exist
-        required_scripts = ["percell/modules/otsu_threshold_grouped_cells.py"]
-        for script in required_scripts:
-            if not Path(script).exists():
-                self.logger.error(f"Required script not found: {script}")
+        from percell.core.paths import path_exists
+        required_scripts = ["otsu_threshold_grouped_cells_module"]
+        for script_name in required_scripts:
+            if not path_exists(script_name):
+                self.logger.error(f"Required script not found: {script_name}")
                 return False
         
         # Check if data selection has been completed
@@ -1035,19 +1041,20 @@ class ThresholdGroupedCellsStage(StageBase):
             
             # Threshold grouped cells
             self.logger.info("Thresholding grouped cells...")
-            threshold_script = "percell/modules/otsu_threshold_grouped_cells.py"
+            from percell.core.paths import get_path, get_path_str
+            threshold_script = get_path("otsu_threshold_grouped_cells_module")
             threshold_args = [
                 "--input-dir", f"{output_dir}/grouped_cells",
                 "--output-dir", f"{output_dir}/grouped_masks",
                 "--imagej", self.config.get('imagej_path'),
-                "--macro", "percell/macros/threshold_grouped_cells.ijm",
+                "--macro", get_path_str("threshold_grouped_cells_macro"),
                 "--channels"
             ]
             # Add analysis channels as separate arguments (matching original workflow)
             for channel in data_selection.get('analysis_channels', []):
                 threshold_args.append(channel)
             
-            result = subprocess.run([sys.executable, threshold_script] + threshold_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, str(threshold_script)] + threshold_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to threshold grouped cells: {result.stderr}")
                 return False
@@ -1074,15 +1081,14 @@ class MeasureROIAreaStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for measure ROI area stage."""
         # Check if required module exists
-        module_path = Path("percell/modules/measure_roi_area.py")
-        if not module_path.exists():
-            self.logger.error(f"Required module not found: {module_path}")
+        from percell.core.paths import path_exists
+        if not path_exists("measure_roi_area_module"):
+            self.logger.error("Required module not found: measure_roi_area_module")
             return False
             
         # Check if required macro exists
-        macro_path = Path("percell/macros/measure_roi_area.ijm")
-        if not macro_path.exists():
-            self.logger.error(f"Required macro not found: {macro_path}")
+        if not path_exists("measure_roi_area_macro"):
+            self.logger.error("Required macro not found: measure_roi_area_macro")
             return False
         
         # Check if ImageJ path is configured
@@ -1176,13 +1182,16 @@ class AnalysisStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for analysis stage."""
         # Check if required scripts exist
+        from percell.core.paths import path_exists
         required_scripts = [
-            "percell/modules/combine_masks.py", "percell/modules/create_cell_masks.py",
-            "percell/modules/analyze_cell_masks.py", "percell/modules/include_group_metadata.py"
+            "combine_masks_module",
+            "create_cell_masks_module", 
+            "analyze_cell_masks_module",
+            "include_group_metadata_module"
         ]
-        for script in required_scripts:
-            if not Path(script).exists():
-                self.logger.error(f"Required script not found: {script}")
+        for script_name in required_scripts:
+            if not path_exists(script_name):
+                self.logger.error(f"Required script not found: {script_name}")
                 return False
         
         # Check if data selection has been completed
@@ -1220,7 +1229,8 @@ class AnalysisStage(StageBase):
             
             # Step 1: Combine masks
             self.logger.info("Combining masks...")
-            combine_script = "percell/modules/combine_masks.py"
+            from percell.core.paths import get_path
+            combine_script = get_path("combine_masks_module")
             combine_args = [
                 "--input-dir", f"{output_dir}/grouped_masks",
                 "--output-dir", f"{output_dir}/combined_masks",
@@ -1230,7 +1240,7 @@ class AnalysisStage(StageBase):
             for channel in data_selection.get('analysis_channels', []):
                 combine_args.append(channel)
             
-            result = subprocess.run([sys.executable, combine_script] + combine_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, str(combine_script)] + combine_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to combine masks: {result.stderr}")
                 return False
@@ -1238,13 +1248,14 @@ class AnalysisStage(StageBase):
             
             # Step 2: Create cell masks
             self.logger.info("Creating cell masks...")
-            create_masks_script = "percell/modules/create_cell_masks.py"
+            from percell.core.paths import get_path, get_path_str
+            create_masks_script = get_path("create_cell_masks_module")
             create_masks_args = [
                 "--roi-dir", f"{output_dir}/ROIs",
                 "--mask-dir", f"{output_dir}/combined_masks",
                 "--output-dir", f"{output_dir}/masks",
                 "--imagej", self.config.get('imagej_path'),
-                "--macro", "percell/macros/create_cell_masks.ijm",
+                "--macro", get_path_str("create_cell_masks_macro"),
                 "--auto-close",
                 "--channels"
             ]
@@ -1252,7 +1263,7 @@ class AnalysisStage(StageBase):
             for channel in data_selection.get('analysis_channels', []):
                 create_masks_args.append(channel)
             
-            result = subprocess.run([sys.executable, create_masks_script] + create_masks_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, str(create_masks_script)] + create_masks_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to create cell masks: {result.stderr}")
                 return False
@@ -1260,12 +1271,12 @@ class AnalysisStage(StageBase):
             
             # Step 3: Analyze cell masks
             self.logger.info("Analyzing cell masks...")
-            analyze_script = "percell/modules/analyze_cell_masks.py"
+            analyze_script = get_path("analyze_cell_masks_module")
             analyze_args = [
                 "--input", f"{output_dir}/masks",
                 "--output", f"{output_dir}/analysis",
                 "--imagej", self.config.get('imagej_path'),
-                "--macro", "percell/macros/analyze_cell_masks.ijm",
+                "--macro", get_path_str("analyze_cell_masks_macro"),
                 "--channels"
             ]
             # Add analysis channels as separate arguments (matching original workflow)
@@ -1278,7 +1289,7 @@ class AnalysisStage(StageBase):
             if data_selection.get('selected_timepoints'):
                 analyze_args.extend(["--timepoints"] + data_selection['selected_timepoints'])
             
-            result = subprocess.run([sys.executable, analyze_script] + analyze_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, str(analyze_script)] + analyze_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to analyze cell masks: {result.stderr}")
                 return False
@@ -1286,7 +1297,7 @@ class AnalysisStage(StageBase):
             
             # Step 4: Include group metadata
             self.logger.info("Including group metadata...")
-            metadata_script = "percell/modules/include_group_metadata.py"
+            metadata_script = get_path("include_group_metadata_module")
             metadata_args = [
                 "--grouped-cells-dir", f"{output_dir}/grouped_cells",
                 "--analysis-dir", f"{output_dir}/analysis",
@@ -1300,7 +1311,7 @@ class AnalysisStage(StageBase):
             for channel in data_selection.get('analysis_channels', []):
                 metadata_args.append(channel)
             
-            result = subprocess.run([sys.executable, metadata_script] + metadata_args, capture_output=True, text=True)
+            result = subprocess.run([sys.executable, str(metadata_script)] + metadata_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to include group metadata: {result.stderr}")
                 return False
