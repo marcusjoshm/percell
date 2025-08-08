@@ -9,7 +9,7 @@ The project has been refactored to follow a more modular and maintainable struct
 ```
 percell/
 ├── main.py                          # Main entry point
-├── src/                             # Source code directory
+├── percell/                             # Source code directory
 │   └── python/                      # Python modules
 │       ├── core/                    # Core framework
 │       │   ├── cli.py              # Command-line interface
@@ -164,7 +164,7 @@ python main.py --input /path/to/data --output /path/to/output --complete
 ### Adding New Stages
 To add a new pipeline stage:
 
-1. Create a new stage class in `src/python/modules/stage_classes.py`:
+1. Create a new stage class in `percell/python/modules/stage_classes.py`:
 ```python
 class NewStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
@@ -176,12 +176,12 @@ class NewStage(StageBase):
         pass
 ```
 
-2. Register the stage in `src/python/modules/stage_registry.py`:
+2. Register the stage in `percell/python/modules/stage_registry.py`:
 ```python
 register_stage('new_stage', order=4)(NewStage)
 ```
 
-3. Add CLI options in `src/python/core/cli.py`:
+3. Add CLI options in `percell/python/core/cli.py`:
 ```python
 parser.add_argument(
     '--new-stage',

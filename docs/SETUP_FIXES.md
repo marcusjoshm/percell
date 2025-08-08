@@ -9,8 +9,8 @@ This document describes the fixes made to the `setup_workflow.py` script and rel
 **Problem**: Cellpose was compiled with NumPy 1.x but the system had NumPy 2.x, causing compatibility warnings that were being treated as errors.
 
 **Solution**: 
-- Updated `src/python/setup/path_detection.py` to use subprocess calls instead of direct `import cellpose`
-- Updated `src/python/core/config.py` to handle NumPy compatibility warnings gracefully
+- Updated `percell/python/setup/path_detection.py` to use subprocess calls instead of direct `import cellpose`
+- Updated `percell/python/core/config.py` to handle NumPy compatibility warnings gracefully
 - Added user-friendly messages about NumPy compatibility warnings in `setup_workflow.py`
 
 ### 2. Cellpose Version Management
@@ -19,11 +19,11 @@ This document describes the fixes made to the `setup_workflow.py` script and rel
 **Solution**:
 - Ensured all installation scripts use `requirements_cellpose.txt` which specifies `cellpose[gui]==4.0.4`
 - Removed redundant cellpose installation commands
-- Updated `src/setup/requirements.txt` to not include Cellpose (since it should only be in the dedicated environment)
+- Updated `percell/setup/requirements.txt` to not include Cellpose (since it should only be in the dedicated environment)
 
 ## Requirements Files Usage
 
-### `src/setup/requirements.txt`
+### `percell/setup/requirements.txt`
 - **Purpose**: Main workflow dependencies (excluding Cellpose)
 - **Used by**: Main workflow environment (`venv`)
 - **Installed via**: `setup_workflow.py` and `install.sh`
@@ -31,7 +31,7 @@ This document describes the fixes made to the `setup_workflow.py` script and rel
 ### `requirements_cellpose.txt`
 - **Purpose**: Cellpose and its dependencies (version 4.0.4)
 - **Used by**: Cellpose virtual environment (`cellpose_venv`)
-- **Installed via**: `setup_workflow.py`, `install.sh`, and `src/python/setup/path_detection.py`
+- **Installed via**: `setup_workflow.py`, `install.sh`, and `percell/python/setup/path_detection.py`
 
 ## Installation Flow
 
@@ -39,14 +39,14 @@ This document describes the fixes made to the `setup_workflow.py` script and rel
    ```bash
    python3.11 -m venv venv
    source venv/bin/activate
-   pip install -r src/setup/requirements.txt
+   pip install -r percell/setup/requirements.txt
    ```
 
 2. **Cellpose Environment Setup**:
    ```bash
    python3.11 -m venv cellpose_venv
    source cellpose_venv/bin/activate
-   pip install -r src/setup/requirements_cellpose.txt
+   pip install -r percell/setup/requirements_cellpose.txt
    ```
 
 ## Files Modified
@@ -56,23 +56,23 @@ This document describes the fixes made to the `setup_workflow.py` script and rel
    - Added `install_main_requirements()` method
    - Updated to use `requirements_cellpose.txt` for Cellpose installation
 
-2. **`src/python/setup/path_detection.py`**:
+2. **`percell/python/setup/path_detection.py`**:
    - Updated `detect_cellpose()` to use subprocess for Cellpose import
    - Updated `_validate_cellpose_in_env()` to handle NumPy warnings
    - Updated to use `requirements_cellpose.txt` for installation
 
-3. **`src/python/core/config.py`**:
+3. **`percell/python/core/config.py`**:
    - Updated `detect_software_paths()` to use subprocess for Cellpose detection
 
 4. **`install.sh`**:
    - Removed redundant Cellpose installation
    - Added NumPy compatibility warning handling
 
-5. **`src/bash/launch_segmentation_tools.sh`**:
+5. **`percell/bash/launch_segmentation_tools.sh`**:
    - Updated Cellpose installation to use version 4.0.4
    - Added NumPy compatibility warning handling
 
-6. **`src/setup/requirements.txt`**:
+6. **`percell/setup/requirements.txt`**:
    - Removed Cellpose dependency (now only in `requirements_cellpose.txt`)
 
 ## Testing

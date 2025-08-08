@@ -19,4 +19,4 @@ if ! command -v python3.11 &> /dev/null; then
 fi
 
 # Run the Python installation script with Python 3.11
-python3.11 src/setup/install.py "$@" 
+python3.11 percell/setup/install.py "$@" 

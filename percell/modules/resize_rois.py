@@ -216,8 +216,8 @@ def main():
                         help='Path to ImageJ executable')
     parser.add_argument('--channel', required=True,
                         help='Segmentation channel to process ROIs for (e.g., ch00)')
-    parser.add_argument('--macro', default='src/macros/resize_rois.ijm',
-                        help='Path to the dedicated ImageJ macro file (default: src/macros/resize_rois.ijm)')
+    parser.add_argument('--macro', default='percell/macros/resize_rois.ijm',
+                        help='Path to the dedicated ImageJ macro file (default: percell/macros/resize_rois.ijm)')
     parser.add_argument('--auto-close', action='store_true',
                         help='Close ImageJ when the macro completes')
     parser.add_argument('--verbose', '-v', action='store_true',

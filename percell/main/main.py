@@ -11,21 +11,21 @@ import argparse
 from pathlib import Path
 
 # Import from the package (no sys.path manipulation needed!)
-from src.core.config import Config, ConfigError, create_default_config
-from src.core.logger import PipelineLogger
-from src.core.cli import parse_arguments, CLIError, show_header, create_cli
-from src.core.pipeline import Pipeline
+from percell.core.config import Config, ConfigError, create_default_config
+from percell.core.logger import PipelineLogger
+from percell.core.cli import parse_arguments, CLIError, show_header, create_cli
+from percell.core.pipeline import Pipeline
 
 
 def main():
     """Main entry point for the microscopy per cell analysis pipeline."""
     try:
         # Register all available stages
-        from src.modules.stage_registry import register_all_stages
+        from percell.modules.stage_registry import register_all_stages
         register_all_stages()
         
         # Load configuration
-        config_path = "src/config/config.json"
+        config_path = "percell/config/config.json"
         if not Path(config_path).exists():
             print(f"Configuration file not found: {config_path}")
             print("Creating default configuration...")
@@ -92,7 +92,7 @@ def main():
                     
                     # Automatically save the most recently used directories as defaults
                     try:
-                        from src.modules.directory_setup import save_recent_directories_automatically
+                        from percell.modules.directory_setup import save_recent_directories_automatically
                         # Reload the config to get the latest data
                         config.load()
                         # Convert config to dict for the directory setup functions

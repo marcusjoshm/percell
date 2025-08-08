@@ -1,13 +1,13 @@
 include README.md
 include LICENSE
-include src/setup/requirements.txt
-include src/setup/requirements_cellpose.txt
-include src/setup/install.py
+include percell/setup/requirements.txt
+include percell/setup/requirements_cellpose.txt
+include percell/setup/install.py
 include install
 
-recursive-include src/config *.json
-recursive-include src/bash *.sh
-recursive-include src/macros *.ijm
+recursive-include percell/config *.json
+recursive-include percell/bash *.sh
+recursive-include percell/macros *.ijm
 
 global-exclude *.pyc
 global-exclude __pycache__

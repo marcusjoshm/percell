@@ -101,7 +101,7 @@ class DataSelectionStage(StageBase):
             self.logger.info("Starting output directory structure setup...")
             
             # Use the setup_output_structure.sh script
-            script_path = Path("src/bash/setup_output_structure.sh")
+            script_path = Path("percell/bash/setup_output_structure.sh")
             if not script_path.exists():
                 self.logger.error(f"setup_output_structure.sh script not found: {script_path}")
                 return False
@@ -262,7 +262,7 @@ class DataSelectionStage(StageBase):
             self.logger.info(f"Starting input directory structure preparation: {input_path}")
             
             # Use the prepare_input_structure.sh script
-            script_path = Path("src/bash/prepare_input_structure.sh")
+            script_path = Path("percell/bash/prepare_input_structure.sh")
             if not script_path.exists():
                 self.logger.error(f"prepare_input_structure.sh script not found: {script_path}")
                 return False
@@ -734,7 +734,7 @@ class SegmentationStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for segmentation stage."""
         # Check if required scripts exist
-        required_scripts = ["src/modules/bin_images.py", "src/bash/launch_segmentation_tools.sh"]
+        required_scripts = ["percell/modules/bin_images.py", "percell/bash/launch_segmentation_tools.sh"]
         for script in required_scripts:
             if not Path(script).exists():
                 self.logger.error(f"Required script not found: {script}")
@@ -776,7 +776,7 @@ class SegmentationStage(StageBase):
             
             # Step 1: Bin images for segmentation
             self.logger.info("Binning images for segmentation...")
-            bin_script = "src/modules/bin_images.py"
+            bin_script = "percell/modules/bin_images.py"
             bin_args = [
                 "--input", f"{output_dir}/raw_data",
                 "--output", f"{output_dir}/preprocessed",
@@ -803,7 +803,7 @@ class SegmentationStage(StageBase):
             
             # Step 2: Launch interactive segmentation
             self.logger.info("Launching interactive segmentation tools...")
-            seg_script = "src/bash/launch_segmentation_tools.sh"
+            seg_script = "percell/bash/launch_segmentation_tools.sh"
             preprocessed_dir = f"{output_dir}/preprocessed"
             
             # Make sure the script is executable
@@ -845,9 +845,9 @@ class ProcessSingleCellDataStage(StageBase):
         """Validate inputs for process single-cell data stage."""
         # Check if required scripts exist
         required_scripts = [
-                        "src/modules/track_rois.py", "src/modules/resize_rois.py",
-            "src/modules/duplicate_rois_for_channels.py", "src/modules/extract_cells.py",
-            "src/modules/group_cells.py"
+                        "percell/modules/track_rois.py", "percell/modules/resize_rois.py",
+            "percell/modules/duplicate_rois_for_channels.py", "percell/modules/extract_cells.py",
+            "percell/modules/group_cells.py"
         ]
         for script in required_scripts:
             if not Path(script).exists():
@@ -892,7 +892,7 @@ class ProcessSingleCellDataStage(StageBase):
             timepoints = data_selection.get('selected_timepoints', [])
             if timepoints and len(timepoints) > 1:
                 self.logger.info("Tracking ROIs across timepoints...")
-                track_script = "src/modules/track_rois.py"
+                track_script = "percell/modules/track_rois.py"
                 track_args = [
                     "--input", f"{output_dir}/preprocessed",
                     "--timepoints"
@@ -908,13 +908,13 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 2: Resize ROIs
             self.logger.info("Resizing ROIs...")
-            resize_script = "src/modules/resize_rois.py"
+            resize_script = "percell/modules/resize_rois.py"
             resize_args = [
                 "--input", f"{output_dir}/preprocessed",
                 "--output", f"{output_dir}/ROIs",
                 "--imagej", self.config.get('imagej_path'),
                 "--channel", data_selection.get('segmentation_channel', ''),
-                "--macro", "src/macros/resize_rois.ijm",
+                "--macro", "percell/macros/resize_rois.ijm",
                 "--auto-close"
             ]
             
@@ -926,7 +926,7 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 3: Duplicate ROIs for analysis channels
             self.logger.info("Duplicating ROIs for analysis channels...")
-            duplicate_script = "src/modules/duplicate_rois_for_channels.py"
+            duplicate_script = "percell/modules/duplicate_rois_for_channels.py"
             duplicate_args = [
                 "--roi-dir", f"{output_dir}/ROIs",
                 "--channels"
@@ -940,13 +940,13 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 4: Extract cells
             self.logger.info("Extracting cells...")
-            extract_script = "src/modules/extract_cells.py"
+            extract_script = "percell/modules/extract_cells.py"
             extract_args = [
                 "--roi-dir", f"{output_dir}/ROIs",
                 "--raw-data-dir", f"{output_dir}/raw_data",
                 "--output-dir", f"{output_dir}/cells",
                 "--imagej", self.config.get('imagej_path'),
-                "--macro", "src/macros/extract_cells.ijm",
+                "--macro", "percell/macros/extract_cells.ijm",
                 "--auto-close",
                 "--channels"
             ] + data_selection.get('analysis_channels', [])
@@ -959,7 +959,7 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 5: Group cells
             self.logger.info("Grouping cells...")
-            group_script = "src/modules/group_cells.py"
+            group_script = "percell/modules/group_cells.py"
             group_args = [
                 "--cells-dir", f"{output_dir}/cells",
                 "--output-dir", f"{output_dir}/grouped_cells",
@@ -995,7 +995,7 @@ class ThresholdGroupedCellsStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for threshold grouped cells stage."""
         # Check if required scripts exist
-        required_scripts = ["src/modules/otsu_threshold_grouped_cells.py"]
+        required_scripts = ["percell/modules/otsu_threshold_grouped_cells.py"]
         for script in required_scripts:
             if not Path(script).exists():
                 self.logger.error(f"Required script not found: {script}")
@@ -1035,12 +1035,12 @@ class ThresholdGroupedCellsStage(StageBase):
             
             # Threshold grouped cells
             self.logger.info("Thresholding grouped cells...")
-            threshold_script = "src/modules/otsu_threshold_grouped_cells.py"
+            threshold_script = "percell/modules/otsu_threshold_grouped_cells.py"
             threshold_args = [
                 "--input-dir", f"{output_dir}/grouped_cells",
                 "--output-dir", f"{output_dir}/grouped_masks",
                 "--imagej", self.config.get('imagej_path'),
-                "--macro", "src/macros/threshold_grouped_cells.ijm",
+                "--macro", "percell/macros/threshold_grouped_cells.ijm",
                 "--channels"
             ]
             # Add analysis channels as separate arguments (matching original workflow)
@@ -1074,13 +1074,13 @@ class MeasureROIAreaStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for measure ROI area stage."""
         # Check if required module exists
-        module_path = Path("src/modules/measure_roi_area.py")
+        module_path = Path("percell/modules/measure_roi_area.py")
         if not module_path.exists():
             self.logger.error(f"Required module not found: {module_path}")
             return False
             
         # Check if required macro exists
-        macro_path = Path("src/macros/measure_roi_area.ijm")
+        macro_path = Path("percell/macros/measure_roi_area.ijm")
         if not macro_path.exists():
             self.logger.error(f"Required macro not found: {macro_path}")
             return False
@@ -1177,8 +1177,8 @@ class AnalysisStage(StageBase):
         """Validate inputs for analysis stage."""
         # Check if required scripts exist
         required_scripts = [
-            "src/modules/combine_masks.py", "src/modules/create_cell_masks.py",
-            "src/modules/analyze_cell_masks.py", "src/modules/include_group_metadata.py"
+            "percell/modules/combine_masks.py", "percell/modules/create_cell_masks.py",
+            "percell/modules/analyze_cell_masks.py", "percell/modules/include_group_metadata.py"
         ]
         for script in required_scripts:
             if not Path(script).exists():
@@ -1220,7 +1220,7 @@ class AnalysisStage(StageBase):
             
             # Step 1: Combine masks
             self.logger.info("Combining masks...")
-            combine_script = "src/modules/combine_masks.py"
+            combine_script = "percell/modules/combine_masks.py"
             combine_args = [
                 "--input-dir", f"{output_dir}/grouped_masks",
                 "--output-dir", f"{output_dir}/combined_masks",
@@ -1238,13 +1238,13 @@ class AnalysisStage(StageBase):
             
             # Step 2: Create cell masks
             self.logger.info("Creating cell masks...")
-            create_masks_script = "src/modules/create_cell_masks.py"
+            create_masks_script = "percell/modules/create_cell_masks.py"
             create_masks_args = [
                 "--roi-dir", f"{output_dir}/ROIs",
                 "--mask-dir", f"{output_dir}/combined_masks",
                 "--output-dir", f"{output_dir}/masks",
                 "--imagej", self.config.get('imagej_path'),
-                "--macro", "src/macros/create_cell_masks.ijm",
+                "--macro", "percell/macros/create_cell_masks.ijm",
                 "--auto-close",
                 "--channels"
             ]
@@ -1260,12 +1260,12 @@ class AnalysisStage(StageBase):
             
             # Step 3: Analyze cell masks
             self.logger.info("Analyzing cell masks...")
-            analyze_script = "src/modules/analyze_cell_masks.py"
+            analyze_script = "percell/modules/analyze_cell_masks.py"
             analyze_args = [
                 "--input", f"{output_dir}/masks",
                 "--output", f"{output_dir}/analysis",
                 "--imagej", self.config.get('imagej_path'),
-                "--macro", "src/macros/analyze_cell_masks.ijm",
+                "--macro", "percell/macros/analyze_cell_masks.ijm",
                 "--channels"
             ]
             # Add analysis channels as separate arguments (matching original workflow)
@@ -1286,7 +1286,7 @@ class AnalysisStage(StageBase):
             
             # Step 4: Include group metadata
             self.logger.info("Including group metadata...")
-            metadata_script = "src/modules/include_group_metadata.py"
+            metadata_script = "percell/modules/include_group_metadata.py"
             metadata_args = [
                 "--grouped-cells-dir", f"{output_dir}/grouped_cells",
                 "--analysis-dir", f"{output_dir}/analysis",

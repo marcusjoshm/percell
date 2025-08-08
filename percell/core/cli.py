@@ -116,8 +116,8 @@ Examples:
         parser.add_argument(
             '--config',
             type=str,
-            default='src/config/config.json',
-            help='Path to configuration file (default: src/config/config.json)'
+            default='percell/config/config.json',
+            help='Path to configuration file (default: percell/config/config.json)'
         )
         
         # Processing options
@@ -254,7 +254,7 @@ Examples:
         # Load config to get default directories
         try:
             from ..modules.directory_setup import load_config
-            config_path = getattr(args, 'config', 'src/config/config.json')
+            config_path = getattr(args, 'config', 'percell/config/config.json')
             config = load_config(config_path)
             default_input = config.get('directories', {}).get('input', '')
             default_output = config.get('directories', {}).get('output', '')
@@ -299,7 +299,7 @@ Examples:
         # Show menu
         show_header()
         print("")
-        print(colorize("             🔬 Welcome single-cell microscopy analysis user! 🔬                ", Colors.bold))
+        print(colorize("🔬 Welcome single-cell microscopy analysis user! 🔬", Colors.bold))
         print("")
         print(colorize("MENU:", Colors.bold))
         print(colorize("1. Set Input/Output Directories", Colors.green))
@@ -327,7 +327,7 @@ Examples:
                 from ..modules.directory_setup import load_config, save_config
                 
                 # Load current config
-                config_path = args.config if hasattr(args, 'config') else 'src/config/config.json'
+                config_path = args.config if hasattr(args, 'config') else 'percell/config/config.json'
                 config = load_config(config_path)
                 
                 # Set default directories
@@ -427,7 +427,7 @@ Examples:
             from pathlib import Path
             
             # Use the setup_output_structure.sh script
-            script_path = Path("src/bash/setup_output_structure.sh")
+            script_path = Path("percell/bash/setup_output_structure.sh")
             if not script_path.exists():
                 print(f"Error: setup_output_structure.sh script not found: {script_path}")
                 return False

@@ -154,7 +154,7 @@ def create_cellpose_venv() -> bool:
             return False
         
         # Install Cellpose requirements
-        if not install_requirements("cellpose_venv", "src/setup/requirements_cellpose.txt"):
+        if not install_requirements("cellpose_venv", "percell/setup/requirements_cellpose.txt"):
             print_warning("Cellpose installation failed. This is optional and the main workflow will still work.")
             print_warning("You can install Cellpose manually later if needed for segmentation.")
             return False
@@ -191,7 +191,7 @@ def print_cellpose_guidance():
     print("   python install.py --skip-cellpose")
     print("\n3. Or install Cellpose later when needed:")
     print("   source cellpose_venv/bin/activate")
-    print("   pip install -r src/setup/requirements_cellpose.txt")
+    print("   pip install -r percell/setup/requirements_cellpose.txt")
     print("="*60)
 
 def detect_software_paths() -> Dict[str, str]:
@@ -254,8 +254,8 @@ def create_config_file() -> bool:
     """Create or update the configuration file with detected paths.
     Writes to package config at percell/config/config.json only.
     """
-    pkg_config_path = Path("src/config/config.json")
-    pkg_template_path = Path("src/config/config.template.json")
+    pkg_config_path = Path("percell/config/config.json")
+    pkg_template_path = Path("percell/config/config.template.json")
     legacy_template_path = Path("config/config.template.json")
 
     try:
@@ -308,7 +308,7 @@ def verify_installation(venv_name: str = "venv") -> bool:
         test_imports = [
             "import numpy",
             "import pandas", 
-            "import src"
+            "import percell"
         ]
         
         for import_statement in test_imports:
@@ -321,7 +321,7 @@ def verify_installation(venv_name: str = "venv") -> bool:
         print_status("Basic imports verified successfully")
         
         # Test command-line tool
-        result = subprocess.run([str(python_path), "-m", "src.main.main", "--help"], 
+        result = subprocess.run([str(python_path), "-m", "percell.main.main", "--help"], 
                               capture_output=True, text=True)
         if result.returncode == 0:
             print_status("Command-line tool verified successfully")
@@ -344,7 +344,7 @@ def print_usage_instructions():
     print("\n2. Run the analysis tool:")
     print("   percell")
     print("\n   OR")
-    print("   python src/main/main.py")
+    print("   python percell/main/main.py")
     print("\n3. For Cellpose operations, activate the Cellpose environment:")
     print("   source cellpose_venv/bin/activate")
     print("\nFor more information, see the README.md file.")
@@ -379,7 +379,7 @@ def main():
         sys.exit(1)
     
     # Install main requirements
-    if not install_requirements("venv", "src/setup/requirements.txt"):
+    if not install_requirements("venv", "percell/setup/requirements.txt"):
         sys.exit(1)
     
     # Install package in development mode

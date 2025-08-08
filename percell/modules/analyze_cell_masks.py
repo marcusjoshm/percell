@@ -510,8 +510,8 @@ def main():
                         help='Directory for output analysis files')
     parser.add_argument('--imagej', required=True,
                         help='Path to ImageJ executable')
-    parser.add_argument('--macro', default='src/macros/analyze_cell_masks.ijm',
-                       help='Path to the dedicated ImageJ macro file (default: src/macros/analyze_cell_masks.ijm)')
+    parser.add_argument('--macro', default='percell/macros/analyze_cell_masks.ijm',
+                       help='Path to the dedicated ImageJ macro file (default: percell/macros/analyze_cell_masks.ijm)')
     parser.add_argument('--regions', nargs='+',
                         help='Specific regions to process (e.g., R_1 R_2)')
     parser.add_argument('--timepoints', '-t', nargs='+',

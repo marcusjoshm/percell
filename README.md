@@ -1,5 +1,5 @@
 # <p>  <b>PerCell </b> </p>
-<img src="src/art/percell_terminal_window.png" width="900" title="Percell Terminal Interface" alt="Percell Terminal Interface" align="center">
+<img percell="percell/art/percell_terminal_window.png" width="900" title="Percell Terminal Interface" alt="Percell Terminal Interface" align="center">
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![repo size](https://img.shields.io/github/repo-size/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/)
@@ -195,7 +195,7 @@ We've introduced a new modular command-line interface that provides a more user-
 
 ### Quick Start with Modular CLI
 
-**After running `python src/setup/install.py`, you can use the tool:**
+**After running `python percell/setup/install.py`, you can use the tool:**
 
 ```bash
 # Activate the environment (if not already activated)

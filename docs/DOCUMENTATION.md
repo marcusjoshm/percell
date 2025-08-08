@@ -104,7 +104,7 @@ source venv/bin/activate
 
 # Install main workflow dependencies
 pip install --upgrade pip
-pip install -r src/setup/requirements.txt
+pip install -r percell/setup/requirements.txt
 ```
 
 #### 2. Cellpose Environment
@@ -116,7 +116,7 @@ source cellpose_venv/bin/activate
 
 # Install Cellpose and its dependencies
 pip install --upgrade pip
-pip install -r src/setup/requirements_cellpose.txt
+pip install -r percell/setup/requirements_cellpose.txt
 ```
 
 ### Environment Structure
@@ -242,7 +242,7 @@ The workflow generates the following structure in the specified output directory
 1. **`single_cell_workflow.py`**: Main workflow orchestrator
 2. **`config/config.json`**: Defines the sequence of steps, their types, paths, and arguments
 3. **`scripts/`**: Contains individual Python and shell scripts executed by the workflow
-4. **`src/macros/`**: Directory containing ImageJ macros used by the workflow
+4. **`percell/macros/`**: Directory containing ImageJ macros used by the workflow
 5. **`config/`**: Directory containing configuration files
 
 ## Recent Updates
@@ -291,7 +291,7 @@ The workflow generates the following structure in the specified output directory
 
 2. **Missing Dependencies**
    - Activate environment: `source venv/bin/activate`
-   - Install packages: `pip install -r src/setup/requirements.txt`
+   - Install packages: `pip install -r percell/setup/requirements.txt`
 
 3. **ImageJ Path Issues**
    - Run configuration: `python setup_workflow.py --create-config`
