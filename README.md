@@ -1,5 +1,5 @@
 # <p>  <b>PerCell </b> </p>
-<img src="src/art/percell_window.png" width="300" title="Percell Terminal Interface" alt="Percell Terminal Interface" align="right">
+<img src="src/art/percell_window.png" width="250" title="Percell Terminal Interface" alt="Percell Terminal Interface" align="right">
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![repo size](https://img.shields.io/github/repo-size/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/)
