@@ -299,7 +299,7 @@ Examples:
         # Show menu
         show_header()
         print("")
-        print(colorize("🔬 Welcome single-cell microscopy analysis user! 🔬", Colors.bold))
+        print(colorize("  🔬 Welcome single-cell microscopy analysis user! 🔬", Colors.bold))
         print("")
         print(colorize("MENU:", Colors.bold))
         print(colorize("1. Set Input/Output Directories", Colors.green))
