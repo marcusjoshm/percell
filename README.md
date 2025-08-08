@@ -11,12 +11,6 @@
 
 A single cell microscopy analysis tool that integrates single cell segmentation using cellpose with imageJ macros into a single software package with an easy-to-use command line interface
 
-## Introduction
-
-This document provides step-by-step instructions for running our single cell analysis workflow on the lab Macbook Pro. Each section includes detailed explanations and commands you can copy and paste directly into your Terminal.
-
-> **Note:** Terminal is Mac's command-line interface where you can type commands to interact with your computer.
-
 ## Table of Contents
 
 1. [Installation](#installation)
@@ -76,11 +70,122 @@ percell
 
 ## Getting Started
 
-### Export Data from LASX
+### Input Directory Structure
 
-This workflow is designed to work seamlessly with data exported directly from LASX. It relies on the file naming and directory structure used by LASX when images are exported as .tiff files. From LASX, highlight the images you want to export from the `Open projects` tab. Right click and select "Export Image". Make a new folder in the E drive to export your data and click OK. Make sure "Export Channels" is checked and RAW image is selected, then click Save. Copy the export folder to the LEELAB surver from the microscope PC. You can now proceed to analysis on the lab Macbook Pro.
+The workflow requires a specific directory structure to organize your microscopy data. Your input directory should be organized hierarchically as follows:
 
-> **Important:** Avoid using a `+` when naming files. It will cause the workflow to fail.
+```
+input_directory/
+├── condition_1/
+│   ├── timepoint_1/
+│   │   ├── region_1/
+│   │   │   ├── channel_1.tif
+│   │   │   ├── channel_2.tif
+│   │   │   └── channel_3.tif
+│   │   └── region_2/
+│   │       ├── channel_1.tif
+│   │       ├── channel_2.tif
+│   │       └── channel_3.tif
+│   └── timepoint_2/
+│       ├── region_1/
+│       │   ├── channel_1.tif
+│       │   ├── channel_2.tif
+│       │   └── channel_3.tif
+│       └── region_2/
+│           ├── channel_1.tif
+│           ├── channel_2.tif
+│           └── channel_3.tif
+└── condition_2/
+    ├── timepoint_1/
+    │   └── region_1/
+    │       ├── channel_1.tif
+    │       ├── channel_2.tif
+    │       └── channel_3.tif
+    └── timepoint_2/
+        └── region_1/
+            ├── channel_1.tif
+            ├── channel_2.tif
+            └── channel_3.tif
+```
+
+#### Directory Structure Requirements:
+
+**For Multi-timepoint Experiments:**
+1. **Conditions** (top level): Different experimental conditions (e.g., `Control`, `Treatment`, `Dish_1`, `Dish_2`)
+2. **Timepoints** (second level): Time points in your experiment (e.g., `0min`, `30min`, `60min`, `T1`, `T2`)
+3. **Regions** (third level): Different regions or fields of view (e.g., `Region_1`, `Field_1`, `ROI_1`)
+4. **Channels** (files): Individual channel images as `.tif` files
+
+**For Single-timepoint Experiments:**
+1. **Conditions** (top level): Different experimental conditions (e.g., `Control`, `Treatment`, `Dish_1`, `Dish_2`)
+2. **Regions** (second level): Different regions or fields of view (e.g., `Region_1`, `Field_1`, `ROI_1`)
+3. **Channels** (files): Individual channel images as `.tif` files
+
+*Note: For single-timepoint experiments, the timepoint level is automatically filled in by the workflow.*
+
+#### File Naming Requirements:
+
+- **No spaces** in directory or file names (use underscores `_` instead)
+- **No special characters** like `+`, `&`, `%`, etc.
+- **Consistent naming** across conditions, timepoints, and regions
+- **Channel files** should be named descriptively (e.g., `DAPI.tif`, `GFP.tif`, `RFP.tif`)
+
+#### Example Structures:
+
+**Multi-timepoint Experiment:**
+```
+microscopy_data/
+├── Control/
+│   ├── 0min/
+│   │   ├── Region_1/
+│   │   │   ├── DAPI.tif
+│   │   │   ├── GFP.tif
+│   │   │   └── RFP.tif
+│   │   └── Region_2/
+│   │       ├── DAPI.tif
+│   │       ├── GFP.tif
+│   │       └── RFP.tif
+│   └── 30min/
+│       └── Region_1/
+│           ├── DAPI.tif
+│           ├── GFP.tif
+│           └── RFP.tif
+└── Treatment/
+    ├── 0min/
+    │   └── Region_1/
+    │       ├── DAPI.tif
+    │       ├── GFP.tif
+    │       └── RFP.tif
+    └── 30min/
+        └── Region_1/
+            ├── DAPI.tif
+            ├── GFP.tif
+            └── RFP.tif
+```
+
+**Single-timepoint Experiment:**
+```
+microscopy_data/
+├── Control/
+│   ├── Region_1/
+│   │   ├── DAPI.tif
+│   │   ├── GFP.tif
+│   │   └── RFP.tif
+│   └── Region_2/
+│       ├── DAPI.tif
+│       ├── GFP.tif
+│       └── RFP.tif
+└── Treatment/
+    └── Region_1/
+        ├── DAPI.tif
+        ├── GFP.tif
+        └── RFP.tif
+```
+
+> **Important:** 
+> - Avoid using a `+` when naming files or directories
+> - Ensure all conditions have the same timepoints and regions for consistent analysis
+> - Use descriptive names for channels to identify them during analysis
 > 
 ## Modular CLI System (New!)
 
@@ -88,59 +193,29 @@ We've introduced a new modular command-line interface that provides a more user-
 
 ### Quick Start with Modular CLI
 
-**After running `python src/setup/install.py`, you can use the tool in two ways:**
+**After running `python src/setup/install.py`, you can use the tool:**
 
-**Method 1: Using the command-line tool (recommended):**
 ```bash
 # Activate the environment (if not already activated)
+cd ~/percell
 source venv/bin/activate
 
 # Run using the installed command-line tool
 percell
 ```
 
-**Method 2: Direct script execution:**
-```bash
-# Activate the environment (if not already activated)
-cd ~/percell
-source venv/bin/activate
-
-# Run the script directly
-python src/main/main.py
-```
 
 **You'll see the colorful ASCII header and interactive menu:**
    ```
-      ███████╗ ██╗ ███╗   ██╗  ██████╗  ██╗      ███████╗      
-      ██╔════╝ ██║ ████╗  ██║ ██╔════╝  ██║      ██╔════╝      
-      ███████╗ ██║ ██╔██╗ ██║ ██║  ███╗ ██║      █████╗        
-      ╚════██║ ██║ ██║╚██╗██║ ██║   ██║ ██║      ██╔══╝        
-      ███████║ ██║ ██║ ╚████║ ╚██████╔╝ ███████╗ ███████╗      
-      ╚══════╝ ╚═╝ ╚═╝  ╚═══╝  ╚═════╝  ╚══════╝ ╚══════╝      
-                                                               
-      ██████╗ ███████╗ ██╗      ██╗                            
-      ██╔═══╝ ██╔════╝ ██║      ██║                            
-      ██║     █████╗   ██║      ██║                            
-      ██║     ██╔══╝   ██║      ██║                            
-      ██████╗ ███████╗ ███████╗ ███████╗                       
-      ╚═════╝ ╚══════╝ ╚══════╝ ╚══════╝                       
-                                                               
-       █████╗  ███╗   ██╗  █████╗             
-      ██╔══██╗ ████╗  ██║ ██╔══██╗            
-      ███████║ ██╔██╗ ██║ ███████║            
-      ██╔══██║ ██║╚██╗██║ ██╔══██║            
-      ██║  ██║ ██║ ╚████║ ██║  ██║            
-      ╚═╝  ╚═╝ ╚═╝  ╚═══╝ ╚═╝  ╚═╝            
-                                                                          
-      ██╗    ██╗   ██╗ ███████╗ ███████╗ ███████╗                         
-      ██║    ╚██╗ ██╔╝ ╚════██║ ██╔════╝ ██╔══██╗                         
-      ██║     ╚████╔╝     ██╔╝  █████╗   ██████╔╝                         
-      ██║      ╚██╔╝    ██╔╝    ██╔══╝   ██╔══██╗                         
-      ███████╗  ██║    ███████╗ ███████╗ ██║  ██║                         
-      ╚══════╝  ╚═╝    ╚══════╝ ╚══════╝ ╚═╝  ╚═╝                         
-                                                                          
+   
+    ███████╗ ████████╗███████╗ ███████╗████████╗██╗      ██╗
+    ██╔═══██╗██╔═════╝██╔═══██╗██╔════╝██╔═════╝██║      ██║
+    ███████╔╝███████╗ ███████╔╝██║     ███████╗ ██║      ██║
+    ██╔════╝ ██╔════╝ ██╔═══██╗██║     ██╔════╝ ██║      ██║
+    ██║      ████████╗██║   ██║███████╗████████╗████████╗████████╗
+    ╚═╝      ╚═══════╝╚═╝   ╚═╝╚══════╝╚═══════╝╚═══════╝╚═══════╝
 
-  🔬 Welcome Single Cell Analysis user! 🔬
+   🔬 Welcome single-cell microscopy analysis user! 🔬
 
    MENU:
    1. Set Input/Output Directories
@@ -149,8 +224,10 @@ python src/main/main.py
    4. Single-cell Segmentation (Cellpose)
    5. Process Single-cell Data (tracking, resizing, extraction, grouping)
    6. Threshold Grouped Cells (interactive ImageJ thresholding)
-   7. Analysis (combine masks, create cell masks, export results)
-   8. Exit
+   7. Measure Cell Area (measure areas from single-cell ROIs)
+   8. Analysis (combine masks, create cell masks, export results)
+   9. Exit
+   Select an option (1-9):
    ```
 
 ### Menu Options Explained
