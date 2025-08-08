@@ -1,4 +1,5 @@
 # <p>  <b>PerCell </b> </p>
+A single cell microscopy analysis tool that integrates single cell segmentation using cellpose with imageJ macros into a single software package with an easy-to-use command line interface
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/github/license/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/blob/main/LICENSE)
 [![repo size](https://img.shields.io/github/repo-size/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/)
@@ -9,8 +10,6 @@
 [![Issues](https://img.shields.io/github/issues/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/issues)
 [![Pull requests](https://img.shields.io/github/issues-pr/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/pulls)
 
-
-A single cell microscopy analysis tool that integrates single cell segmentation using cellpose with imageJ macros into a single software package with an easy-to-use command line interface
 
 ## Introduction
 
