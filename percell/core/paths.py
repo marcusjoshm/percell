@@ -97,6 +97,7 @@ class PathConfig:
             # Python modules
             'bin_images_module': self._package_root / 'modules' / 'bin_images.py',
             'analyze_cell_masks_module': self._package_root / 'modules' / 'analyze_cell_masks.py',
+            'cleanup_directories_module': self._package_root / 'modules' / 'cleanup_directories.py',
             'combine_masks_module': self._package_root / 'modules' / 'combine_masks.py',
             'create_cell_masks_module': self._package_root / 'modules' / 'create_cell_masks.py',
             'directory_setup_module': self._package_root / 'modules' / 'directory_setup.py',
