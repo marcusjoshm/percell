@@ -35,9 +35,10 @@ def main():
                 print("Creating default configuration...")
                 config = create_default_config(config_path)
         except KeyError:
-            print(f"Configuration file not found: percell/config/config.json")
-            print("Creating default configuration...")
+            # Fallback to relative path if path system fails
             config_path = "percell/config/config.json"
+            print(f"Configuration file not found: {config_path}")
+            print("Creating default configuration...")
             config = create_default_config(config_path)
         
         # Validate configuration (but don't exit on missing software paths)

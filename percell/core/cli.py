@@ -99,6 +99,9 @@ Examples:
   
   # Run analysis
   percell --input /path/to/data --output /path/to/output --analysis
+  
+  # Run cleanup
+  percell --output /path/to/output --cleanup
             """
         )
         
@@ -116,8 +119,7 @@ Examples:
         parser.add_argument(
             '--config',
             type=str,
-            default='percell/config/config.json',
-            help='Path to configuration file (default: percell/config/config.json)'
+            help='Path to configuration file (default: uses package config)'
         )
         
         # Processing options
@@ -150,6 +152,11 @@ Examples:
             '--analysis',
             action='store_true',
             help='Run analysis (combine masks, create cell masks, export results)'
+        )
+        parser.add_argument(
+            '--cleanup',
+            action='store_true',
+            help='Clean up directories (empty cells, masks, and related directories to free space)'
         )
         parser.add_argument(
             '--complete-workflow',
@@ -254,7 +261,18 @@ Examples:
         # Load config to get default directories
         try:
             from ..modules.directory_setup import load_config
-            config_path = getattr(args, 'config', 'percell/config/config.json')
+            from ..core.paths import get_path
+            
+            if args.config:
+                config_path = args.config
+            else:
+                # Use centralized path system to get default config path
+                try:
+                    config_path = str(get_path('config_default'))
+                except:
+                    # Fallback to relative path if path system fails
+                    config_path = 'percell/config/config.json'
+            
             config = load_config(config_path)
             default_input = config.get('directories', {}).get('input', '')
             default_output = config.get('directories', {}).get('output', '')
@@ -290,7 +308,7 @@ Examples:
         # Check if any stage is already selected
         stage_flags = [
             args.data_selection, args.segmentation, args.process_single_cell,
-            args.threshold_grouped_cells, args.measure_roi_area, args.analysis, args.complete_workflow
+            args.threshold_grouped_cells, args.measure_roi_area, args.analysis, args.cleanup, args.complete_workflow
         ]
         
         if any(stage_flags):
@@ -310,11 +328,12 @@ Examples:
         print(colorize("6. Threshold Grouped Cells (interactive ImageJ thresholding)", Colors.orange))
         print(colorize("7. Measure Cell Area (measure areas from single-cell ROIs)", Colors.orange))
         print(colorize("8. Analysis (combine masks, create cell masks, export results)", Colors.orange))
-        print(colorize("9. Exit", Colors.red))
+        print(colorize("9. Cleanup (empty cells, masks, and related directories)", Colors.blue))
+        print(colorize("10. Exit", Colors.red))
         
         # Get user choice
         try:
-            choice = input("Select an option (1-9): ").strip().lower()
+            choice = input("Select an option (1-10): ").strip().lower()
         except EOFError:
             print("\nEOF detected. Exiting gracefully.")
             return None
@@ -327,7 +346,17 @@ Examples:
                 from ..modules.directory_setup import load_config, save_config
                 
                 # Load current config
-                config_path = args.config if hasattr(args, 'config') else 'percell/config/config.json'
+                if args.config:
+                    config_path = args.config
+                else:
+                    # Use centralized path system to get default config path
+                    from ..core.paths import get_path
+                    try:
+                        config_path = str(get_path('config_default'))
+                    except:
+                        # Fallback to relative path if path system fails
+                        config_path = 'percell/config/config.json'
+                
                 config = load_config(config_path)
                 
                 # Set default directories
@@ -360,6 +389,7 @@ Examples:
             print("4. Threshold Grouped Cells (Option 6)")
             print("5. Measure ROI Areas (Option 7)")
             print("6. Analysis (Option 8)")
+            print("7. Cleanup (Option 9) - Optional")
             print("="*60 + "\n")
             
             # Set all stages to run sequentially
@@ -382,11 +412,13 @@ Examples:
             args.measure_roi_area = True
         elif choice == "8":
             args.analysis = True
-        elif choice == "9" or choice == "q" or choice == "quit":
+        elif choice == "9":
+            args.cleanup = True
+        elif choice == "10" or choice == "q" or choice == "quit":
             print("Exiting.")
             return None  # Signal to exit
         else:
-            print("Invalid choice. Please enter a number between 1-9 or 'q' to quit.")
+            print("Invalid choice. Please enter a number between 1-10 or 'q' to quit.")
             return args  # Return current args to continue loop
         
         return args
