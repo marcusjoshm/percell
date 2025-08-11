@@ -243,9 +243,9 @@ def interactive_cleanup(output_dir: str) -> None:
         output_dir,
         include_cells=True,
         include_masks=True,
-        include_combined_masks=True,
-        include_grouped_cells=True,
-        include_grouped_masks=True
+        include_combined_masks=False,
+        include_grouped_cells=False,
+        include_grouped_masks=False
     )
     
     # Display available directories
@@ -312,14 +312,14 @@ def interactive_cleanup(output_dir: str) -> None:
 def main():
     """Main entry point for the cleanup module."""
     parser = argparse.ArgumentParser(
-        description="Empty cells and masks directories to free up disk space",
+        description="Empty cells and masks directories to free up disk space (preserves grouped and combined data)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Interactive mode
+  # Interactive mode (cells and masks only)
   %(prog)s --output /path/to/output --interactive
   
-  # Empty specific directories
+  # Empty cells and masks directories
   %(prog)s --output /path/to/output --delete-cells --delete-masks
   
   # Dry run to see what would be emptied
@@ -328,7 +328,7 @@ Examples:
   # Force emptying without confirmation
   %(prog)s --output /path/to/output --delete-cells --force
   
-  # Empty all cell and mask related directories
+  # Empty all cell and mask related directories (including grouped/combined)
   %(prog)s --output /path/to/output --delete-all
         """
     )

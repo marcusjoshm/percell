@@ -101,6 +101,9 @@ class Pipeline:
             
         if self.args.analysis:
             stages.append('analysis')
+            
+        if self.args.cleanup:
+            stages.append('cleanup')
         
         # Filter out skipped stages
         if self.args.skip_steps:

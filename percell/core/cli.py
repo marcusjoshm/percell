@@ -156,7 +156,7 @@ Examples:
         parser.add_argument(
             '--cleanup',
             action='store_true',
-            help='Clean up directories (empty cells, masks, and related directories to free space)'
+            help='Clean up directories (empty cells and masks directories to free space, preserves grouped/combined data)'
         )
         parser.add_argument(
             '--complete-workflow',
@@ -328,7 +328,7 @@ Examples:
         print(colorize("6. Threshold Grouped Cells (interactive ImageJ thresholding)", Colors.orange))
         print(colorize("7. Measure Cell Area (measure areas from single-cell ROIs)", Colors.orange))
         print(colorize("8. Analysis (combine masks, create cell masks, export results)", Colors.orange))
-        print(colorize("9. Cleanup (empty cells, masks, and related directories)", Colors.blue))
+        print(colorize("9. Cleanup (empty cells and masks directories, preserves grouped/combined data)", Colors.blue))
         print(colorize("10. Exit", Colors.red))
         
         # Get user choice

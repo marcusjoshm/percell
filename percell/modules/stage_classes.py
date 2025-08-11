@@ -1336,10 +1336,7 @@ class CleanupStage(StageBase):
         super().__init__(config, logger, stage_name)
         self.cleanup_directories = [
             'cells',
-            'masks', 
-            'combined_masks',
-            'grouped_cells',
-            'grouped_masks'
+            'masks'
         ]
         
     def validate_inputs(self, **kwargs) -> bool:
@@ -1373,9 +1370,9 @@ class CleanupStage(StageBase):
                 str(output_dir),
                 include_cells=True,
                 include_masks=True,
-                include_combined_masks=True,
-                include_grouped_cells=True,
-                include_grouped_masks=True
+                include_combined_masks=False,
+                include_grouped_cells=False,
+                include_grouped_masks=False
             )
             
             # Check if any directories have content
@@ -1404,9 +1401,9 @@ class CleanupStage(StageBase):
                 str(output_dir),
                 delete_cells=True,
                 delete_masks=True,
-                delete_combined_masks=True,
-                delete_grouped_cells=True,
-                delete_grouped_masks=True,
+                delete_combined_masks=False,
+                delete_grouped_cells=False,
+                delete_grouped_masks=False,
                 dry_run=False,
                 force=True  # Force cleanup in pipeline mode
             )
