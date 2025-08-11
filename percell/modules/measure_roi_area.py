@@ -70,9 +70,11 @@ def create_macro_with_parameters(macro_template_file, roi_file, image_file, csv_
             '#@ Boolean auto_close', f'auto_close = {auto_close_str};'
         )
         
-        # Create temporary macro file
+        # Create temporary macro file with unique name
         temp_dir = tempfile.gettempdir()
-        temp_macro_file = os.path.join(temp_dir, f"measure_roi_area_{os.getpid()}.ijm")
+        import time
+        unique_id = f"{os.getpid()}_{int(time.time() * 1000)}"
+        temp_macro_file = os.path.join(temp_dir, f"measure_roi_area_{unique_id}.ijm")
         
         with open(temp_macro_file, 'w') as f:
             f.write(final_macro)
@@ -216,10 +218,28 @@ def find_roi_image_pairs(input_dir, output_dir):
         input_path = Path(input_dir)
         output_path = Path(output_dir)
         
-        # Look for ROI files in the output structure
-        roi_pattern = "**/*.zip"  # ROI Manager saves as .zip files
+        # Look for ROI files in the ROIs directory only
+        roi_pattern = "ROIs/**/*.zip"  # ROI Manager saves as .zip files in ROIs directory
         roi_files = list(output_path.glob(roi_pattern))
         
+        # Debug: Log all found files to help diagnose the issue
+        logger.debug(f"ROI search pattern: {roi_pattern}")
+        logger.debug(f"Output path: {output_path}")
+        for roi_file in roi_files:
+            logger.debug(f"Found ROI file: {roi_file}")
+        
+        # Filter out any ROI files that don't match the expected pattern
+        filtered_roi_files = []
+        for roi_file in roi_files:
+            roi_name = roi_file.name
+            # Only process ROI files that end with "_rois.zip" (the standard ROI Manager format)
+            if roi_name.endswith("_rois.zip"):
+                filtered_roi_files.append(roi_file)
+                logger.debug(f"Accepted ROI file: {roi_file}")
+            else:
+                logger.debug(f"Filtered out ROI file (doesn't end with '_rois.zip'): {roi_file}")
+        
+        roi_files = filtered_roi_files
         logger.info(f"Found {len(roi_files)} ROI files in output directory")
         
         for roi_file in roi_files:
@@ -337,24 +357,7 @@ def measure_roi_areas(input_dir, output_dir, imagej_path, auto_close=True):
         success_count = 0
         total_count = len(pairs)
         
-        # Test ImageJ availability first
-        if pairs:
-            test_macro = create_macro_with_parameters(
-                str(macro_template), pairs[0][0], pairs[0][1], pairs[0][2], auto_close
-            )
-            
-            if test_macro:
-                try:
-                    if not run_imagej_macro(imagej_path, test_macro, auto_close):
-                        logger.error("ImageJ is not working properly. Please check Java installation and ImageJ configuration.")
-                        logger.error("ROI area measurement cannot proceed without a working ImageJ installation.")
-                        return False
-                finally:
-                    try:
-                        os.remove(test_macro)
-                    except Exception as e:
-                        logger.warning(f"Could not remove test macro file: {e}")
-        
+        # Process all pairs
         for roi_file, image_file, csv_file in pairs:
             logger.info(f"Processing pair {success_count + 1}/{total_count}")
             logger.info(f"  ROI: {roi_file}")
