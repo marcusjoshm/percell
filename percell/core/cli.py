@@ -328,7 +328,7 @@ Examples:
         print(colorize("6. Threshold Grouped Cells (interactive ImageJ thresholding)", Colors.orange))
         print(colorize("7. Measure Cell Area (measure areas from single-cell ROIs)", Colors.orange))
         print(colorize("8. Analysis (combine masks, create cell masks, export results)", Colors.orange))
-        print(colorize("9. Cleanup (empty cells and masks directories, preserves grouped/combined data)", Colors.blue))
+        print(colorize("9. Cleanup (empty cells and masks directories, preserves grouped/combined data)", Colors.red))
         print(colorize("10. Exit", Colors.red))
         
         # Get user choice
