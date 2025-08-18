@@ -1,0 +1,3 @@
+[submodule "image_metadata"]
+	path = image_metadata
+	url = https://github.com/marcusjoshm/image_metadata.git
