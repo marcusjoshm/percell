@@ -40,6 +40,8 @@ class AdvancedWorkflowStage(StageBase):
             ("analyze_masks", "Analyze Masks"),
             ("cleanup", "Clean-up"),
         ]
+        # Default number of groups (bins) for Group Cells in Advanced Workflow
+        self.default_bins: int = 5
 
     def validate_inputs(self, **kwargs) -> bool:
         # Output is generally required
@@ -208,7 +210,29 @@ class AdvancedWorkflowStage(StageBase):
             script = get_path("group_cells_module")
             output_dir = kwargs.get('output_dir')
             channels = data_selection.get('analysis_channels', [])
-            bins = kwargs.get('bins', 5)
+            # Allow the user to override and set the default bins for this Advanced session
+            current_default = kwargs.get('bins', self.default_bins)
+            bins = self._prompt_for_bins(current_default)
+            # Persist chosen bins as new default for subsequent Group Cells steps in this Advanced session
+            self.default_bins = bins
+            # Ensure prerequisite: extracted cells exist
+            cells_dir = Path(output_dir) / "cells"
+            has_cells = cells_dir.exists() and any(cells_dir.rglob("*.tif"))
+            if not has_cells:
+                self.logger.warning("No extracted cells found. Grouping requires extracted cells.")
+                try:
+                    choice = input("Run 'Extract Cells' now? [Y/n]: ").strip().lower()
+                except EOFError:
+                    choice = 'n'
+                if choice in ("", "y", "yes"):
+                    # Attempt to run extract_cells step automatically
+                    ok = self._execute_step("extract_cells", registry, **kwargs)
+                    if not ok:
+                        self.logger.error("Extract Cells failed; cannot proceed to Group Cells")
+                        return False
+                else:
+                    self.logger.error("Cannot group without extracted cells. Aborting Group Cells step.")
+                    return False
             args = [
                 "--cells-dir", f"{output_dir}/cells",
                 "--output-dir", f"{output_dir}/grouped_cells",
@@ -232,5 +256,21 @@ class AdvancedWorkflowStage(StageBase):
         except Exception as e:
             self.logger.error(f"Error running module {script_path}: {e}")
             return False
+
+    def _prompt_for_bins(self, default_bins: int) -> int:
+        """Prompt user for number of groups (bins); return validated int, default if blank."""
+        try:
+            print("\nGroup Cells configuration:")
+            user_input = input(f"Enter number of groups (bins) [default {default_bins}]: ").strip()
+            if not user_input:
+                return default_bins
+            value = int(user_input)
+            if value <= 0:
+                self.logger.warning("Bins must be a positive integer. Using default.")
+                return default_bins
+            return value
+        except Exception:
+            self.logger.warning("Invalid input for bins. Using default.")
+            return default_bins
 
 
