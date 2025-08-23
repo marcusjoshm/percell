@@ -326,17 +326,18 @@ Examples:
         print(colorize("  🔬 Welcome single-cell microscopy analysis user! 🔬", Colors.bold))
         print("")
         print(colorize("MENU:", Colors.bold))
-        print(colorize("1. Set Input/Output Directories", Colors.green))
-        print(colorize("2. Run Complete Workflow", Colors.yellow))
-        print(colorize("3. Data Selection (conditions, regions, timepoints, channels)", Colors.orange))
-        print(colorize("4. Single-cell Segmentation (Cellpose)", Colors.orange))
-        print(colorize("5. Process Single-cell Data (tracking, resizing, extraction, grouping)", Colors.orange))
-        print(colorize("6. Threshold Grouped Cells (interactive ImageJ thresholding)", Colors.orange))
-        print(colorize("7. Measure Cell Area (measure areas from single-cell ROIs)", Colors.orange))
-        print(colorize("8. Analysis (combine masks, create cell masks, export results)", Colors.orange))
-        print(colorize("9. Cleanup (empty cells and masks directories, preserves grouped/combined data)", Colors.red))
+        print(colorize("1. Set Input/Output Directories", Colors.yellow))
+        print(colorize("2. Run Complete Workflow", Colors.magenta))
+        print(colorize("3. Data Selection (conditions, regions, timepoints, channels)", Colors.reset))
+        print(colorize("4. Single-cell Segmentation (Cellpose)", Colors.green))
+        print(colorize("5. Process Single-cell Data (tracking, resizing, extraction, grouping)", Colors.green))
+        print(colorize("6. Threshold Grouped Cells (interactive ImageJ thresholding)", Colors.green))
+        print(colorize("7. Measure Cell Area (measure areas from single-cell ROIs)", Colors.green))
+        print(colorize("8. Analysis (combine masks, create cell masks, export results)", Colors.green))
+        print(colorize("9. Cleanup (empty cells and masks directories, preserves grouped/combined data)", Colors.reset))
         print(colorize("10. Advanced Workflow Builder (custom sequence of steps)", Colors.magenta))
         print(colorize("11. Exit", Colors.red))
+        print("")
         
         # Get user choice
         try:
@@ -387,7 +388,7 @@ Examples:
                     args.output = self._get_directory_input("Enter output directory path: ")
         elif choice == "2":
             # Run complete workflow sequentially
-            print("\n" + "="*60)
+            print("\n" + "="*80)
             print("Running Complete Workflow")
             print("This will execute all steps in sequence:")
             print("1. Data Selection (Option 3)")
@@ -397,7 +398,7 @@ Examples:
             print("5. Measure ROI Areas (Option 7)")
             print("6. Analysis (Option 8)")
             print("7. Cleanup (Option 9) - Optional")
-            print("="*60 + "\n")
+            print("="*80 + "\n")
             
             # Set all stages to run sequentially
             args.data_selection = True

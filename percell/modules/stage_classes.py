@@ -1383,17 +1383,17 @@ class CleanupStage(StageBase):
                 return True
             
             # Show what will be cleaned up
-            self.logger.info("=" * 60)
+            self.logger.info("=" * 80)
             self.logger.info("Directories available for cleanup:")
-            self.logger.info("-" * 60)
+            self.logger.info("-" * 80)
             
             for dir_name, info in directories_info.items():
                 if info['exists']:
                     self.logger.info(f"  • {dir_name:<20} {info['size_formatted']:>15}")
             
-            self.logger.info("-" * 60)
+            self.logger.info("-" * 80)
             self.logger.info(f"  Total space to free: {sum(info['size_bytes'] for info in directories_info.values() if info['exists']):>15} bytes")
-            self.logger.info("=" * 60)
+            self.logger.info("=" * 80)
             
             # Perform cleanup
             self.logger.info("Performing cleanup...")

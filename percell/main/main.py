@@ -102,9 +102,9 @@ def main():
                 success = pipeline.run()
                 
                 if success:
-                    print("\n" + "="*60)
+                    print("\n" + "="*80)
                     print("Pipeline completed successfully!")
-                    print("="*60)
+                    print("="*80)
                     
                     # Automatically save the most recently used directories as defaults
                     try:
@@ -119,9 +119,9 @@ def main():
                     except Exception as e:
                         print(f"Note: Could not save directory defaults: {e}")
                 else:
-                    print("\n" + "="*60)
+                    print("\n" + "="*80)
                     print("Pipeline completed with errors. Check logs for details.")
-                    print("="*60)
+                    print("="*80)
                 
                 # Check if this was an interactive module
                 interactive_modules = ['segmentation', 'threshold_grouped_cells']
@@ -129,18 +129,18 @@ def main():
                 
                 if is_interactive:
                     # For interactive modules, show completion message
-                    print("\n" + "="*60)
+                    print("\n" + "="*80)
                     print("Interactive module completed. Returning to main menu...")
-                    print("="*60 + "\n")
+                    print("="*80 + "\n")
                     
                     # Small delay to let user read the completion message
                     import time
                     time.sleep(1)
                 else:
                     # For non-interactive modules, show completion message
-                    print("\n" + "="*60)
+                    print("\n" + "="*80)
                     print("Pipeline completed. Returning to main menu...")
-                    print("="*60 + "\n")
+                    print("="*80 + "\n")
                     
                     # Small delay to let user read the output
                     import time

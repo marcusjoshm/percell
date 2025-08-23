@@ -163,9 +163,9 @@ def cleanup_directories(output_dir: str,
     total_size = sum(info['size_bytes'] for info in directories_info.values())
     
     # Display what will be emptied
-    logger.info("=" * 60)
+    logger.info("=" * 80)
     logger.info("Directories to be emptied:")
-    logger.info("-" * 60)
+    logger.info("-" * 80)
     
     for dir_name, info in directories_info.items():
         if info['exists']:
@@ -173,9 +173,9 @@ def cleanup_directories(output_dir: str,
         else:
             logger.info(f"  • {dir_name:<20} {'(not found)':>15}")
     
-    logger.info("-" * 60)
+    logger.info("-" * 80)
     logger.info(f"  Total space to free: {format_size(total_size):>15}")
-    logger.info("=" * 60)
+    logger.info("=" * 80)
     
     if dry_run:
         logger.info("\n🔍 DRY RUN MODE - No files will be deleted")
@@ -211,11 +211,11 @@ def cleanup_directories(output_dir: str,
             except Exception as e:
                 logger.error(f"  ❌ Failed to empty {dir_name}: {e}")
     
-    logger.info("\n" + "=" * 60)
+    logger.info("\n" + "=" * 80)
     logger.info(f"Cleanup complete!")
     logger.info(f"  • Directories emptied: {emptied_count}")
     logger.info(f"  • Total space freed: {format_size(freed_bytes)}")
-    logger.info("=" * 60)
+    logger.info("=" * 80)
     
     return emptied_count, freed_bytes
 
@@ -233,9 +233,9 @@ def interactive_cleanup(output_dir: str) -> None:
         logger.error(f"Output directory does not exist: {output_dir}")
         return
     
-    logger.info("\n" + "=" * 60)
+    logger.info("\n" + "=" * 80)
     logger.info("Interactive Directory Cleanup")
-    logger.info("=" * 60)
+    logger.info("=" * 80)
     logger.info(f"Output directory: {output_dir}\n")
     
     # Scan all possible directories
@@ -250,7 +250,7 @@ def interactive_cleanup(output_dir: str) -> None:
     
     # Display available directories
     logger.info("Available directories:")
-    logger.info("-" * 60)
+    logger.info("-" * 80)
     
     available_dirs = []
     for dir_name, info in all_dirs.items():
@@ -266,7 +266,7 @@ def interactive_cleanup(output_dir: str) -> None:
     
     logger.info("\n  [A] Select all")
     logger.info("  [Q] Quit without cleaning")
-    logger.info("-" * 60)
+    logger.info("-" * 80)
     
     # Get user selection
     while True:

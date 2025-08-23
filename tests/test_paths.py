@@ -14,7 +14,7 @@ from percell.core.paths import get_path_config, get_path, get_path_str, path_exi
 def test_path_system():
     """Test the centralized path system."""
     print("Testing centralized path configuration system...")
-    print("=" * 60)
+    print("=" * 80)
     
     # Get the path configuration
     config = get_path_config()
