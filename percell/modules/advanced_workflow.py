@@ -58,19 +58,24 @@ class AdvancedWorkflowStage(StageBase):
         try:
             # 1) Show menu
             print("\n" + "="*80)
-            print("Advanced Workflow Builder")
+            print(" Advanced Workflow Builder ".center(80, '='))
             print("="*80)
+            print(" ")
+            print("0. Back to main menu")
             for idx, (step_key, step_label) in enumerate(self.available_steps, start=1):
                 print(f"{idx}. {step_label}")
 
-            print("\nEnter a space-separated sequence of numbers to define your custom workflow.")
-            print("Example: 1 2 3 4 5 6 7 8 9 10 11")
+            print("\n" + "-"*80)
+            print(" Enter a space-separated sequence of numbers to define your custom workflow ")
+            print(" Example: 1 2 3 4 5 6 7 8 9 10 11 ")
+            print(" Type 0 or Q to return to the main menu ")
+            print("-"*80)
 
             # 2) Read user input
-            selection_raw = input("Custom workflow (space-separated numbers): ").strip()
-            if not selection_raw:
-                self.logger.error("No steps selected")
-                return False
+            selection_raw = input("\n>>> Custom workflow (space-separated numbers, or 0/Q to exit): ").strip().lower()
+            if not selection_raw or selection_raw in {"0", "q", "quit", "exit"}:
+                self.logger.info("Exiting Advanced Workflow to main menu")
+                return True
 
             # 3) Parse and validate
             try:
@@ -260,8 +265,10 @@ class AdvancedWorkflowStage(StageBase):
     def _prompt_for_bins(self, default_bins: int) -> int:
         """Prompt user for number of groups (bins); return validated int, default if blank."""
         try:
-            print("\nGroup Cells configuration:")
-            user_input = input(f"Enter number of groups (bins) [default {default_bins}]: ").strip()
+            print("\n" + "-"*80)
+            print(" Group Cells Configuration ".center(80, '-'))
+            print("-"*80)
+            user_input = input(f"\n>>> Enter number of groups (bins) [default {default_bins}]: ").strip()
             if not user_input:
                 return default_bins
             value = int(user_input)
