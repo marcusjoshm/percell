@@ -58,7 +58,8 @@ def main():
                 
                 # Handle interactive mode or show menu if no processing options selected
                 if args.interactive or not any([args.data_selection, args.segmentation, args.process_single_cell,
-                                              args.threshold_grouped_cells, args.measure_roi_area, args.analysis, args.cleanup, args.complete_workflow]):
+                                              args.threshold_grouped_cells, args.measure_roi_area, args.analysis,
+                                              args.cleanup, args.complete_workflow, getattr(args, 'advanced_workflow', False)]):
                     args = cli.show_interactive_menu(args)
                     if args is None:  # User chose to exit
                         print("Goodbye!")
@@ -79,7 +80,8 @@ def main():
                 
                 # Check if any stages are selected
                 stages_selected = any([args.data_selection, args.segmentation, args.process_single_cell,
-                                     args.threshold_grouped_cells, args.measure_roi_area, args.analysis, args.cleanup, args.complete_workflow])
+                                     args.threshold_grouped_cells, args.measure_roi_area, args.analysis,
+                                     args.cleanup, args.complete_workflow, getattr(args, 'advanced_workflow', False)])
                 
                 if not stages_selected:
                     # No stages selected, just return to menu (e.g., after setting directories)

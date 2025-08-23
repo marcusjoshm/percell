@@ -21,9 +21,18 @@ def register_all_stages():
         CleanupStage,
         CompleteWorkflowStage
     )
+    # Import advanced workflow stage from a new module to keep separation of concerns
+    try:
+        from .advanced_workflow import AdvancedWorkflowStage
+    except Exception:
+        AdvancedWorkflowStage = None
     
     # Complete workflow stage (executes all stages in sequence)
     register_stage('complete_workflow', order=0)(CompleteWorkflowStage)
+    
+    # Advanced workflow builder stage (custom sequence)
+    if AdvancedWorkflowStage is not None:
+        register_stage('advanced_workflow', order=1)(AdvancedWorkflowStage)
     
     # Core processing stages (in execution order)
     register_stage('data_selection', order=1)(DataSelectionStage)
