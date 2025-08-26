@@ -49,11 +49,22 @@ def configure_global(
     """
     if config_handler is None:
         return
-    with config_handler.handler(
-        spinner=spinner, theme=theme, enrich_print=enrich_print, title_length=title_length
-    ):
-        # the context applies immediately for global settings
-        pass
+    # alive-progress exposes configuration via config_handler.set_global/reset
+    kwargs = {}
+    if spinner is not None:
+        kwargs["spinner"] = spinner
+    if theme is not None:
+        kwargs["theme"] = theme
+    if enrich_print is not None:
+        kwargs["enrich_print"] = enrich_print
+    if title_length is not None:
+        kwargs["title_length"] = title_length
+    if kwargs:
+        try:
+            config_handler.set_global(**kwargs)  # type: ignore[attr-defined]
+        except Exception:
+            # Don't break callers if the underlying API changes
+            pass
 
 
 @contextmanager
@@ -89,11 +100,15 @@ def progress_bar(
         yield noop_update
         return
 
-    # alive_bar supports total=None for spinner; set calibrate for consistent speed
-    with alive_bar(total, title=title or "", manual=manual, refresh_per_second=8, force_tty=True) as bar:
+    # alive_bar supports total=None for spinner
+    with alive_bar(total, title=title or "", manual=manual, force_tty=True) as bar:
         def update(delta: int = 1) -> None:
             try:
-                bar(delta)
+                if manual:
+                    bar(delta)
+                else:
+                    # In automatic mode, alive-progress expects bar() with no args
+                    bar()
             except Exception:
                 # Avoid breaking the caller due to bar errors
                 pass

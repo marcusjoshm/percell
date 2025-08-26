@@ -17,7 +17,7 @@ scikit-image>=0.19.0  # For image analysis
 # Logging and utilities
 python-json-logger>=2.0.0
 colorama>=0.4.4  # For colored terminal output
-alive-progress>=3.1.5  # Terminal progress bars/spinners for status bar
+alive-progress>=3.3.0  # Terminal progress bars/spinners for status bar
 
 # Optional: GUI dependencies
 PyQt6>=6.4.0  # For any GUI components
