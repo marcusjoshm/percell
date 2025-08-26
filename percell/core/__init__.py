@@ -40,6 +40,13 @@ from .paths import (
     ensure_executable,
     list_all_paths
 )
+from .progress import (
+    is_progress_available,
+    configure_global,
+    progress_bar,
+    iter_with_progress,
+    spinner,
+)
 
 __all__ = [
     'PipelineCLI',
@@ -75,5 +82,10 @@ __all__ = [
     'get_path_str',
     'path_exists',
     'ensure_executable',
-    'list_all_paths'
+    'list_all_paths',
+    'is_progress_available',
+    'configure_global',
+    'progress_bar',
+    'iter_with_progress',
+    'spinner',
 ] 
