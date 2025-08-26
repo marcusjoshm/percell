@@ -83,6 +83,11 @@ class Pipeline:
             stages.append('complete_workflow')
             return stages
         
+        # Handle advanced workflow builder - single stage that orchestrates custom steps
+        if getattr(self.args, 'advanced_workflow', False):
+            stages.append('advanced_workflow')
+            return stages
+        
         # Add individual stages based on flags
         if self.args.data_selection:
             stages.append('data_selection')

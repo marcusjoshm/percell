@@ -163,6 +163,11 @@ Examples:
             action='store_true',
             help='Run complete analysis workflow (all 6 modules)'
         )
+        parser.add_argument(
+            '--advanced-workflow',
+            action='store_true',
+            help='Run advanced workflow builder (custom sequence of steps)'
+        )
         
         # Data selection arguments
         parser.add_argument(
@@ -308,7 +313,8 @@ Examples:
         # Check if any stage is already selected
         stage_flags = [
             args.data_selection, args.segmentation, args.process_single_cell,
-            args.threshold_grouped_cells, args.measure_roi_area, args.analysis, args.cleanup, args.complete_workflow
+            args.threshold_grouped_cells, args.measure_roi_area, args.analysis, args.cleanup,
+            args.complete_workflow, args.advanced_workflow
         ]
         
         if any(stage_flags):
@@ -320,20 +326,22 @@ Examples:
         print(colorize("  🔬 Welcome single-cell microscopy analysis user! 🔬", Colors.bold))
         print("")
         print(colorize("MENU:", Colors.bold))
-        print(colorize("1. Set Input/Output Directories", Colors.green))
-        print(colorize("2. Run Complete Workflow", Colors.yellow))
-        print(colorize("3. Data Selection (conditions, regions, timepoints, channels)", Colors.orange))
-        print(colorize("4. Single-cell Segmentation (Cellpose)", Colors.orange))
-        print(colorize("5. Process Single-cell Data (tracking, resizing, extraction, grouping)", Colors.orange))
-        print(colorize("6. Threshold Grouped Cells (interactive ImageJ thresholding)", Colors.orange))
-        print(colorize("7. Measure Cell Area (measure areas from single-cell ROIs)", Colors.orange))
-        print(colorize("8. Analysis (combine masks, create cell masks, export results)", Colors.orange))
-        print(colorize("9. Cleanup (empty cells and masks directories, preserves grouped/combined data)", Colors.red))
-        print(colorize("10. Exit", Colors.red))
+        print(colorize("1. Set Input/Output Directories", Colors.yellow))
+        print(colorize("2. Run Complete Workflow", Colors.magenta))
+        print(colorize("3. Data Selection (conditions, regions, timepoints, channels)", Colors.reset))
+        print(colorize("4. Single-cell Segmentation (Cellpose)", Colors.green))
+        print(colorize("5. Process Single-cell Data (tracking, resizing, extraction, grouping)", Colors.green))
+        print(colorize("6. Threshold Grouped Cells (interactive ImageJ thresholding)", Colors.green))
+        print(colorize("7. Measure Cell Area (measure areas from single-cell ROIs)", Colors.green))
+        print(colorize("8. Analysis (combine masks, create cell masks, export results)", Colors.green))
+        print(colorize("9. Cleanup (empty cells and masks directories, preserves grouped/combined data)", Colors.reset))
+        print(colorize("10. Advanced Workflow Builder (custom sequence of steps)", Colors.magenta))
+        print(colorize("11. Exit", Colors.red))
+        print("")
         
         # Get user choice
         try:
-            choice = input("Select an option (1-10): ").strip().lower()
+            choice = input("Select an option (1-11): ").strip().lower()
         except EOFError:
             print("\nEOF detected. Exiting gracefully.")
             return None
@@ -380,7 +388,7 @@ Examples:
                     args.output = self._get_directory_input("Enter output directory path: ")
         elif choice == "2":
             # Run complete workflow sequentially
-            print("\n" + "="*60)
+            print("\n" + "="*80)
             print("Running Complete Workflow")
             print("This will execute all steps in sequence:")
             print("1. Data Selection (Option 3)")
@@ -390,7 +398,7 @@ Examples:
             print("5. Measure ROI Areas (Option 7)")
             print("6. Analysis (Option 8)")
             print("7. Cleanup (Option 9) - Optional")
-            print("="*60 + "\n")
+            print("="*80 + "\n")
             
             # Set all stages to run sequentially
             args.data_selection = True
@@ -414,11 +422,13 @@ Examples:
             args.analysis = True
         elif choice == "9":
             args.cleanup = True
-        elif choice == "10" or choice == "q" or choice == "quit":
+        elif choice == "10":
+            args.advanced_workflow = True
+        elif choice == "11" or choice == "q" or choice == "quit":
             print("Exiting.")
             return None  # Signal to exit
         else:
-            print("Invalid choice. Please enter a number between 1-10 or 'q' to quit.")
+            print("Invalid choice. Please enter a number between 1-11 or 'q' to quit.")
             return args  # Return current args to continue loop
         
         return args

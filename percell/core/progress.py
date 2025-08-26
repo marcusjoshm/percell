@@ -80,6 +80,8 @@ def progress_bar(
 ) -> Iterator[Callable[[int], None]]:
     """
     Context manager that yields an updater function for progress.
+    
+    For 80x24 terminal compatibility, this always shows a spinner instead of a bar.
 
     Usage:
         with progress_bar(total=100, title="Processing") as update:
@@ -88,13 +90,13 @@ def progress_bar(
                 update(1)
 
     Args:
-        total: Total steps; if None, a spinner is shown instead of a bar
-        title: Optional title displayed to the left of the bar
-        unit: Label for units (shown in bar suffix)
+        total: Total steps; ignored (always shows spinner for compact display)
+        title: Optional title displayed to the left of the spinner
+        unit: Label for units (ignored for spinner display)
         manual: If True, caller controls increments; otherwise, updater is a no-op
 
     Returns:
-        A callable update(delta: int) -> None that advances the bar
+        A callable update(delta: int) -> None that advances the spinner
     """
     if alive_bar is None:
         # Fallback: provide a no-op updater
@@ -104,8 +106,12 @@ def progress_bar(
         yield noop_update
         return
 
-    # alive_bar supports total=None for spinner
-    with alive_bar(total, title=title or "", manual=manual, force_tty=True) as bar:
+    # Always use spinner (total=None) for compact 80x24 terminal display
+    # Print title separately if provided
+    if title:
+        print(f"{title}")
+    
+    with alive_bar(None, manual=manual, force_tty=True) as bar:
         def update(delta: int = 1) -> None:
             try:
                 if manual:
@@ -128,42 +134,50 @@ def iter_with_progress(
 ) -> Iterable[Any]:
     """
     Wrap an iterable with a progress indicator.
+    
+    For 80x24 terminal compatibility, this always shows a spinner instead of a bar.
 
     Args:
         iterable: Source iterable
-        total: Total length; if None and iterable has __len__, it is inferred
-        title: Optional title shown on the bar
-        enrich_items: If True, show each item string representation as the bar text
+        total: Total length; ignored (always shows spinner for compact display)
+        title: Optional title shown on the spinner
+        enrich_items: If True, show each item string representation as the spinner text
 
     Returns:
         An iterator yielding the original items while showing progress
     """
     if alive_it is None:
         return iterable
+    # Always use spinner (total=None) for compact 80x24 terminal display
+    # Print title separately if provided
+    if title:
+        print(f"{title}")
+    
     return alive_it(
         iterable,
-        total=total,
-        title=title or "",
+        total=None,  # Force spinner mode
         enrich_print=enrich_items,
         force_tty=True,
     )
 
 
 @contextmanager
-def spinner(title: Optional[str] = None) -> Iterator[None]:
+def spinner() -> Iterator[None]:
     """
     A simple spinner when total is unknown.
+    
+    For 80x24 terminal compatibility, titles should be printed separately above the spinner.
 
     Usage:
-        with spinner("Indexing files"):
+        print("Indexing files")
+        with spinner():
             do_work()
     """
     if alive_bar is None:
         yield
         return
-    with alive_bar(None, title=title or "", force_tty=True):
+    with alive_bar(None, force_tty=True):
         yield
-
 
 
 def run_subprocess_with_spinner(
@@ -215,7 +229,11 @@ def run_subprocess_with_spinner(
         stdin=stdin,
     )
 
-    with spinner(title or "Running..."):
+    # Print title separately above the spinner for better 80x24 terminal layout
+    if title:
+        print(f"{title}")
+    
+    with spinner():  # No title in spinner since we printed it above
         while True:
             ret = process.poll()
             if ret is not None:
@@ -229,14 +247,13 @@ def run_subprocess_with_spinner(
     return completed
 
 
-
 # ------------------------------------------------------------
 # Global default progress configuration (easy to change here)
 # ------------------------------------------------------------
-# Change these three values to update the project's default look & feel.
+# Compact settings optimized for 80x24 terminal windows
 DEFAULT_PROGRESS_THEME = "smooth"
-DEFAULT_PROGRESS_SPINNER = "it"
-DEFAULT_PROGRESS_UNKNOWN = "smooth"  # style for unknown-total bars
+DEFAULT_PROGRESS_SPINNER = "it"  # More compact than "it"
+DEFAULT_PROGRESS_UNKNOWN = "it"  # style for unknown-total bars
 
 try:
     # Apply defaults once on import; safe no-op if alive-progress unavailable
@@ -245,6 +262,7 @@ try:
         spinner=DEFAULT_PROGRESS_SPINNER,
         unknown=DEFAULT_PROGRESS_UNKNOWN,
         enrich_print=True,
+        title_length=0,  # No title in bar - we'll print it separately
     )
 except Exception:
     # Avoid import-time failures in environments lacking alive-progress

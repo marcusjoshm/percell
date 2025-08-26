@@ -179,9 +179,9 @@ def check_cellpose_availability() -> bool:
 
 def print_cellpose_guidance():
     """Print guidance about Cellpose installation."""
-    print("\n" + "="*60)
+    print("\n" + "="*80)
     print_warning("Cellpose Installation Guidance")
-    print("="*60)
+    print("="*80)
     print("\nCellpose is used for interactive cell segmentation.")
     print("If you need to perform cell segmentation, you can:")
     print("\n1. Try installing Cellpose manually:")
@@ -365,9 +365,9 @@ def create_global_symlink() -> bool:
 
 def print_usage_instructions():
     """Print usage instructions."""
-    print("\n" + "="*60)
+    print("\n" + "="*80)
     print_status("Installation completed successfully!", Colors.BLUE)
-    print("="*60)
+    print("="*80)
     print("\nTo use the Percell:")
     print("\n1. Global command (recommended):")
     print("   percell")
@@ -377,7 +377,7 @@ def print_usage_instructions():
     print("\n3. For Cellpose operations, activate the Cellpose environment:")
     print("   source cellpose_venv/bin/activate")
     print("\nFor more information, see the README.md file.")
-    print("="*60)
+    print("="*80)
 
 def main():
     """Main installation function."""
