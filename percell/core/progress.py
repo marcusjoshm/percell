@@ -228,3 +228,24 @@ def run_subprocess_with_spinner(
         raise subprocess.CalledProcessError(completed.returncode, cmd, output=stdout, stderr=stderr)
     return completed
 
+
+
+# ------------------------------------------------------------
+# Global default progress configuration (easy to change here)
+# ------------------------------------------------------------
+# Change these three values to update the project's default look & feel.
+DEFAULT_PROGRESS_THEME = "smooth"
+DEFAULT_PROGRESS_SPINNER = "it"
+DEFAULT_PROGRESS_UNKNOWN = "smooth"  # style for unknown-total bars
+
+try:
+    # Apply defaults once on import; safe no-op if alive-progress unavailable
+    configure_global(
+        theme=DEFAULT_PROGRESS_THEME,
+        spinner=DEFAULT_PROGRESS_SPINNER,
+        unknown=DEFAULT_PROGRESS_UNKNOWN,
+        enrich_print=True,
+    )
+except Exception:
+    # Avoid import-time failures in environments lacking alive-progress
+    pass
