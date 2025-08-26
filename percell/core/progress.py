@@ -235,7 +235,7 @@ def run_subprocess_with_spinner(
 # ------------------------------------------------------------
 # Change these three values to update the project's default look & feel.
 DEFAULT_PROGRESS_THEME = "smooth"
-DEFAULT_PROGRESS_SPINNER = "it"
+DEFAULT_PROGRESS_SPINNER = "wait4"
 DEFAULT_PROGRESS_UNKNOWN = "smooth"  # style for unknown-total bars
 
 try:
