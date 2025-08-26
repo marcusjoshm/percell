@@ -1057,7 +1057,8 @@ class ThresholdGroupedCellsStage(StageBase):
             for channel in data_selection.get('analysis_channels', []):
                 threshold_args.append(channel)
             
-            result = run_subprocess_with_spinner([sys.executable, str(threshold_script)] + threshold_args, title="Thresholding grouped cells")
+            # Run without spinner for thresholding step
+            result = subprocess.run([sys.executable, str(threshold_script)] + threshold_args, capture_output=True, text=True)
             if result.returncode != 0:
                 self.logger.error(f"Failed to threshold grouped cells: {result.stderr}")
                 return False
