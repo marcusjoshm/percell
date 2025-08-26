@@ -46,6 +46,7 @@ from .progress import (
     progress_bar,
     iter_with_progress,
     spinner,
+    run_subprocess_with_spinner,
 )
 
 __all__ = [
@@ -88,4 +89,5 @@ __all__ = [
     'progress_bar',
     'iter_with_progress',
     'spinner',
+    'run_subprocess_with_spinner',
 ] 

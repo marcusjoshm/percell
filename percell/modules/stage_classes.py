@@ -6,6 +6,7 @@ Contains the concrete implementations of each pipeline stage.
 """
 
 import subprocess
+from percell.core import run_subprocess_with_spinner
 import os
 import re
 import sys
@@ -795,7 +796,8 @@ class SegmentationStage(StageBase):
                 bin_args.extend(["--channels", data_selection['segmentation_channel']])
             
             self.logger.info(f"Running bin_images.py with args: {bin_args}")
-            result = subprocess.run([sys.executable, str(bin_script)] + bin_args, capture_output=True, text=True)
+            from percell.core import run_subprocess_with_spinner
+            result = run_subprocess_with_spinner([sys.executable, str(bin_script)] + bin_args, title="Binning images")
             if result.returncode != 0:
                 self.logger.error(f"Failed to bin images: {result.stderr}")
                 return False
@@ -816,6 +818,7 @@ class SegmentationStage(StageBase):
             self.logger.info("Please complete your segmentation work and press Enter when done.")
             
             # Run interactively without capturing output
+            # Keep interactive session without spinner (user interaction)
             result = subprocess.run([str(seg_script_path), preprocessed_dir], 
                                   stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
             if result.returncode != 0:
@@ -902,7 +905,7 @@ class ProcessSingleCellDataStage(StageBase):
                     "--timepoints"
                 ] + timepoints + ["--recursive"]
                 
-                result = subprocess.run([sys.executable, str(track_script)] + track_args, capture_output=True, text=True)
+                result = run_subprocess_with_spinner([sys.executable, str(track_script)] + track_args, title="Tracking ROIs")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to track ROIs: {result.stderr}")
                     return False
@@ -923,7 +926,7 @@ class ProcessSingleCellDataStage(StageBase):
                 "--auto-close"
             ]
             
-            result = subprocess.run([sys.executable, str(resize_script)] + resize_args, capture_output=True, text=True)
+            result = run_subprocess_with_spinner([sys.executable, str(resize_script)] + resize_args, title="Resizing ROIs")
             if result.returncode != 0:
                 self.logger.error(f"Failed to resize ROIs: {result.stderr}")
                 return False
@@ -937,7 +940,7 @@ class ProcessSingleCellDataStage(StageBase):
                 "--channels"
             ] + data_selection.get('analysis_channels', []) + ["--verbose"]
             
-            result = subprocess.run([sys.executable, str(duplicate_script)] + duplicate_args, capture_output=True, text=True)
+            result = run_subprocess_with_spinner([sys.executable, str(duplicate_script)] + duplicate_args, title="Duplicating ROIs")
             if result.returncode != 0:
                 self.logger.error(f"Failed to duplicate ROIs: {result.stderr}")
                 return False
@@ -956,7 +959,7 @@ class ProcessSingleCellDataStage(StageBase):
                 "--channels"
             ] + data_selection.get('analysis_channels', [])
             
-            result = subprocess.run([sys.executable, str(extract_script)] + extract_args, capture_output=True, text=True)
+            result = run_subprocess_with_spinner([sys.executable, str(extract_script)] + extract_args, title="Extracting cells")
             if result.returncode != 0:
                 self.logger.error(f"Failed to extract cells: {result.stderr}")
                 return False
@@ -973,7 +976,7 @@ class ProcessSingleCellDataStage(StageBase):
                 "--channels"
             ] + data_selection.get('analysis_channels', [])
             
-            result = subprocess.run([sys.executable, str(group_script)] + group_args, capture_output=True, text=True)
+            result = run_subprocess_with_spinner([sys.executable, str(group_script)] + group_args, title="Grouping cells")
             if result.returncode != 0:
                 self.logger.error(f"Failed to group cells: {result.stderr}")
                 return False
@@ -1054,7 +1057,7 @@ class ThresholdGroupedCellsStage(StageBase):
             for channel in data_selection.get('analysis_channels', []):
                 threshold_args.append(channel)
             
-            result = subprocess.run([sys.executable, str(threshold_script)] + threshold_args, capture_output=True, text=True)
+            result = run_subprocess_with_spinner([sys.executable, str(threshold_script)] + threshold_args, title="Thresholding grouped cells")
             if result.returncode != 0:
                 self.logger.error(f"Failed to threshold grouped cells: {result.stderr}")
                 return False
@@ -1240,7 +1243,7 @@ class AnalysisStage(StageBase):
             for channel in data_selection.get('analysis_channels', []):
                 combine_args.append(channel)
             
-            result = subprocess.run([sys.executable, str(combine_script)] + combine_args, capture_output=True, text=True)
+            result = run_subprocess_with_spinner([sys.executable, str(combine_script)] + combine_args, title="Combining masks")
             if result.returncode != 0:
                 self.logger.error(f"Failed to combine masks: {result.stderr}")
                 return False
@@ -1263,7 +1266,7 @@ class AnalysisStage(StageBase):
             for channel in data_selection.get('analysis_channels', []):
                 create_masks_args.append(channel)
             
-            result = subprocess.run([sys.executable, str(create_masks_script)] + create_masks_args, capture_output=True, text=True)
+            result = run_subprocess_with_spinner([sys.executable, str(create_masks_script)] + create_masks_args, title="Creating cell masks")
             if result.returncode != 0:
                 self.logger.error(f"Failed to create cell masks: {result.stderr}")
                 return False
@@ -1289,7 +1292,7 @@ class AnalysisStage(StageBase):
             if data_selection.get('selected_timepoints'):
                 analyze_args.extend(["--timepoints"] + data_selection['selected_timepoints'])
             
-            result = subprocess.run([sys.executable, str(analyze_script)] + analyze_args, capture_output=True, text=True)
+            result = run_subprocess_with_spinner([sys.executable, str(analyze_script)] + analyze_args, title="Analyzing cell masks")
             if result.returncode != 0:
                 self.logger.error(f"Failed to analyze cell masks: {result.stderr}")
                 return False
@@ -1311,7 +1314,7 @@ class AnalysisStage(StageBase):
             for channel in data_selection.get('analysis_channels', []):
                 metadata_args.append(channel)
             
-            result = subprocess.run([sys.executable, str(metadata_script)] + metadata_args, capture_output=True, text=True)
+            result = run_subprocess_with_spinner([sys.executable, str(metadata_script)] + metadata_args, title="Including group metadata")
             if result.returncode != 0:
                 self.logger.error(f"Failed to include group metadata: {result.stderr}")
                 return False

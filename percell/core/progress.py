@@ -15,7 +15,9 @@ Design goals:
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Iterable, Iterator, Optional, Callable, Any
+from typing import Iterable, Iterator, Optional, Callable, Any, List, Dict
+import subprocess
+import time
 
 
 try:
@@ -162,4 +164,67 @@ def spinner(title: Optional[str] = None) -> Iterator[None]:
     with alive_bar(None, title=title or "", force_tty=True):
         yield
 
+
+
+def run_subprocess_with_spinner(
+    cmd: List[str],
+    title: Optional[str] = None,
+    capture_output: bool = True,
+    text: bool = True,
+    check: bool = False,
+    env: Optional[Dict[str, str]] = None,
+    cwd: Optional[str] = None,
+    stdin: Any = None,
+) -> subprocess.CompletedProcess:
+    """
+    Run a subprocess while showing a spinner until it finishes.
+
+    Args:
+        cmd: The command list to execute
+        title: Spinner title to display
+        capture_output: If True, capture stdout/stderr
+        text: If True, decode output as text
+        check: If True, raise on non-zero return code
+        env: Optional environment variables
+        cwd: Optional working directory
+        stdin: Optional stdin to pass to process
+
+    Returns:
+        subprocess.CompletedProcess with stdout/stderr if captured
+    """
+    if alive_bar is None:
+        return subprocess.run(
+            cmd,
+            capture_output=capture_output,
+            text=text,
+            check=check,
+            env=env,
+            cwd=cwd,
+            stdin=stdin,
+        )
+
+    stdout_pipe = subprocess.PIPE if capture_output else None
+    stderr_pipe = subprocess.PIPE if capture_output else None
+    process = subprocess.Popen(
+        cmd,
+        stdout=stdout_pipe,
+        stderr=stderr_pipe,
+        text=text,
+        env=env,
+        cwd=cwd,
+        stdin=stdin,
+    )
+
+    with spinner(title or "Running..."):
+        while True:
+            ret = process.poll()
+            if ret is not None:
+                break
+            time.sleep(0.1)
+
+    stdout, stderr = process.communicate()
+    completed = subprocess.CompletedProcess(cmd, process.returncode, stdout=stdout, stderr=stderr)
+    if check and completed.returncode != 0:
+        raise subprocess.CalledProcessError(completed.returncode, cmd, output=stdout, stderr=stderr)
+    return completed
 

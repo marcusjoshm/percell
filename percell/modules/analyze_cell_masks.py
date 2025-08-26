@@ -127,12 +127,16 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
         logger.info(f"ImageJ will {'auto-close' if auto_close else 'remain open'} after execution")
         
         # Run ImageJ in headless mode with the macro
+        # Show spinner while batch macro runs; still stream logs
         process = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True
         )
+        from percell.core import spinner as progress_spinner
+        spin_ctx = progress_spinner("ImageJ: Analyze Cell Masks")
+        spin = spin_ctx.__enter__()
         
         # Variables for processing output
         results_count = 0
@@ -151,6 +155,11 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
                     results_count += 1
         
         # Get any remaining output
+        # Close spinner
+        try:
+            spin_ctx.__exit__(None, None, None)
+        except Exception:
+            pass
         stdout, stderr = process.communicate()
         if stdout:
             logger.info(f"ImageJ additional output: {stdout.strip()}")

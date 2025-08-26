@@ -253,12 +253,13 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
         logger.info(f"Running ImageJ command: {' '.join(cmd)}")
         logger.info(f"ImageJ will {'auto-close' if auto_close else 'remain open'} after execution")
         
-        result = subprocess.run(
+        from percell.core import run_subprocess_with_spinner
+        result = run_subprocess_with_spinner(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            title="ImageJ: Create Cell Masks",
+            capture_output=True,
             text=True,
-            check=False  # Don't raise an exception on non-zero return code
+            check=False,
         )
         
         # Log the output
