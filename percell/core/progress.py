@@ -37,6 +37,7 @@ def configure_global(
     theme: Optional[str] = None,
     enrich_print: Optional[bool] = None,
     title_length: Optional[int] = None,
+    unknown: Optional[str] = None,
 ) -> None:
     """
     Optionally configure alive-progress global behavior.
@@ -46,6 +47,7 @@ def configure_global(
         theme: Theme name, e.g. 'classic', 'smooth', 'rainbow'
         enrich_print: Whether to patch print for bar-friendly output
         title_length: Max title length in bar display
+        unknown: Style name for unknown-total bars (e.g. 'smooth', 'triangles')
     """
     if config_handler is None:
         return
