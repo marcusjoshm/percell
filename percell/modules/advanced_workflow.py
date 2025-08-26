@@ -8,6 +8,7 @@ from higher-level steps by leveraging existing stages and modules.
 from __future__ import annotations
 
 import subprocess
+from ..core.progress import run_subprocess_with_spinner, spinner as progress_spinner
 import sys
 from pathlib import Path
 from typing import List, Tuple
@@ -252,7 +253,9 @@ class AdvancedWorkflowStage(StageBase):
 
     def _run_py_module(self, script_path: Path, args: List[str]) -> bool:
         try:
-            result = subprocess.run([sys.executable, str(script_path)] + args, capture_output=True, text=True)
+            # Show a spinner while running each module, using a descriptive title
+            title = f"Running: {Path(script_path).name}"
+            result = run_subprocess_with_spinner([sys.executable, str(script_path)] + args, title=title)
             if result.returncode != 0:
                 self.logger.error(result.stderr)
                 return False
