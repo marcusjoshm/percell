@@ -49,7 +49,7 @@ def main() -> None:
         print("alive-progress is not installed; demos will run without visible bars.")
 
     # Optional: set a consistent theme/spinner across demos
-    configure_global(theme="classic", spinner="dots", enrich_print=True)
+    configure_global(theme="smooth", spinner="waves", enrich_print=True)
 
     demo_spinner()
     demo_manual_bar()

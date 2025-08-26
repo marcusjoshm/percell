@@ -61,8 +61,8 @@ def main() -> None:
         print("alive-progress is not installed; this will run without visible bars.")
 
     # Optionally set a theme/spinner to make output consistent.
-    # You can try other values if your environment supports them, e.g. theme="smooth", spinner="twirls".
-    configure_global(theme="classic", spinner="dots", enrich_print=True)
+    # You can try other values if your environment supports them, e.g. theme="smooth", spinner="waves".
+    configure_global(theme="smooth", spinner="waves", enrich_print=True)
 
     # Display available options (parameters) from the progress API in percell.core.progress
     from percell.core.progress import progress_bar as _progress_bar_impl
