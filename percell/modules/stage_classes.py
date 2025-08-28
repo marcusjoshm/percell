@@ -1365,11 +1365,12 @@ class AnalysisStage(StageBase):
     Includes: combine_masks, create_cell_masks, analyze_cell_masks, include_group_metadata
     """
     
-    def __init__(self, config, logger, stage_name="analysis", event_bus=None, imagej_service=None, file_service=None, workflow_service=None):
+    def __init__(self, config, logger, stage_name="analysis", event_bus=None, imagej_service=None, file_service=None, workflow_service=None, progress_reporter=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.imagej_service = imagej_service
         self.file_service = file_service
         self.workflow_service = workflow_service
+        self.progress = progress_reporter
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for analysis stage."""
@@ -1406,6 +1407,8 @@ class AnalysisStage(StageBase):
         """Run the analysis stage."""
         try:
             self.logger.info("Starting Analysis Stage")
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.start(title="Running analysis")
             
             # Get data selection parameters from config
             data_selection = self.config.get('data_selection')
@@ -1524,10 +1527,14 @@ class AnalysisStage(StageBase):
                     return False
             self.logger.info("Group metadata included successfully")
             
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.stop()
             return True
             
         except Exception as e:
             self.logger.error(f"Error in Analysis Stage: {e}")
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.stop()
             return False
 
 
