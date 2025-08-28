@@ -1,6 +1,25 @@
 # <p>  <b>PerCell </b> </p>
 <img src="percell/art/percell_terminal_window.png" width="900" title="Percell Terminal Interface" alt="Percell Terminal Interface" align="center">
 
+## Call Graphs (Pyan3)
+
+Generate call graphs for the codebase (DOT and SVG) using Pyan3.
+
+Prerequisites:
+- Activate the project's virtual environment: `source venv/bin/activate`
+- Ensure Graphviz is installed (macOS): `brew install graphviz`
+
+Generate graphs:
+```bash
+bash percell/bash/generate_call_graphs.sh
+```
+
+Outputs will be written to:
+- `docs/graphs/callgraph_uses.dot` and `docs/graphs/callgraph_uses.svg`
+- `docs/graphs/callgraph_defines.dot` and `docs/graphs/callgraph_defines.svg`
+
+Note: The project pins `pyan3<1.2` due to a known CLI incompatibility in 1.2.0.
+
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![repo size](https://img.shields.io/github/repo-size/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/)
 [![License: MIT](https://img.shields.io/github/license/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/blob/main/LICENSE)
