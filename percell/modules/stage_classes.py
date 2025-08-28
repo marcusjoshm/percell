@@ -1236,10 +1236,11 @@ class MeasureROIAreaStage(StageBase):
     Results are saved as CSV files in the analysis/cell_area folder.
     """
     
-    def __init__(self, config, logger, stage_name="measure_roi_area", event_bus=None, imagej_service=None, file_service=None):
+    def __init__(self, config, logger, stage_name="measure_roi_area", event_bus=None, imagej_service=None, file_service=None, progress_reporter=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.imagej_service = imagej_service
         self.file_service = file_service
+        self.progress = progress_reporter
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for measure ROI area stage."""
@@ -1277,6 +1278,8 @@ class MeasureROIAreaStage(StageBase):
         """Run the measure ROI area stage."""
         try:
             self.logger.info("Starting Measure ROI Area Stage")
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.start(title="Measuring ROI areas")
             
             # Get input and output directories
             input_dir = kwargs.get('input_dir')
@@ -1291,16 +1294,37 @@ class MeasureROIAreaStage(StageBase):
             self.logger.info(f"Input directory: {input_dir}")
             self.logger.info(f"Output directory: {output_dir}")
 
-            # Use the Python module that drives ImageJ in macro mode for interactive behavior
-            from .measure_roi_area import measure_roi_areas
-            imagej_path = self.config.get('imagej_path')
-            self.logger.info(f"Measuring ROI areas using ImageJ binary: {imagej_path}")
-            success = measure_roi_areas(
-                input_dir=str(input_dir),
-                output_dir=str(output_dir), 
-                imagej_path=str(imagej_path),
-                auto_close=True
-            )
+            # Prefer ImageJService with macro; fallback to Python module
+            success = False
+            used_service = False
+            if self.imagej_service is not None:
+                try:
+                    from percell.core.paths import get_path_str
+                    macro_path = get_path_str("measure_roi_area_macro")
+                    params = {
+                        "input_dir": str(input_dir),
+                        "output_dir": str(output_dir),
+                        "auto_close": "true",
+                    }
+                    rc = self.imagej_service.run_macro(macro_path, params)
+                    if rc == 0:
+                        used_service = True
+                        success = True
+                        self.logger.info("ImageJService measured ROI areas successfully")
+                except Exception as e:
+                    self.logger.debug(f"ImageJService measure ROI areas failed, fallback to module: {e}")
+
+            if not used_service:
+                # Use the Python module that drives ImageJ for interactive behavior
+                from .measure_roi_area import measure_roi_areas
+                imagej_path = self.config.get('imagej_path')
+                self.logger.info(f"Measuring ROI areas using ImageJ binary: {imagej_path}")
+                success = measure_roi_areas(
+                    input_dir=str(input_dir),
+                    output_dir=str(output_dir), 
+                    imagej_path=str(imagej_path),
+                    auto_close=True
+                )
             
             if success:
                 self.logger.info("ROI area measurement completed successfully")
@@ -1317,13 +1341,19 @@ class MeasureROIAreaStage(StageBase):
                 else:
                     self.logger.warning("No ROI area measurement files were created")
                     
+                if hasattr(self, 'progress') and self.progress:
+                    self.progress.stop()
                 return True
             else:
                 self.logger.error("Failed to measure ROI areas")
+                if hasattr(self, 'progress') and self.progress:
+                    self.progress.stop()
                 return False
             
         except Exception as e:
             self.logger.error(f"Error in Measure ROI Area Stage: {e}")
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.stop()
             return False
 
 
