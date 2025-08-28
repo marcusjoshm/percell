@@ -5,6 +5,7 @@ from typing import Optional
 from percell.core.config import Config
 from percell.infrastructure.file_service import FileService
 from percell.infrastructure.imagej_service import ImageJService
+from percell.infrastructure.progress_reporter import AliveProgressReporter
 from percell.services.module_runner import ModuleRunner
 from percell.services.workflow_service import WorkflowService
 from percell.services.cleanup_service import CleanupService
@@ -20,6 +21,7 @@ class ServiceFactory:
         self._module_runner: Optional[ModuleRunner] = None
         self._workflow_service: Optional[WorkflowService] = None
         self._cleanup_service: Optional[CleanupService] = None
+        self._progress_reporter: Optional[AliveProgressReporter] = None
 
     def get_file_service(self) -> FileService:
         if self._file_service is None:
@@ -46,6 +48,11 @@ class ServiceFactory:
         if self._cleanup_service is None:
             self._cleanup_service = CleanupService()
         return self._cleanup_service
+
+    def get_progress_reporter(self) -> AliveProgressReporter:
+        if self._progress_reporter is None:
+            self._progress_reporter = AliveProgressReporter()
+        return self._progress_reporter
 
 
 __all__ = ["ServiceFactory"]

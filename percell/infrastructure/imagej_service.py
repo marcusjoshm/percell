@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import subprocess
-from typing import Optional
+from typing import Optional, Dict
+
+from percell.domain.ports import ImageProcessingService
 
 
-class ImageJService:
+class ImageJService(ImageProcessingService):
     """Thin wrapper for invoking ImageJ/Fiji macros.
 
     Notes:
@@ -16,14 +18,16 @@ class ImageJService:
     def __init__(self, imagej_path: Optional[str] = None) -> None:
         self.imagej_path = imagej_path or ""
 
-    def run_macro(self, macro_path: str, arg_string: Optional[str] = None, headless: bool = False) -> int:
+    def run_macro(self, macro_path: str, params: Optional[Dict[str, str]] = None, *, headless: bool = False) -> int:
         if not self.imagej_path:
             return 1
         cmd = [self.imagej_path]
         if headless:
             cmd.append("--headless")
         cmd.extend(["-macro", macro_path])
-        if arg_string:
+        if params:
+            # Join key=value pairs with semicolons for a single arg string
+            arg_string = ";".join(f"{k}={v}" for k, v in params.items())
             cmd.append(arg_string)
         result = subprocess.run(cmd, capture_output=True, text=True)
         return result.returncode

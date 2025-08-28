@@ -4,8 +4,10 @@ import shutil
 from pathlib import Path
 from typing import Iterable
 
+from percell.domain.ports import FileSystemService
 
-class FileService:
+
+class FileService(FileSystemService):
     """Minimal file service for copying and ensuring directories."""
 
     def ensure_dir(self, directory: str) -> None:
