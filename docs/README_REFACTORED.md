@@ -1,93 +1,79 @@
+11
 # Microscopy Single-Cell Analysis Pipeline - Refactored
 
-This is the refactored version of the microscopy single-cell analysis pipeline, featuring a modular command-line interface architecture inspired by the FLIM-FRET analysis project.
+This refactoring introduces clear architectural layers, a pluggable analysis system, and optional event-driven orchestration. It reduces coupling across modules and makes it easier to add features and tests.
 
 ## New Architecture
 
-The project has been refactored to follow a more modular and maintainable structure:
+High-level layering:
+
+```
+Application (CLI)
+├── Services (orchestration, plugin manager, event bus)
+├── Domain (business logic contracts, plugin interfaces)
+├── Infrastructure (external tools, file I/O adapters)
+└── Core (config, logging, pipeline, stage framework)
+```
+
+Repository layout (key folders):
 
 ```
 percell/
-├── main.py                          # Main entry point
-├── percell/                             # Source code directory
-│   └── python/                      # Python modules
-│       ├── core/                    # Core framework
-│       │   ├── cli.py              # Command-line interface
-│       │   ├── config.py           # Configuration management
-│       │   ├── logger.py           # Logging framework
-│       │   ├── pipeline.py         # Pipeline orchestrator
-│       │   └── stages.py           # Stage execution framework
-│       └── modules/                 # Pipeline modules
-│           ├── stage_registry.py    # Stage registration
-│           └── stage_classes.py     # Stage implementations
-├── scripts/                         # Original analysis scripts
-├── macros/                          # ImageJ macros
-└── config/                          # Configuration directory
-    ├── config.json                  # Main configuration file
-    └── config.template.json         # Configuration template
+├── percell/
+│   ├── core/            # Config, logger, pipeline, stages
+│   ├── domain/          # AnalysisPlugin interface and context/result models
+│   ├── services/        # PluginManager, PipelineEventBus, future factories
+│   ├── infrastructure/  # FileService, ImageJService, external adapters
+│   ├── plugins/         # Built-in plugins and registry
+│   ├── cli/             # CLI adapter (re-exports core CLI)
+│   └── modules/         # Existing stage implementations and registry (legacy)
+├── docs/
+└── tests/
 ```
 
 ## Key Features
 
-### 1. Modular CLI Architecture
-- **Clean separation of concerns**: Each component has a specific responsibility
-- **Extensible stage system**: Easy to add new pipeline stages
-- **Comprehensive logging**: Detailed execution tracking and error reporting
-- **Configuration management**: Centralized configuration with validation
+### 1. Modular Architecture
+- **Clean boundaries**: Core vs. Domain vs. Services vs. Infrastructure
+- **Extensible stage system**: Stages registered via `modules.stage_registry`
+- **Plugin-ready**: Standard `AnalysisPlugin` interface + `PluginManager`
+- **Event-driven orchestration**: Optional `PipelineEventBus` for decoupled notifications
+- **Configuration management**: Centralized JSON with validation
 
-### 2. Pipeline Stages
-The pipeline is divided into three main stages:
-
-1. **Preprocessing** (`--preprocess`)
-   - Data organization and file preparation
-   - Image binning and preprocessing
-   - Directory structure setup
-
-2. **Segmentation** (`--segment`)
-   - Cell segmentation using Cellpose
-   - ROI creation and management
-   - Mask generation
-
-3. **Analysis** (`--analyze`)
-   - Cell grouping and analysis
-   - Otsu thresholding
-   - Result generation
+### 2. Stage and Plugin Overview
+- Stages: Operational workflow steps executed by `StageExecutor`
+- Plugins: Extensible analysis units implementing `AnalysisPlugin`
+- Both can coexist. Existing stages remain under `percell/modules`; plugins live under `percell/plugins`.
 
 ### 3. Command-Line Interface
 
 #### Basic Usage
 ```bash
 # Run complete pipeline
-python main.py --input /path/to/data --output /path/to/output --complete
+python -m percell.main.main --input /path/to/data --output /path/to/output --complete-workflow
 
-# Run individual stages
-python main.py --input /path/to/data --output /path/to/output --preprocess
-python main.py --input /path/to/data --output /path/to/output --segment
-python main.py --input /path/to/data --output /path/to/output --analyze
+# Run selected stages
+python -m percell.main.main --input /path/to/data --output /path/to/output --analysis
 
-# Interactive mode
-python main.py --interactive
+# Interactive menu
+python -m percell.main.main --interactive
 ```
 
 #### Advanced Options
 ```bash
 # Specify data type and channels
-python main.py --input /path/to/data --output /path/to/output --complete \
-    --datatype single_timepoint \
-    --segmentation-channel ch00 \
-    --analysis-channels ch01 ch02 \
-    --bins 5
+python -m percell.main.main --input ... --output ... --complete-workflow \
+  --datatype single_timepoint \
+  --segmentation-channel ch00 \
+  --analysis-channels ch01 ch02 \
+  --bins 5
 
-# Skip specific steps
-python main.py --input /path/to/data --output /path/to/output --complete \
-    --skip-steps preprocessing
-
-# Start from specific stage
-python main.py --input /path/to/data --output /path/to/output --complete \
-    --start-from segmentation
+# Skip steps / start from specific
+python -m percell.main.main --input ... --output ... --complete-workflow --skip-steps analysis
+python -m percell.main.main --input ... --output ... --complete-workflow --start-from analysis
 
 # Verbose logging
-python main.py --input /path/to/data --output /path/to/output --complete --verbose
+python -m percell.main.main --input ... --output ... --complete-workflow --verbose
 ```
 
 ## Configuration
@@ -125,7 +111,7 @@ The pipeline uses a JSON configuration file (`config/config.json`) for settings:
 
 ### 2. Extensibility
 - **Stage system**: Easy to add new pipeline stages
-- **Plugin architecture**: Stages can be registered dynamically
+- **Plugin architecture**: Analysis plugins registered via `PluginManager`
 - **Configuration-driven**: Behavior controlled through config files
 
 ### 3. Reliability
@@ -138,57 +124,40 @@ The pipeline uses a JSON configuration file (`config/config.json`) for settings:
 - **Flexible CLI**: Multiple ways to specify parameters
 - **Progress tracking**: Real-time progress updates
 
-## Migration from Original Pipeline
+## Dependency Injection (DI) and Event Bus
 
-The refactored pipeline maintains compatibility with the original workflow while providing additional features:
-
-### Original Command
-```bash
-python single_cell_workflow.py --config config/config.json --input /path/to/data --output /path/to/output
-```
-
-### New Command
-```bash
-python main.py --input /path/to/data --output /path/to/output --complete
-```
-
-### Key Differences
-1. **Simplified interface**: No need to specify config file (uses default)
-2. **Stage-specific execution**: Can run individual stages
-3. **Better error handling**: More informative error messages
-4. **Progress tracking**: Real-time progress updates
-5. **Interactive mode**: User-friendly interactive interface
+- DI-friendly constructors for stages: `StageBase(config, logger, stage_name, event_bus=None)`
+- `StageExecutor` accepts `event_bus` and passes it to each stage it constructs
+- `PipelineEventBus` publishes `StageStarted` and `StageCompleted` events for decoupled observers
 
 ## Development
 
-### Adding New Stages
-To add a new pipeline stage:
+### Adding New Stages (legacy stage system)
+1. Implement your stage in `percell/modules/stage_classes.py` deriving from `StageBase`
+2. Register it in `percell/modules/stage_registry.py` using `register_stage('name', order=N)`
+3. Add CLI flags in `percell/core/cli.py` if needed
 
-1. Create a new stage class in `percell/python/modules/stage_classes.py`:
+### Writing a Plugin
+1. Implement `AnalysisPlugin` in `percell/plugins/your_plugin.py`
 ```python
-class NewStage(StageBase):
-    def validate_inputs(self, **kwargs) -> bool:
-        # Validate inputs
-        pass
-    
-    def run(self, **kwargs) -> bool:
-        # Implement stage logic
-        pass
-```
+from percell.domain.plugin import AnalysisPlugin, AnalysisContext, AnalysisResult
 
-2. Register the stage in `percell/python/modules/stage_registry.py`:
-```python
-register_stage('new_stage', order=4)(NewStage)
-```
+class MyPlugin(AnalysisPlugin):
+    @property
+    def name(self) -> str:
+        return 'my_plugin'
 
-3. Add CLI options in `percell/python/core/cli.py`:
-```python
-parser.add_argument(
-    '--new-stage',
-    action='store_true',
-    help='Run new stage only'
-)
+    def validate_inputs(self, context: AnalysisContext) -> bool:
+        return True
+
+    def process(self, context: AnalysisContext) -> AnalysisResult:
+        return AnalysisResult(success=True, details={'ok': True})
 ```
+2. Register it via `percell/plugins/registry.py` or at runtime using `PluginManager.register_plugin()`
+
+### Services (use instead of direct subprocess where practical)
+- `percell.infrastructure.FileService`
+- `percell.infrastructure.ImageJService`
 
 ### Configuration Management
 The configuration system supports:
@@ -212,7 +181,7 @@ The modular architecture enables several future enhancements:
 
 1. **Parallel processing**: Multi-threaded stage execution
 2. **Web interface**: Web-based pipeline management
-3. **Plugin system**: Third-party stage plugins
+3. **Plugin system**: Third-party plugins discoverable and configurable
 4. **Cloud integration**: Cloud-based processing
 5. **Real-time monitoring**: Live pipeline monitoring
 

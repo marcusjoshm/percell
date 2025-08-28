@@ -13,6 +13,22 @@ import argparse
 from .config import Config
 from .logger import PipelineLogger
 from .stages import get_stage_registry, StageExecutor
+try:
+    from percell.services.event_bus import PipelineEventBus
+except Exception:  # pragma: no cover - optional during transition
+    PipelineEventBus = None  # type: ignore
+try:
+    from percell.services.plugin_manager import PluginManager
+    from percell.plugins.registry import register_all_plugins
+    from percell.domain.plugin import AnalysisContext
+except Exception:
+    PluginManager = None  # type: ignore
+    register_all_plugins = None  # type: ignore
+    AnalysisContext = None  # type: ignore
+try:
+    from percell.services.factory import ServiceFactory
+except Exception:
+    ServiceFactory = None  # type: ignore
 
 
 class Pipeline:
@@ -38,13 +54,30 @@ class Pipeline:
         # Setup directories
         self.setup_directories()
         
-        # Register all available stages
-        # register_all_stages() # This line is removed as per the edit hint
-        
+        # Optional event bus for decoupled notifications
+        self.event_bus = PipelineEventBus() if PipelineEventBus is not None else None
+
         # Create stage executor
         self.registry = get_stage_registry()
-        self.executor = StageExecutor(config, logger, self.registry)
-        
+        self.executor = StageExecutor(config, logger, self.registry, event_bus=self.event_bus)
+
+        # Optional plugin manager for future plugin-based execution
+        self.plugin_manager = PluginManager() if PluginManager is not None else None
+        if self.plugin_manager and register_all_plugins:
+            try:
+                register_all_plugins(self.plugin_manager)
+                self.logger.debug(f"Registered plugins: {self.plugin_manager.get_available_plugins()}")
+            except Exception:
+                pass
+
+        # Optional service factory for shared services; bind to logger for discovery
+        self.service_factory = ServiceFactory(self.config) if ServiceFactory is not None else None
+        if self.service_factory is not None:
+            try:
+                setattr(self.logger, 'service_factory', self.service_factory)
+            except Exception:
+                pass
+
         # Determine which stages to run
         self.stages_to_run = self._determine_stages()
         

@@ -101,11 +101,19 @@ def find_analysis_file(analysis_dir, output_dir=None):
             logger.info(f"Found dish-specific combined analysis file: {dish_combined}")
             return dish_combined
     
+    # Prefer particle analysis CSVs produced by the analysis step
+    particle_files = list(analysis_dir.glob("*particle_analysis.csv"))
+    particle_files = [f for f in particle_files if not f.name.startswith('._')]
+    if particle_files:
+        particle_files.sort(key=lambda f: f.stat().st_size, reverse=True)
+        logger.info(f"Found particle analysis file: {particle_files[0]}")
+        return particle_files[0]
+
     # Look for combined_results.csv or similar
     for pattern in ["*combined*.csv", "*combined_analysis.csv", "combined_results.csv"]:
         combined_files = list(analysis_dir.glob(pattern))
         # Filter out macOS metadata files
-        combined_files = [f for f in combined_files if not f.name.startswith('._')]
+        combined_files = [f for f in combined_files if not f.name.startswith('._') and 'cell_area' not in f.name]
         if combined_files:
             combined_files.sort(key=lambda f: f.stat().st_size, reverse=True)
             logger.info(f"Found combined analysis file: {combined_files[0]}")
@@ -114,7 +122,7 @@ def find_analysis_file(analysis_dir, output_dir=None):
     # If not found, look for any CSV file that might be the combined results
     csv_files = list(analysis_dir.glob("*.csv"))
     # Filter out macOS metadata files
-    csv_files = [f for f in csv_files if not f.name.startswith('._')]
+    csv_files = [f for f in csv_files if not f.name.startswith('._') and 'cell_area' not in f.name]
     if csv_files:
         # Use the largest CSV file as it's likely the combined results
         csv_files.sort(key=lambda f: f.stat().st_size, reverse=True)

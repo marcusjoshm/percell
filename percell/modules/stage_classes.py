@@ -25,8 +25,9 @@ class DataSelectionStage(StageBase):
              select_regions, select_segmentation_channel, select_analysis_channels
     """
     
-    def __init__(self, config, logger, stage_name="data_selection"):
-        super().__init__(config, logger, stage_name)
+    def __init__(self, config, logger, stage_name="data_selection", event_bus=None, file_service=None):
+        super().__init__(config, logger, stage_name, event_bus=event_bus)
+        self.file_service = file_service
         self.experiment_metadata = {}
         self.selected_datatype = None
         self.selected_conditions = []
@@ -163,7 +164,10 @@ class DataSelectionStage(StageBase):
                     continue
                 
                 # Create condition directory in output
-                condition_output_dir.mkdir(parents=True, exist_ok=True)
+                if self.file_service:
+                    self.file_service.ensure_dir(str(condition_output_dir))
+                else:
+                    condition_output_dir.mkdir(parents=True, exist_ok=True)
                 
                 # Check what's in the condition directory
                 condition_items = list(condition_input_dir.iterdir())
@@ -187,28 +191,39 @@ class DataSelectionStage(StageBase):
                             self.logger.info(f"Timepoint input directory: {timepoint_input_dir}")
                             
                             if timepoint_input_dir.exists():
-                                timepoint_output_dir.mkdir(parents=True, exist_ok=True)
-                                
+                                if self.file_service:
+                                    self.file_service.ensure_dir(str(timepoint_output_dir))
+                                else:
+                                    timepoint_output_dir.mkdir(parents=True, exist_ok=True)
+
                                 # Copy TIF files from this timepoint
                                 tif_files = list(timepoint_input_dir.glob("*.tif"))
                                 self.logger.info(f"Found {len(tif_files)} TIF files in {directory_timepoint}")
-                                
-                                copied_in_timepoint = 0
+
+                                # Filter for selected regions if provided
+                                filtered_files = []
                                 for tif_file in tif_files:
-                                    # Check if this file matches selected regions (if specified)
                                     if selected_regions:
                                         filename = tif_file.stem
                                         if not any(region in filename for region in selected_regions):
                                             self.logger.debug(f"Skipping file {filename} - doesn't match selected regions")
                                             continue
-                                    
-                                    # Copy the file
-                                    output_file = timepoint_output_dir / tif_file.name
-                                    shutil.copy2(tif_file, output_file)
-                                    total_copied += 1
-                                    copied_in_timepoint += 1
-                                    self.logger.debug(f"Copied: {tif_file.name}")
-                                    
+                                    filtered_files.append(tif_file)
+
+                                if self.file_service:
+                                    copied_in_timepoint = self.file_service.copy_files(
+                                        [str(p) for p in filtered_files], str(timepoint_output_dir)
+                                    )
+                                    total_copied += copied_in_timepoint
+                                else:
+                                    copied_in_timepoint = 0
+                                    for tif_file in filtered_files:
+                                        output_file = timepoint_output_dir / tif_file.name
+                                        shutil.copy2(tif_file, output_file)
+                                        total_copied += 1
+                                        copied_in_timepoint += 1
+                                        self.logger.debug(f"Copied: {tif_file.name}")
+
                                 self.logger.info(f"Copied {copied_in_timepoint} files from {condition}/{directory_timepoint}")
                             else:
                                 self.logger.warning(f"Timepoint directory not found: {timepoint_input_dir}")
@@ -219,21 +234,29 @@ class DataSelectionStage(StageBase):
                     tif_files = list(condition_input_dir.glob("*.tif"))
                     self.logger.info(f"Found {len(tif_files)} TIF files directly in condition directory")
                     
-                    copied_in_condition = 0
+                    # Filter by regions if needed
+                    filtered_files = []
                     for tif_file in tif_files:
-                        # Check if this file matches selected regions (if specified)
                         if selected_regions:
                             filename = tif_file.stem
                             if not any(region in filename for region in selected_regions):
                                 self.logger.debug(f"Skipping file {filename} - doesn't match selected regions")
                                 continue
-                        
-                        # Copy the file
-                        output_file = condition_output_dir / tif_file.name
-                        shutil.copy2(tif_file, output_file)
-                        total_copied += 1
-                        copied_in_condition += 1
-                        self.logger.debug(f"Copied: {tif_file.name}")
+                        filtered_files.append(tif_file)
+
+                    if self.file_service:
+                        copied_in_condition = self.file_service.copy_files(
+                            [str(p) for p in filtered_files], str(condition_output_dir)
+                        )
+                        total_copied += copied_in_condition
+                    else:
+                        copied_in_condition = 0
+                        for tif_file in filtered_files:
+                            output_file = condition_output_dir / tif_file.name
+                            shutil.copy2(tif_file, output_file)
+                            total_copied += 1
+                            copied_in_condition += 1
+                            self.logger.debug(f"Copied: {tif_file.name}")
                     
                     self.logger.info(f"Copied {copied_in_condition} files from {condition}")
             
@@ -725,8 +748,10 @@ class SegmentationStage(StageBase):
     Includes: bin_images_for_segmentation, interactive_segmentation
     """
     
-    def __init__(self, config, logger, stage_name="segmentation"):
-        super().__init__(config, logger, stage_name)
+    def __init__(self, config, logger, stage_name="segmentation", event_bus=None, imagej_service=None, file_service=None):
+        super().__init__(config, logger, stage_name, event_bus=event_bus)
+        self.imagej_service = imagej_service
+        self.file_service = file_service
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for segmentation stage."""
@@ -841,8 +866,10 @@ class ProcessSingleCellDataStage(StageBase):
     Includes: roi_tracking, resize_rois, duplicate_rois_for_analysis_channels, extract_cells, group_cells
     """
     
-    def __init__(self, config, logger, stage_name="process_single_cell"):
-        super().__init__(config, logger, stage_name)
+    def __init__(self, config, logger, stage_name="process_single_cell", event_bus=None, imagej_service=None, file_service=None):
+        super().__init__(config, logger, stage_name, event_bus=event_bus)
+        self.imagej_service = imagej_service
+        self.file_service = file_service
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for process single-cell data stage."""
@@ -913,7 +940,7 @@ class ProcessSingleCellDataStage(StageBase):
             else:
                 self.logger.info("Skipping ROI tracking (single timepoint or no timepoints)")
             
-            # Step 2: Resize ROIs
+            # Step 2: Resize ROIs (try ImageJService; fallback to script)
             self.logger.info("Resizing ROIs...")
             from percell.core.paths import get_path, get_path_str
             resize_script = get_path("resize_rois_module")
@@ -925,12 +952,27 @@ class ProcessSingleCellDataStage(StageBase):
                 "--macro", get_path_str("resize_rois_macro"),
                 "--auto-close"
             ]
-            
-            result = run_subprocess_with_spinner([sys.executable, str(resize_script)] + resize_args, title="Resizing ROIs")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to resize ROIs: {result.stderr}")
-                return False
-            self.logger.info("ROIs resized successfully")
+            used_service = False
+            if self.imagej_service is not None:
+                try:
+                    macro_path = get_path_str("resize_rois_macro")
+                    ij_args = [
+                        "--input", f"{output_dir}/preprocessed",
+                        "--output", f"{output_dir}/ROIs",
+                        "--channel", data_selection.get('segmentation_channel', ''),
+                    ]
+                    rc = self.imagej_service.run_macro(macro_path, ij_args)
+                    if rc == 0:
+                        used_service = True
+                        self.logger.info("ImageJService resized ROIs successfully")
+                except Exception as e:
+                    self.logger.debug(f"ImageJService resize ROIs failed, fallback to script: {e}")
+            if not used_service:
+                result = run_subprocess_with_spinner([sys.executable, str(resize_script)] + resize_args, title="Resizing ROIs")
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to resize ROIs: {result.stderr}")
+                    return False
+                self.logger.info("ROIs resized successfully")
             
             # Step 3: Duplicate ROIs for analysis channels
             self.logger.info("Duplicating ROIs for analysis channels...")
@@ -946,7 +988,7 @@ class ProcessSingleCellDataStage(StageBase):
                 return False
             self.logger.info("ROIs duplicated successfully")
             
-            # Step 4: Extract cells
+            # Step 4: Extract cells (try ImageJService; fallback to script)
             self.logger.info("Extracting cells...")
             extract_script = get_path("extract_cells_module")
             extract_args = [
@@ -958,12 +1000,29 @@ class ProcessSingleCellDataStage(StageBase):
                 "--auto-close",
                 "--channels"
             ] + data_selection.get('analysis_channels', [])
-            
-            result = run_subprocess_with_spinner([sys.executable, str(extract_script)] + extract_args, title="Extracting cells")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to extract cells: {result.stderr}")
-                return False
-            self.logger.info("Cells extracted successfully")
+            used_service = False
+            if self.imagej_service is not None:
+                try:
+                    macro_path = get_path_str("extract_cells_macro")
+                    ij_args = [
+                        "--roi-dir", f"{output_dir}/ROIs",
+                        "--raw-data-dir", f"{output_dir}/raw_data",
+                        "--output-dir", f"{output_dir}/cells",
+                    ]
+                    # Append channels at the end
+                    ij_args.extend(["--channels"] + data_selection.get('analysis_channels', []))
+                    rc = self.imagej_service.run_macro(macro_path, ij_args)
+                    if rc == 0:
+                        used_service = True
+                        self.logger.info("ImageJService extracted cells successfully")
+                except Exception as e:
+                    self.logger.debug(f"ImageJService extract cells failed, fallback to script: {e}")
+            if not used_service:
+                result = run_subprocess_with_spinner([sys.executable, str(extract_script)] + extract_args, title="Extracting cells")
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to extract cells: {result.stderr}")
+                    return False
+                self.logger.info("Cells extracted successfully")
             
             # Step 5: Group cells
             self.logger.info("Grouping cells...")
@@ -997,8 +1056,10 @@ class ThresholdGroupedCellsStage(StageBase):
     Includes: threshold_grouped_cells
     """
     
-    def __init__(self, config, logger, stage_name="threshold_grouped_cells"):
-        super().__init__(config, logger, stage_name)
+    def __init__(self, config, logger, stage_name="threshold_grouped_cells", event_bus=None, imagej_service=None, file_service=None):
+        super().__init__(config, logger, stage_name, event_bus=event_bus)
+        self.imagej_service = imagej_service
+        self.file_service = file_service
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for threshold grouped cells stage."""
@@ -1042,7 +1103,7 @@ class ThresholdGroupedCellsStage(StageBase):
                 self.logger.error("Output directory is required")
                 return False
             
-            # Threshold grouped cells
+            # Threshold grouped cells (try ImageJService; fallback to script)
             self.logger.info("Thresholding grouped cells...")
             from percell.core.paths import get_path, get_path_str
             threshold_script = get_path("otsu_threshold_grouped_cells_module")
@@ -1057,12 +1118,28 @@ class ThresholdGroupedCellsStage(StageBase):
             for channel in data_selection.get('analysis_channels', []):
                 threshold_args.append(channel)
             
-            # Run without spinner for thresholding step
-            result = subprocess.run([sys.executable, str(threshold_script)] + threshold_args, capture_output=True, text=True)
-            if result.returncode != 0:
-                self.logger.error(f"Failed to threshold grouped cells: {result.stderr}")
-                return False
-            self.logger.info("Grouped cells thresholded successfully")
+            used_service = False
+            if self.imagej_service is not None:
+                try:
+                    macro_path = get_path_str("threshold_grouped_cells_macro")
+                    ij_args = [
+                        "--input-dir", f"{output_dir}/grouped_cells",
+                        "--output-dir", f"{output_dir}/grouped_masks",
+                    ]
+                    ij_args.extend(["--channels"] + data_selection.get('analysis_channels', []))
+                    rc = self.imagej_service.run_macro(macro_path, ij_args)
+                    if rc == 0:
+                        used_service = True
+                        self.logger.info("ImageJService thresholded grouped cells successfully")
+                except Exception as e:
+                    self.logger.debug(f"ImageJService threshold grouped cells failed, fallback to script: {e}")
+            if not used_service:
+                # Run without spinner for thresholding step
+                result = subprocess.run([sys.executable, str(threshold_script)] + threshold_args, capture_output=True, text=True)
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to threshold grouped cells: {result.stderr}")
+                    return False
+                self.logger.info("Grouped cells thresholded successfully")
             
             return True
             
@@ -1079,8 +1156,10 @@ class MeasureROIAreaStage(StageBase):
     Results are saved as CSV files in the analysis/cell_area folder.
     """
     
-    def __init__(self, config, logger, stage_name="measure_roi_area"):
-        super().__init__(config, logger, stage_name)
+    def __init__(self, config, logger, stage_name="measure_roi_area", event_bus=None, imagej_service=None, file_service=None):
+        super().__init__(config, logger, stage_name, event_bus=event_bus)
+        self.imagej_service = imagej_service
+        self.file_service = file_service
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for measure ROI area stage."""
@@ -1095,11 +1174,12 @@ class MeasureROIAreaStage(StageBase):
             self.logger.error("Required macro not found: measure_roi_area_macro")
             return False
         
-        # Check if ImageJ path is configured
-        imagej_path = self.config.get('imagej_path')
-        if not imagej_path or not Path(imagej_path).exists():
-            self.logger.error("ImageJ path not configured or does not exist")
-            return False
+        # Check if ImageJ path is configured (skip if ImageJService provided)
+        if self.imagej_service is None:
+            imagej_path = self.config.get('imagej_path')
+            if not imagej_path or not Path(imagej_path).exists():
+                self.logger.error("ImageJ path not configured or does not exist")
+                return False
         
         # Check if input and output directories are provided
         input_dir = kwargs.get('input_dir')
@@ -1126,20 +1206,15 @@ class MeasureROIAreaStage(StageBase):
                 self.logger.error("Input and output directories are required")
                 return False
             
-            # Import and run the measure_roi_area module
-            from .measure_roi_area import measure_roi_areas
-            
-            # Get ImageJ path from config
-            imagej_path = self.config.get('imagej_path')
-            
             # Create analysis/cell_area directory
             cell_area_dir = Path(output_dir) / "analysis" / "cell_area"
-            
-            self.logger.info(f"Measuring ROI areas using ImageJ: {imagej_path}")
             self.logger.info(f"Input directory: {input_dir}")
             self.logger.info(f"Output directory: {output_dir}")
-            
-            # Run ROI area measurement
+
+            # Use the Python module that drives ImageJ in macro mode for interactive behavior
+            from .measure_roi_area import measure_roi_areas
+            imagej_path = self.config.get('imagej_path')
+            self.logger.info(f"Measuring ROI areas using ImageJ binary: {imagej_path}")
             success = measure_roi_areas(
                 input_dir=str(input_dir),
                 output_dir=str(output_dir), 
@@ -1180,8 +1255,10 @@ class AnalysisStage(StageBase):
     Includes: combine_masks, create_cell_masks, analyze_cell_masks, include_group_metadata
     """
     
-    def __init__(self, config, logger, stage_name="analysis"):
-        super().__init__(config, logger, stage_name)
+    def __init__(self, config, logger, stage_name="analysis", event_bus=None, imagej_service=None, file_service=None):
+        super().__init__(config, logger, stage_name, event_bus=event_bus)
+        self.imagej_service = imagej_service
+        self.file_service = file_service
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for analysis stage."""
@@ -1250,7 +1327,7 @@ class AnalysisStage(StageBase):
                 return False
             self.logger.info("Masks combined successfully")
             
-            # Step 2: Create cell masks
+            # Step 2: Create cell masks (try ImageJService first, then fallback script)
             self.logger.info("Creating cell masks...")
             from percell.core.paths import get_path, get_path_str
             create_masks_script = get_path("create_cell_masks_module")
@@ -1266,14 +1343,30 @@ class AnalysisStage(StageBase):
             # Add analysis channels as separate arguments (matching original workflow)
             for channel in data_selection.get('analysis_channels', []):
                 create_masks_args.append(channel)
+            # Try ImageJService macro
+            used_service = False
+            if self.imagej_service is not None:
+                macro_path = get_path_str("create_cell_masks_macro")
+                ij_args = [
+                    "--roi-dir", f"{output_dir}/ROIs",
+                    "--mask-dir", f"{output_dir}/combined_masks",
+                    "--output-dir", f"{output_dir}/masks",
+                ]
+                try:
+                    rc = self.imagej_service.run_macro(macro_path, ij_args)
+                    if rc == 0:
+                        used_service = True
+                        self.logger.info("ImageJService created cell masks successfully")
+                except Exception as e:
+                    self.logger.debug(f"ImageJService create masks failed, will fallback: {e}")
+            if not used_service:
+                result = run_subprocess_with_spinner([sys.executable, str(create_masks_script)] + create_masks_args, title="Creating cell masks")
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to create cell masks: {result.stderr}")
+                    return False
+                self.logger.info("Cell masks created successfully")
             
-            result = run_subprocess_with_spinner([sys.executable, str(create_masks_script)] + create_masks_args, title="Creating cell masks")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to create cell masks: {result.stderr}")
-                return False
-            self.logger.info("Cell masks created successfully")
-            
-            # Step 3: Analyze cell masks
+            # Step 3: Analyze cell masks (try ImageJService; fallback to script)
             self.logger.info("Analyzing cell masks...")
             analyze_script = get_path("analyze_cell_masks_module")
             analyze_args = [
@@ -1293,11 +1386,31 @@ class AnalysisStage(StageBase):
             if data_selection.get('selected_timepoints'):
                 analyze_args.extend(["--timepoints"] + data_selection['selected_timepoints'])
             
-            result = run_subprocess_with_spinner([sys.executable, str(analyze_script)] + analyze_args, title="Analyzing cell masks")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to analyze cell masks: {result.stderr}")
-                return False
-            self.logger.info("Cell masks analyzed successfully")
+            used_service = False
+            if self.imagej_service is not None:
+                try:
+                    macro_path = get_path_str("analyze_cell_masks_macro")
+                    ij_args = [
+                        "--input", f"{output_dir}/masks",
+                        "--output", f"{output_dir}/analysis",
+                    ]
+                    if data_selection.get('selected_regions'):
+                        ij_args.extend(["--regions"] + data_selection['selected_regions'])
+                    if data_selection.get('selected_timepoints'):
+                        ij_args.extend(["--timepoints"] + data_selection['selected_timepoints'])
+                    ij_args.extend(["--channels"] + data_selection.get('analysis_channels', []))
+                    rc = self.imagej_service.run_macro(macro_path, ij_args)
+                    if rc == 0:
+                        used_service = True
+                        self.logger.info("ImageJService analyzed cell masks successfully")
+                except Exception as e:
+                    self.logger.debug(f"ImageJService analyze masks failed, fallback to script: {e}")
+            if not used_service:
+                result = run_subprocess_with_spinner([sys.executable, str(analyze_script)] + analyze_args, title="Analyzing cell masks")
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to analyze cell masks: {result.stderr}")
+                    return False
+                self.logger.info("Cell masks analyzed successfully")
             
             # Step 4: Include group metadata
             self.logger.info("Including group metadata...")
@@ -1336,8 +1449,9 @@ class CleanupStage(StageBase):
     Preserves directory structure while removing contents.
     """
     
-    def __init__(self, config, logger, stage_name="cleanup"):
-        super().__init__(config, logger, stage_name)
+    def __init__(self, config, logger, stage_name="cleanup", event_bus=None, file_service=None):
+        super().__init__(config, logger, stage_name, event_bus=event_bus)
+        self.file_service = file_service
         self.cleanup_directories = [
             'cells',
             'masks'
@@ -1431,8 +1545,8 @@ class CompleteWorkflowStage(StageBase):
     process single-cell data, threshold grouped cells, measure ROI areas, analysis.
     """
     
-    def __init__(self, config, logger, stage_name="complete_workflow"):
-        super().__init__(config, logger, stage_name)
+    def __init__(self, config, logger, stage_name="complete_workflow", event_bus=None):
+        super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.stages = [
             ('data_selection', 'Data Selection'),
             ('segmentation', 'Single-cell Segmentation'),
@@ -1457,38 +1571,25 @@ class CompleteWorkflowStage(StageBase):
         return True
     
     def run(self, **kwargs) -> bool:
-        """Run the complete workflow sequentially."""
+        """Run the complete workflow sequentially using StageExecutor (DI-aware)."""
         try:
             self.logger.info("Starting Complete Workflow")
-            
-            # Get the global stage registry
-            from ..core.stages import get_stage_registry
+            from ..core.stages import get_stage_registry, StageExecutor
             registry = get_stage_registry()
-            
+            executor = StageExecutor(self.config, self.pipeline_logger, registry, event_bus=self.event_bus)
+
             for stage_name, stage_display_name in self.stages:
                 self.logger.info(f"Starting {stage_display_name}...")
-                
-                # Create stage-specific arguments
                 stage_args = self._create_stage_args(stage_name, kwargs)
-                
-                # Execute the stage
-                stage_class = registry.get_stage_class(stage_name)
-                if not stage_class:
-                    self.logger.error(f"Stage not found: {stage_name}")
-                    return False
-                
-                stage = stage_class(self.config, self.pipeline_logger, stage_name)
-                success = stage.execute(**stage_args)
-                
+                success = executor.execute_stage(stage_name, **stage_args)
                 if not success:
                     self.logger.error(f"{stage_display_name} failed!")
                     return False
-                
                 self.logger.info(f"{stage_display_name} completed successfully!")
-            
+
             self.logger.info("Complete Workflow finished successfully!")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Error in Complete Workflow: {e}")
             return False

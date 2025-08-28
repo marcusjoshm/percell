@@ -134,8 +134,9 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
             stderr=subprocess.PIPE,
             text=True
         )
-        from percell.core import spinner as progress_spinner
-        spin_ctx = progress_spinner("ImageJ: Analyze Cell Masks")
+        from percell.core.progress import spinner as progress_spinner
+        print("ImageJ: Analyze Cell Masks")
+        spin_ctx = progress_spinner()
         spin = spin_ctx.__enter__()
         
         # Variables for processing output
@@ -384,7 +385,6 @@ def generate_csv_filename(directory_path, output_dir):
     
     # Create filename with condition prefix, similar to cell area files
     csv_name = f"{condition_name}_{mask_dir_name}_particle_analysis.csv"
-    
     return os.path.join(output_dir, csv_name)
 
 def process_mask_directory(dir_path, mask_paths, output_dir, imagej_path, macro_template_file, auto_close=False):

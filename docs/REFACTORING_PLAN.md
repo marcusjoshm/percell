@@ -39,6 +39,8 @@ percell/
 └── cli/           # Command-line interface
 ```
 
+Status: Implemented. New packages `domain/`, `services/`, `infrastructure/`, `plugins/`, and `cli/` have been added and integrated. `core/pipeline.py` and `core/stages.py` now support DI and an optional event bus.
+
 ### Phase 2: Implement Plugin Architecture
 
 Create a plugin system for analysis modules:
@@ -63,6 +65,8 @@ class PluginManager:
     def execute_plugin(self, name: str, context: AnalysisContext): ...
 ```
 
+Status: Implemented. `AnalysisPlugin` is provided in `percell/domain/plugin.py`; `PluginManager` in `percell/services/plugin_manager.py`; a sample plugin and `plugins/registry.py` are available. Integration tests validate registration and execution.
+
 ### Phase 3: Dependency Injection
 
 Replace direct imports with dependency injection:
@@ -75,6 +79,8 @@ class SegmentationStage:
         self.imagej = imagej_service
         self.files = file_service
 ```
+
+Status: Partially implemented. `StageBase` and `StageExecutor` accept an optional `event_bus`, demonstrating DI. Infrastructure services (`ImageJService`, `FileService`) are available; migrating concrete stages to use them is planned incrementally.
 
 ### Phase 4: Event-Driven Architecture
 
@@ -92,13 +98,21 @@ class DataSelectionStage:
         self.event_bus.publish(DataSelectedEvent(selected_data))
 ```
 
+Status: Implemented. `services/event_bus.py` contains `PipelineEventBus`, `StageStarted`, and `StageCompleted`. `StageBase.execute` publishes events; `StageExecutor` and `Pipeline` propagate the bus.
+
 ## Immediate Actionable Steps
 
-1. **Extract Configuration Management**: Move all config-related code to a single, well-defined service
-2. **Create Plugin Interfaces**: Define standard interfaces for analysis operations
-3. **Separate CLI from Core**: Move CLI logic to its own layer that orchestrates core services
-4. **Implement Factory Pattern**: For creating analysis stages/plugins dynamically
-5. **Add Integration Tests**: To ensure refactoring doesn't break existing functionality
+1. **Extract Configuration Management**: Retain `core/config.py`; revisit deeper extraction if needed
+2. **Create Plugin Interfaces**: Done
+3. **Separate CLI from Core**: Adapter added under `percell/cli` (re-export of core CLI)
+4. **Implement Factory Pattern**: Deferred; current registry + DI is sufficient
+5. **Add Integration Tests**: Done (plugins, event bus + executor, pipeline smoke, end-to-end fake stages)
+
+Next steps:
+- Migrate selected stages to use `ImageJService`/`FileService` via DI
+- Add a simple service factory/container for stage construction
+- Add optional CLI/config for plugin execution and event subscribers
+- Expand docs with plugin how-to and DI guidelines (added to README)
 
 ## Long-term Benefits
 

@@ -11,6 +11,14 @@ from pathlib import Path
 
 from .config import Config
 from .logger import PipelineLogger, ModuleLogger
+from typing import Any
+try:
+    # Optional event bus for loose coupling
+    from percell.services.event_bus import PipelineEventBus, StageStarted, StageCompleted
+except Exception:  # pragma: no cover - optional dependency during transition
+    PipelineEventBus = None  # type: ignore
+    StageStarted = None  # type: ignore
+    StageCompleted = None  # type: ignore
 
 
 class StageError(Exception):
@@ -25,7 +33,7 @@ class StageBase(ABC):
     Provides common functionality for stage execution, logging, and error handling.
     """
     
-    def __init__(self, config: Config, logger: PipelineLogger, stage_name: str):
+    def __init__(self, config: Config, logger: PipelineLogger, stage_name: str, event_bus: Any = None):
         """
         Initialize the stage.
         
@@ -40,6 +48,7 @@ class StageBase(ABC):
         self.logger = ModuleLogger(stage_name, logger)
         self.start_time: Optional[float] = None
         self.end_time: Optional[float] = None
+        self.event_bus = event_bus
         
     @abstractmethod
     def run(self, **kwargs) -> bool:
@@ -113,6 +122,11 @@ class StageBase(ABC):
         try:
             self.start_time = time.time()
             self.logger.info(f"Starting {self.stage_name}")
+            if self.event_bus and StageStarted:
+                try:
+                    self.event_bus.publish(StageStarted(stage_name=self.stage_name))
+                except Exception:
+                    pass
             
             # Setup
             if not self.setup(**kwargs):
@@ -137,9 +151,19 @@ class StageBase(ABC):
             if success:
                 self.pipeline_logger.log_stage_complete(self.stage_name, duration)
                 self.logger.info(f"Completed {self.stage_name} successfully")
+                if self.event_bus and StageCompleted:
+                    try:
+                        self.event_bus.publish(StageCompleted(stage_name=self.stage_name, success=True))
+                    except Exception:
+                        pass
             else:
                 self.pipeline_logger.log_stage_failed(self.stage_name, "Stage execution failed")
                 self.logger.error(f"Failed to complete {self.stage_name}")
+                if self.event_bus and StageCompleted:
+                    try:
+                        self.event_bus.publish(StageCompleted(stage_name=self.stage_name, success=False))
+                    except Exception:
+                        pass
             
             return success
             
@@ -300,7 +324,7 @@ class StageExecutor:
     Manages stage execution and provides execution summaries.
     """
     
-    def __init__(self, config: Config, logger: PipelineLogger, registry: StageRegistry):
+    def __init__(self, config: Config, logger: PipelineLogger, registry: StageRegistry, event_bus: Any = None):
         """
         Initialize stage executor.
         
@@ -313,6 +337,7 @@ class StageExecutor:
         self.logger = logger
         self.registry = registry
         self.execution_history = []
+        self.event_bus = event_bus
     
     def execute_stage(self, stage_name: str, **kwargs) -> bool:
         """
@@ -337,7 +362,46 @@ class StageExecutor:
         except Exception as e:
             self.logger.warning(f"Could not reload config: {e}")
         
-        stage = stage_class(self.config, self.logger, stage_name)
+        # Prepare DI-aware constructor kwargs based on the stage's __init__ signature
+        ctor_kwargs = {}
+        try:
+            import inspect
+            params = inspect.signature(stage_class.__init__).parameters
+            # Optional event bus
+            if 'event_bus' in params:
+                ctor_kwargs['event_bus'] = self.event_bus
+            # Optional services via ServiceFactory, if available
+            if 'file_service' in params:
+                try:
+                    # Use ServiceFactory if pipeline provided it via logger binding
+                    factory = getattr(self, 'service_factory', None)
+                    if factory is None and hasattr(self.logger, 'service_factory'):
+                        factory = getattr(self.logger, 'service_factory')
+                    if factory is not None:
+                        ctor_kwargs['file_service'] = factory.get_file_service()
+                    else:
+                        from percell.infrastructure.file_service import FileService
+                        ctor_kwargs['file_service'] = FileService()
+                except Exception:
+                    pass
+            if 'imagej_service' in params:
+                try:
+                    factory = getattr(self, 'service_factory', None)
+                    if factory is None and hasattr(self.logger, 'service_factory'):
+                        factory = getattr(self.logger, 'service_factory')
+                    if factory is not None:
+                        ctor_kwargs['imagej_service'] = factory.get_imagej_service()
+                    else:
+                        from percell.infrastructure.imagej_service import ImageJService
+                        imagej_path = self.config.get('imagej_path', '')
+                        ctor_kwargs['imagej_service'] = ImageJService(imagej_path)
+                except Exception:
+                    pass
+        except Exception:
+            # If reflection fails, fall back to legacy args only
+            pass
+
+        stage = stage_class(self.config, self.logger, stage_name, **ctor_kwargs)
         success = stage.execute(**kwargs)
         
         # Record execution
