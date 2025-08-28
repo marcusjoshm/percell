@@ -892,11 +892,12 @@ class ProcessSingleCellDataStage(StageBase):
     Includes: roi_tracking, resize_rois, duplicate_rois_for_analysis_channels, extract_cells, group_cells
     """
     
-    def __init__(self, config, logger, stage_name="process_single_cell", event_bus=None, imagej_service=None, file_service=None, workflow_service=None):
+    def __init__(self, config, logger, stage_name="process_single_cell", event_bus=None, imagej_service=None, file_service=None, workflow_service=None, progress_reporter=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.imagej_service = imagej_service
         self.file_service = file_service
         self.workflow_service = workflow_service
+        self.progress = progress_reporter
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for process single-cell data stage."""
@@ -933,6 +934,8 @@ class ProcessSingleCellDataStage(StageBase):
         """Run the process single-cell data stage."""
         try:
             self.logger.info("Starting Process Single-cell Data Stage")
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.start(title="Processing single-cell data")
             
             # Get data selection parameters from config
             data_selection = self.config.get('data_selection')
@@ -968,6 +971,8 @@ class ProcessSingleCellDataStage(StageBase):
                     result = run_subprocess_with_spinner([sys.executable, str(track_script)] + track_args, title="Tracking ROIs")
                     if result.returncode != 0:
                         self.logger.error(f"Failed to track ROIs: {result.stderr}")
+                        if hasattr(self, 'progress') and self.progress:
+                            self.progress.stop()
                         return False
                     self.logger.info("ROI tracking completed successfully")
             else:
@@ -1004,6 +1009,8 @@ class ProcessSingleCellDataStage(StageBase):
                 result = run_subprocess_with_spinner([sys.executable, str(resize_script)] + resize_args, title="Resizing ROIs")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to resize ROIs: {result.stderr}")
+                    if hasattr(self, 'progress') and self.progress:
+                        self.progress.stop()
                     return False
                 self.logger.info("ROIs resized successfully")
             
@@ -1024,6 +1031,8 @@ class ProcessSingleCellDataStage(StageBase):
                 result = run_subprocess_with_spinner([sys.executable, str(duplicate_script)] + duplicate_args, title="Duplicating ROIs")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to duplicate ROIs: {result.stderr}")
+                    if hasattr(self, 'progress') and self.progress:
+                        self.progress.stop()
                     return False
             self.logger.info("ROIs duplicated successfully")
             
@@ -1060,6 +1069,8 @@ class ProcessSingleCellDataStage(StageBase):
                 result = run_subprocess_with_spinner([sys.executable, str(extract_script)] + extract_args, title="Extracting cells")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to extract cells: {result.stderr}")
+                    if hasattr(self, 'progress') and self.progress:
+                        self.progress.stop()
                     return False
                 self.logger.info("Cells extracted successfully")
             
@@ -1083,13 +1094,19 @@ class ProcessSingleCellDataStage(StageBase):
                 result = run_subprocess_with_spinner([sys.executable, str(group_script)] + group_args, title="Grouping cells")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to group cells: {result.stderr}")
+                    if hasattr(self, 'progress') and self.progress:
+                        self.progress.stop()
                     return False
             self.logger.info("Cells grouped successfully")
             
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.stop()
             return True
             
         except Exception as e:
             self.logger.error(f"Error in Process Single-cell Data Stage: {e}")
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.stop()
             return False
 
 
