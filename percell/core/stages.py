@@ -424,6 +424,15 @@ class StageExecutor:
                         ctor_kwargs['cleanup_service'] = factory.get_cleanup_service()
                 except Exception:
                     pass
+            if 'progress_reporter' in params:
+                try:
+                    factory = getattr(self, 'service_factory', None)
+                    if factory is None and hasattr(self.logger, 'service_factory'):
+                        factory = getattr(self.logger, 'service_factory')
+                    if factory is not None:
+                        ctor_kwargs['progress_reporter'] = factory.get_progress_reporter()
+                except Exception:
+                    pass
         except Exception:
             # If reflection fails, fall back to legacy args only
             pass

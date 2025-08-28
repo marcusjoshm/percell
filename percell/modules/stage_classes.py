@@ -25,9 +25,10 @@ class DataSelectionStage(StageBase):
              select_regions, select_segmentation_channel, select_analysis_channels
     """
     
-    def __init__(self, config, logger, stage_name="data_selection", event_bus=None, file_service=None):
+    def __init__(self, config, logger, stage_name="data_selection", event_bus=None, file_service=None, progress_reporter=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.file_service = file_service
+        self.progress = progress_reporter
         self.experiment_metadata = {}
         self.selected_datatype = None
         self.selected_conditions = []
@@ -151,6 +152,8 @@ class DataSelectionStage(StageBase):
             
             total_copied = 0
             
+            if self.progress:
+                self.progress.start(title="Copying selected files")
             for condition in selected_conditions:
                 condition_input_dir = self.input_dir / condition
                 condition_output_dir = self.output_dir / "raw_data" / condition
@@ -225,6 +228,8 @@ class DataSelectionStage(StageBase):
                                         self.logger.debug(f"Copied: {tif_file.name}")
 
                                 self.logger.info(f"Copied {copied_in_timepoint} files from {condition}/{directory_timepoint}")
+                                if self.progress:
+                                    self.progress.advance(copied_in_timepoint)
                             else:
                                 self.logger.warning(f"Timepoint directory not found: {timepoint_input_dir}")
                         else:
@@ -259,7 +264,10 @@ class DataSelectionStage(StageBase):
                             self.logger.debug(f"Copied: {tif_file.name}")
                     
                     self.logger.info(f"Copied {copied_in_condition} files from {condition}")
-            
+                    if self.progress:
+                        self.progress.advance(copied_in_condition)
+            if self.progress:
+                self.progress.stop()
             self.logger.info(f"File copy completed. Total files copied: {total_copied}")
             
             # Check if any files were actually copied
@@ -748,11 +756,12 @@ class SegmentationStage(StageBase):
     Includes: bin_images_for_segmentation, interactive_segmentation
     """
     
-    def __init__(self, config, logger, stage_name="segmentation", event_bus=None, imagej_service=None, file_service=None, workflow_service=None):
+    def __init__(self, config, logger, stage_name="segmentation", event_bus=None, imagej_service=None, file_service=None, workflow_service=None, progress_reporter=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.imagej_service = imagej_service
         self.file_service = file_service
         self.workflow_service = workflow_service
+        self.progress = progress_reporter
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for segmentation stage."""
@@ -832,13 +841,18 @@ class SegmentationStage(StageBase):
                 if channels:
                     bin_args.extend(["--channels"] + channels)
                 self.logger.info(f"Running bin_images.py with args: {bin_args}")
-                from percell.core.progress import run_subprocess_with_spinner
+                if self.progress:
+                    self.progress.start(title="Binning images")
                 result = run_subprocess_with_spinner([sys.executable, str(bin_script)] + bin_args, title="Binning images")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to bin images: {result.stderr}")
+                    if self.progress:
+                        self.progress.stop()
                     return False
                 self.logger.info("Images binned successfully")
                 self.logger.info(f"Bin script output: {result.stdout}")
+                if self.progress:
+                    self.progress.stop()
             
             # Step 2: Launch interactive segmentation
             self.logger.info("Launching interactive segmentation tools...")
