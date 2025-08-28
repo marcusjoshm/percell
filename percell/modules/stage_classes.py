@@ -1679,8 +1679,9 @@ class CompleteWorkflowStage(StageBase):
     process single-cell data, threshold grouped cells, measure ROI areas, analysis.
     """
     
-    def __init__(self, config, logger, stage_name="complete_workflow", event_bus=None):
+    def __init__(self, config, logger, stage_name="complete_workflow", event_bus=None, progress_reporter=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
+        self.progress = progress_reporter
         self.stages = [
             ('data_selection', 'Data Selection'),
             ('segmentation', 'Single-cell Segmentation'),
@@ -1725,20 +1726,35 @@ class CompleteWorkflowStage(StageBase):
                 except Exception:
                     pass
 
+            # Start progress reporter
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.start(title="Running complete workflow")
+
             for stage_name, stage_display_name in self.stages:
                 self.logger.info(f"Starting {stage_display_name}...")
                 stage_args = self._create_stage_args(stage_name, kwargs)
                 success = executor.execute_stage(stage_name, **stage_args)
                 if not success:
                     self.logger.error(f"{stage_display_name} failed!")
+                    if hasattr(self, 'progress') and self.progress:
+                        self.progress.stop()
                     return False
                 self.logger.info(f"{stage_display_name} completed successfully!")
+                if hasattr(self, 'progress') and self.progress:
+                    try:
+                        self.progress.advance(1)
+                    except Exception:
+                        pass
 
             self.logger.info("Complete Workflow finished successfully!")
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.stop()
             return True
 
         except Exception as e:
             self.logger.error(f"Error in Complete Workflow: {e}")
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.stop()
             return False
     
     def _create_stage_args(self, stage_name: str, base_args: dict) -> dict:
