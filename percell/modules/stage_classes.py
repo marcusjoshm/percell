@@ -1709,8 +1709,21 @@ class CompleteWorkflowStage(StageBase):
         try:
             self.logger.info("Starting Complete Workflow")
             from ..core.stages import get_stage_registry, StageExecutor
+            # Create a ServiceFactory to provide DI services to sub-stages
+            try:
+                from percell.services.factory import ServiceFactory
+                service_factory = ServiceFactory(self.config)
+            except Exception:
+                service_factory = None
             registry = get_stage_registry()
             executor = StageExecutor(self.config, self.pipeline_logger, registry, event_bus=self.event_bus)
+            # Attach factory for DI injection paths (executor and/or logger)
+            if service_factory is not None:
+                try:
+                    setattr(executor, 'service_factory', service_factory)
+                    setattr(self.pipeline_logger, 'service_factory', service_factory)
+                except Exception:
+                    pass
 
             for stage_name, stage_display_name in self.stages:
                 self.logger.info(f"Starting {stage_display_name}...")
