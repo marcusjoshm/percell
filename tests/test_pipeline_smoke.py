@@ -5,6 +5,7 @@ import argparse
 from percell.core.config import create_default_config
 from percell.core.logger import PipelineLogger
 from percell.core.pipeline import Pipeline
+from percell import PipelineCLI, create_cli, parse_arguments, CLIError
 
 
 def test_pipeline_initializes_with_event_bus_and_plugin_manager(tmp_path):
@@ -39,5 +40,11 @@ def test_pipeline_initializes_with_event_bus_and_plugin_manager(tmp_path):
     # Ensure optional components exist (or None if intentionally absent)
     assert hasattr(pipeline, "event_bus")
     assert hasattr(pipeline, "plugin_manager")
+
+
+def test_top_level_cli_exports_available():
+    cli = create_cli()
+    assert isinstance(cli, PipelineCLI)
+    assert callable(parse_arguments)
 
 

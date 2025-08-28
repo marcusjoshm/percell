@@ -23,15 +23,6 @@ from .stages import (
     register_stage, 
     get_stage_registry
 )
-from .utils import (
-    get_package_root,
-    get_package_resource,
-    get_bash_script,
-    get_config_file,
-    get_macro_file,
-    ensure_executable,
-    find_package_root_from_script
-)
 from .paths import (
     get_path_config,
     get_path,
@@ -71,13 +62,6 @@ __all__ = [
     'StageError',
     'register_stage',
     'get_stage_registry',
-    'get_package_root',
-    'get_package_resource',
-    'get_bash_script',
-    'get_config_file',
-    'get_macro_file',
-    'ensure_executable',
-    'find_package_root_from_script',
     'get_path_config',
     'get_path',
     'get_path_str',

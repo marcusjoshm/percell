@@ -5,6 +5,7 @@ from typing import List
 from percell.core.config import create_default_config
 from percell.core.logger import PipelineLogger
 from percell.core.stages import StageBase, StageExecutor, StageRegistry
+from percell.services.factory import ServiceFactory
 
 
 class _ValidStage(StageBase):
@@ -35,5 +36,11 @@ def test_full_staged_run_stops_on_failure(tmp_path):
     ok = executor.execute_stages(["first", "second", "third"], input_dir=str(tmp_path), output_dir=str(tmp_path))
 
     assert ok is False
+
+    # ServiceFactory shared instance quick check
+    factory = ServiceFactory(cfg)
+    fs1 = factory.get_file_service()
+    fs2 = factory.get_file_service()
+    assert fs1 is fs2
 
 
