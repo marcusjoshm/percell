@@ -1118,11 +1118,12 @@ class ThresholdGroupedCellsStage(StageBase):
     Includes: threshold_grouped_cells
     """
     
-    def __init__(self, config, logger, stage_name="threshold_grouped_cells", event_bus=None, imagej_service=None, file_service=None, workflow_service=None):
+    def __init__(self, config, logger, stage_name="threshold_grouped_cells", event_bus=None, imagej_service=None, file_service=None, workflow_service=None, progress_reporter=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.imagej_service = imagej_service
         self.file_service = file_service
         self.workflow_service = workflow_service
+        self.progress = progress_reporter
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for threshold grouped cells stage."""
@@ -1168,10 +1169,14 @@ class ThresholdGroupedCellsStage(StageBase):
             
             # Threshold grouped cells (prefer WorkflowService; else ImageJService; else script)
             self.logger.info("Thresholding grouped cells...")
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.start(title="Thresholding grouped cells")
             if hasattr(self, 'workflow_service') and self.workflow_service is not None:
                 rc = self.workflow_service.threshold_grouped_cells(output_dir, self.config.get('imagej_path'), data_selection.get('analysis_channels', []))
                 if rc != 0:
                     self.logger.error("Failed to threshold grouped cells")
+                    if hasattr(self, 'progress') and self.progress:
+                        self.progress.stop()
                     return False
                 self.logger.info("Grouped cells thresholded successfully")
             else:
@@ -1207,13 +1212,19 @@ class ThresholdGroupedCellsStage(StageBase):
                     result = subprocess.run([sys.executable, str(threshold_script)] + threshold_args, capture_output=True, text=True)
                     if result.returncode != 0:
                         self.logger.error(f"Failed to threshold grouped cells: {result.stderr}")
+                        if hasattr(self, 'progress') and self.progress:
+                            self.progress.stop()
                         return False
                     self.logger.info("Grouped cells thresholded successfully")
             
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.stop()
             return True
             
         except Exception as e:
             self.logger.error(f"Error in Threshold Grouped Cells Stage: {e}")
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.stop()
             return False
 
 
