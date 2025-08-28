@@ -300,7 +300,7 @@ def find_roi_image_pairs(input_dir, output_dir):
                         
                         # Create filename with condition and ROI directory name
                         csv_filename = f"{condition_name}_{roi_dir_name}_cell_area.csv"
-                        csv_file = output_path / "analysis" / "cell_area" / csv_filename
+                        csv_file = output_path / "analysis" / csv_filename
                         csv_file.parent.mkdir(parents=True, exist_ok=True)
                         csv_file.parent.mkdir(parents=True, exist_ok=True)
                         

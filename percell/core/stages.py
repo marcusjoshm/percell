@@ -397,6 +397,33 @@ class StageExecutor:
                         ctor_kwargs['imagej_service'] = ImageJService(imagej_path)
                 except Exception:
                     pass
+            if 'module_runner' in params:
+                try:
+                    factory = getattr(self, 'service_factory', None)
+                    if factory is None and hasattr(self.logger, 'service_factory'):
+                        factory = getattr(self.logger, 'service_factory')
+                    if factory is not None:
+                        ctor_kwargs['module_runner'] = factory.get_module_runner()
+                except Exception:
+                    pass
+            if 'workflow_service' in params:
+                try:
+                    factory = getattr(self, 'service_factory', None)
+                    if factory is None and hasattr(self.logger, 'service_factory'):
+                        factory = getattr(self.logger, 'service_factory')
+                    if factory is not None:
+                        ctor_kwargs['workflow_service'] = factory.get_workflow_service()
+                except Exception:
+                    pass
+            if 'cleanup_service' in params:
+                try:
+                    factory = getattr(self, 'service_factory', None)
+                    if factory is None and hasattr(self.logger, 'service_factory'):
+                        factory = getattr(self.logger, 'service_factory')
+                    if factory is not None:
+                        ctor_kwargs['cleanup_service'] = factory.get_cleanup_service()
+                except Exception:
+                    pass
         except Exception:
             # If reflection fails, fall back to legacy args only
             pass

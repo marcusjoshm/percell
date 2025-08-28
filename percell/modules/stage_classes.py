@@ -748,10 +748,11 @@ class SegmentationStage(StageBase):
     Includes: bin_images_for_segmentation, interactive_segmentation
     """
     
-    def __init__(self, config, logger, stage_name="segmentation", event_bus=None, imagej_service=None, file_service=None):
+    def __init__(self, config, logger, stage_name="segmentation", event_bus=None, imagej_service=None, file_service=None, workflow_service=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.imagej_service = imagej_service
         self.file_service = file_service
+        self.workflow_service = workflow_service
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for segmentation stage."""
@@ -802,35 +803,46 @@ class SegmentationStage(StageBase):
             
             # Step 1: Bin images for segmentation
             self.logger.info("Binning images for segmentation...")
-            from percell.core.paths import get_path, ensure_executable
-            bin_script = get_path("bin_images_module")
-            bin_args = [
-                "--input", f"{output_dir}/raw_data",
-                "--output", f"{output_dir}/preprocessed",
-                "--verbose"
-            ]
-            
-            # Add data selection parameters
-            if data_selection.get('selected_conditions'):
-                bin_args.extend(["--conditions"] + data_selection['selected_conditions'])
-            if data_selection.get('selected_regions'):
-                bin_args.extend(["--regions"] + data_selection['selected_regions'])
-            if data_selection.get('selected_timepoints'):
-                bin_args.extend(["--timepoints"] + data_selection['selected_timepoints'])
-            if data_selection.get('segmentation_channel'):
-                bin_args.extend(["--channels", data_selection['segmentation_channel']])
-            
-            self.logger.info(f"Running bin_images.py with args: {bin_args}")
-            from percell.core import run_subprocess_with_spinner
-            result = run_subprocess_with_spinner([sys.executable, str(bin_script)] + bin_args, title="Binning images")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to bin images: {result.stderr}")
-                return False
-            self.logger.info("Images binned successfully")
-            self.logger.info(f"Bin script output: {result.stdout}")
+            conditions = data_selection.get('selected_conditions') or []
+            regions = data_selection.get('selected_regions') or []
+            timepoints = data_selection.get('selected_timepoints') or []
+            seg_channel = data_selection.get('segmentation_channel')
+            channels = [seg_channel] if seg_channel else []
+
+            if hasattr(self, 'workflow_service') and self.workflow_service is not None:
+                rc = self.workflow_service.bin_images(output_dir, conditions, regions, timepoints, channels)
+                if rc != 0:
+                    self.logger.error("Failed to bin images")
+                    return False
+                self.logger.info("Images binned successfully")
+            else:
+                from percell.core.paths import get_path, ensure_executable
+                bin_script = get_path("bin_images_module")
+                bin_args = [
+                    "--input", f"{output_dir}/raw_data",
+                    "--output", f"{output_dir}/preprocessed",
+                    "--verbose"
+                ]
+                if conditions:
+                    bin_args.extend(["--conditions"] + conditions)
+                if regions:
+                    bin_args.extend(["--regions"] + regions)
+                if timepoints:
+                    bin_args.extend(["--timepoints"] + timepoints)
+                if channels:
+                    bin_args.extend(["--channels"] + channels)
+                self.logger.info(f"Running bin_images.py with args: {bin_args}")
+                from percell.core import run_subprocess_with_spinner
+                result = run_subprocess_with_spinner([sys.executable, str(bin_script)] + bin_args, title="Binning images")
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to bin images: {result.stderr}")
+                    return False
+                self.logger.info("Images binned successfully")
+                self.logger.info(f"Bin script output: {result.stdout}")
             
             # Step 2: Launch interactive segmentation
             self.logger.info("Launching interactive segmentation tools...")
+            from percell.core.paths import get_path, ensure_executable
             seg_script_path = get_path("launch_segmentation_tools_script")
             preprocessed_dir = f"{output_dir}/preprocessed"
             
@@ -866,10 +878,11 @@ class ProcessSingleCellDataStage(StageBase):
     Includes: roi_tracking, resize_rois, duplicate_rois_for_analysis_channels, extract_cells, group_cells
     """
     
-    def __init__(self, config, logger, stage_name="process_single_cell", event_bus=None, imagej_service=None, file_service=None):
+    def __init__(self, config, logger, stage_name="process_single_cell", event_bus=None, imagej_service=None, file_service=None, workflow_service=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.imagej_service = imagej_service
         self.file_service = file_service
+        self.workflow_service = workflow_service
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for process single-cell data stage."""
@@ -925,18 +938,24 @@ class ProcessSingleCellDataStage(StageBase):
             timepoints = data_selection.get('selected_timepoints', [])
             if timepoints and len(timepoints) > 1:
                 self.logger.info("Tracking ROIs across timepoints...")
-                from percell.core.paths import get_path
-                track_script = get_path("track_rois_module")
-                track_args = [
-                    "--input", f"{output_dir}/preprocessed",
-                    "--timepoints"
-                ] + timepoints + ["--recursive"]
-                
-                result = run_subprocess_with_spinner([sys.executable, str(track_script)] + track_args, title="Tracking ROIs")
-                if result.returncode != 0:
-                    self.logger.error(f"Failed to track ROIs: {result.stderr}")
-                    return False
-                self.logger.info("ROI tracking completed successfully")
+                if hasattr(self, 'workflow_service') and self.workflow_service is not None:
+                    rc = self.workflow_service.track_rois(output_dir, timepoints)
+                    if rc != 0:
+                        self.logger.error("Failed to track ROIs")
+                        return False
+                    self.logger.info("ROI tracking completed successfully")
+                else:
+                    from percell.core.paths import get_path
+                    track_script = get_path("track_rois_module")
+                    track_args = [
+                        "--input", f"{output_dir}/preprocessed",
+                        "--timepoints"
+                    ] + timepoints + ["--recursive"]
+                    result = run_subprocess_with_spinner([sys.executable, str(track_script)] + track_args, title="Tracking ROIs")
+                    if result.returncode != 0:
+                        self.logger.error(f"Failed to track ROIs: {result.stderr}")
+                        return False
+                    self.logger.info("ROI tracking completed successfully")
             else:
                 self.logger.info("Skipping ROI tracking (single timepoint or no timepoints)")
             
@@ -976,16 +995,22 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 3: Duplicate ROIs for analysis channels
             self.logger.info("Duplicating ROIs for analysis channels...")
-            duplicate_script = get_path("duplicate_rois_for_channels_module")
-            duplicate_args = [
-                "--roi-dir", f"{output_dir}/ROIs",
-                "--channels"
-            ] + data_selection.get('analysis_channels', []) + ["--verbose"]
-            
-            result = run_subprocess_with_spinner([sys.executable, str(duplicate_script)] + duplicate_args, title="Duplicating ROIs")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to duplicate ROIs: {result.stderr}")
-                return False
+            if hasattr(self, 'workflow_service') and self.workflow_service is not None:
+                rc = self.workflow_service.duplicate_rois_for_channels(output_dir, data_selection.get('analysis_channels', []))
+                if rc != 0:
+                    self.logger.error("Failed to duplicate ROIs")
+                    return False
+            else:
+                from percell.core.paths import get_path
+                duplicate_script = get_path("duplicate_rois_for_channels_module")
+                duplicate_args = [
+                    "--roi-dir", f"{output_dir}/ROIs",
+                    "--channels"
+                ] + data_selection.get('analysis_channels', []) + ["--verbose"]
+                result = run_subprocess_with_spinner([sys.executable, str(duplicate_script)] + duplicate_args, title="Duplicating ROIs")
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to duplicate ROIs: {result.stderr}")
+                    return False
             self.logger.info("ROIs duplicated successfully")
             
             # Step 4: Extract cells (try ImageJService; fallback to script)
@@ -1026,19 +1051,25 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 5: Group cells
             self.logger.info("Grouping cells...")
-            group_script = get_path("group_cells_module")
-            group_args = [
-                "--cells-dir", f"{output_dir}/cells",
-                "--output-dir", f"{output_dir}/grouped_cells",
-                "--bins", str(kwargs.get('bins', 5)),
-                "--force-clusters",
-                "--channels"
-            ] + data_selection.get('analysis_channels', [])
-            
-            result = run_subprocess_with_spinner([sys.executable, str(group_script)] + group_args, title="Grouping cells")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to group cells: {result.stderr}")
-                return False
+            if hasattr(self, 'workflow_service') and self.workflow_service is not None:
+                rc = self.workflow_service.group_cells(output_dir, int(kwargs.get('bins', 5)), data_selection.get('analysis_channels', []))
+                if rc != 0:
+                    self.logger.error("Failed to group cells")
+                    return False
+            else:
+                from percell.core.paths import get_path
+                group_script = get_path("group_cells_module")
+                group_args = [
+                    "--cells-dir", f"{output_dir}/cells",
+                    "--output-dir", f"{output_dir}/grouped_cells",
+                    "--bins", str(kwargs.get('bins', 5)),
+                    "--force-clusters",
+                    "--channels"
+                ] + data_selection.get('analysis_channels', [])
+                result = run_subprocess_with_spinner([sys.executable, str(group_script)] + group_args, title="Grouping cells")
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to group cells: {result.stderr}")
+                    return False
             self.logger.info("Cells grouped successfully")
             
             return True
@@ -1056,10 +1087,11 @@ class ThresholdGroupedCellsStage(StageBase):
     Includes: threshold_grouped_cells
     """
     
-    def __init__(self, config, logger, stage_name="threshold_grouped_cells", event_bus=None, imagej_service=None, file_service=None):
+    def __init__(self, config, logger, stage_name="threshold_grouped_cells", event_bus=None, imagej_service=None, file_service=None, workflow_service=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.imagej_service = imagej_service
         self.file_service = file_service
+        self.workflow_service = workflow_service
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for threshold grouped cells stage."""
@@ -1103,43 +1135,49 @@ class ThresholdGroupedCellsStage(StageBase):
                 self.logger.error("Output directory is required")
                 return False
             
-            # Threshold grouped cells (try ImageJService; fallback to script)
+            # Threshold grouped cells (prefer WorkflowService; else ImageJService; else script)
             self.logger.info("Thresholding grouped cells...")
-            from percell.core.paths import get_path, get_path_str
-            threshold_script = get_path("otsu_threshold_grouped_cells_module")
-            threshold_args = [
-                "--input-dir", f"{output_dir}/grouped_cells",
-                "--output-dir", f"{output_dir}/grouped_masks",
-                "--imagej", self.config.get('imagej_path'),
-                "--macro", get_path_str("threshold_grouped_cells_macro"),
-                "--channels"
-            ]
-            # Add analysis channels as separate arguments (matching original workflow)
-            for channel in data_selection.get('analysis_channels', []):
-                threshold_args.append(channel)
-            
-            used_service = False
-            if self.imagej_service is not None:
-                try:
-                    macro_path = get_path_str("threshold_grouped_cells_macro")
-                    ij_args = [
-                        "--input-dir", f"{output_dir}/grouped_cells",
-                        "--output-dir", f"{output_dir}/grouped_masks",
-                    ]
-                    ij_args.extend(["--channels"] + data_selection.get('analysis_channels', []))
-                    rc = self.imagej_service.run_macro(macro_path, ij_args)
-                    if rc == 0:
-                        used_service = True
-                        self.logger.info("ImageJService thresholded grouped cells successfully")
-                except Exception as e:
-                    self.logger.debug(f"ImageJService threshold grouped cells failed, fallback to script: {e}")
-            if not used_service:
-                # Run without spinner for thresholding step
-                result = subprocess.run([sys.executable, str(threshold_script)] + threshold_args, capture_output=True, text=True)
-                if result.returncode != 0:
-                    self.logger.error(f"Failed to threshold grouped cells: {result.stderr}")
+            if hasattr(self, 'workflow_service') and self.workflow_service is not None:
+                rc = self.workflow_service.threshold_grouped_cells(output_dir, self.config.get('imagej_path'), data_selection.get('analysis_channels', []))
+                if rc != 0:
+                    self.logger.error("Failed to threshold grouped cells")
                     return False
                 self.logger.info("Grouped cells thresholded successfully")
+            else:
+                from percell.core.paths import get_path, get_path_str
+                threshold_script = get_path("otsu_threshold_grouped_cells_module")
+                threshold_args = [
+                    "--input-dir", f"{output_dir}/grouped_cells",
+                    "--output-dir", f"{output_dir}/grouped_masks",
+                    "--imagej", self.config.get('imagej_path'),
+                    "--macro", get_path_str("threshold_grouped_cells_macro"),
+                    "--channels"
+                ]
+                for channel in data_selection.get('analysis_channels', []):
+                    threshold_args.append(channel)
+
+                used_service = False
+                if self.imagej_service is not None:
+                    try:
+                        macro_path = get_path_str("threshold_grouped_cells_macro")
+                        ij_args = [
+                            "--input-dir", f"{output_dir}/grouped_cells",
+                            "--output-dir", f"{output_dir}/grouped_masks",
+                        ]
+                        ij_args.extend(["--channels"] + data_selection.get('analysis_channels', []))
+                        rc2 = self.imagej_service.run_macro(macro_path, ij_args)
+                        if rc2 == 0:
+                            used_service = True
+                            self.logger.info("ImageJService thresholded grouped cells successfully")
+                    except Exception as e:
+                        self.logger.debug(f"ImageJService threshold grouped cells failed, fallback to script: {e}")
+                if not used_service:
+                    # Run without spinner for thresholding step
+                    result = subprocess.run([sys.executable, str(threshold_script)] + threshold_args, capture_output=True, text=True)
+                    if result.returncode != 0:
+                        self.logger.error(f"Failed to threshold grouped cells: {result.stderr}")
+                        return False
+                    self.logger.info("Grouped cells thresholded successfully")
             
             return True
             
@@ -1255,10 +1293,11 @@ class AnalysisStage(StageBase):
     Includes: combine_masks, create_cell_masks, analyze_cell_masks, include_group_metadata
     """
     
-    def __init__(self, config, logger, stage_name="analysis", event_bus=None, imagej_service=None, file_service=None):
+    def __init__(self, config, logger, stage_name="analysis", event_bus=None, imagej_service=None, file_service=None, workflow_service=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.imagej_service = imagej_service
         self.file_service = file_service
+        self.workflow_service = workflow_service
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for analysis stage."""
@@ -1310,128 +1349,107 @@ class AnalysisStage(StageBase):
             
             # Step 1: Combine masks
             self.logger.info("Combining masks...")
-            from percell.core.paths import get_path
-            combine_script = get_path("combine_masks_module")
-            combine_args = [
-                "--input-dir", f"{output_dir}/grouped_masks",
-                "--output-dir", f"{output_dir}/combined_masks",
-                "--channels"
-            ]
-            # Add analysis channels as separate arguments (matching original workflow)
-            for channel in data_selection.get('analysis_channels', []):
-                combine_args.append(channel)
-            
-            result = run_subprocess_with_spinner([sys.executable, str(combine_script)] + combine_args, title="Combining masks")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to combine masks: {result.stderr}")
-                return False
+            analysis_channels = data_selection.get('analysis_channels', [])
+            if self.workflow_service is not None:
+                rc = self.workflow_service.combine_masks(output_dir, analysis_channels)
+                if rc != 0:
+                    self.logger.error("Failed to combine masks")
+                    return False
+            else:
+                from percell.core.paths import get_path
+                combine_script = get_path("combine_masks_module")
+                combine_args = [
+                    "--input-dir", f"{output_dir}/grouped_masks",
+                    "--output-dir", f"{output_dir}/combined_masks",
+                    "--channels"
+                ] + analysis_channels
+                result = run_subprocess_with_spinner([sys.executable, str(combine_script)] + combine_args, title="Combining masks")
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to combine masks: {result.stderr}")
+                    return False
             self.logger.info("Masks combined successfully")
             
-            # Step 2: Create cell masks (try ImageJService first, then fallback script)
+            # Step 2: Create cell masks
             self.logger.info("Creating cell masks...")
-            from percell.core.paths import get_path, get_path_str
-            create_masks_script = get_path("create_cell_masks_module")
-            create_masks_args = [
-                "--roi-dir", f"{output_dir}/ROIs",
-                "--mask-dir", f"{output_dir}/combined_masks",
-                "--output-dir", f"{output_dir}/masks",
-                "--imagej", self.config.get('imagej_path'),
-                "--macro", get_path_str("create_cell_masks_macro"),
-                "--auto-close",
-                "--channels"
-            ]
-            # Add analysis channels as separate arguments (matching original workflow)
-            for channel in data_selection.get('analysis_channels', []):
-                create_masks_args.append(channel)
-            # Try ImageJService macro
-            used_service = False
-            if self.imagej_service is not None:
-                macro_path = get_path_str("create_cell_masks_macro")
-                ij_args = [
+            if self.workflow_service is not None:
+                rc = self.workflow_service.create_cell_masks(output_dir, self.config.get('imagej_path'), data_selection.get('analysis_channels', []))
+                if rc != 0:
+                    self.logger.error("Failed to create cell masks")
+                    return False
+            else:
+                from percell.core.paths import get_path, get_path_str
+                create_masks_script = get_path("create_cell_masks_module")
+                create_masks_args = [
                     "--roi-dir", f"{output_dir}/ROIs",
                     "--mask-dir", f"{output_dir}/combined_masks",
                     "--output-dir", f"{output_dir}/masks",
-                ]
-                try:
-                    rc = self.imagej_service.run_macro(macro_path, ij_args)
-                    if rc == 0:
-                        used_service = True
-                        self.logger.info("ImageJService created cell masks successfully")
-                except Exception as e:
-                    self.logger.debug(f"ImageJService create masks failed, will fallback: {e}")
-            if not used_service:
+                    "--imagej", self.config.get('imagej_path'),
+                    "--macro", get_path_str("create_cell_masks_macro"),
+                    "--auto-close",
+                    "--channels"
+                ] + data_selection.get('analysis_channels', [])
                 result = run_subprocess_with_spinner([sys.executable, str(create_masks_script)] + create_masks_args, title="Creating cell masks")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to create cell masks: {result.stderr}")
                     return False
-                self.logger.info("Cell masks created successfully")
+            self.logger.info("Cell masks created successfully")
             
-            # Step 3: Analyze cell masks (try ImageJService; fallback to script)
+            # Step 3: Analyze cell masks
             self.logger.info("Analyzing cell masks...")
-            analyze_script = get_path("analyze_cell_masks_module")
-            analyze_args = [
-                "--input", f"{output_dir}/masks",
-                "--output", f"{output_dir}/analysis",
-                "--imagej", self.config.get('imagej_path'),
-                "--macro", get_path_str("analyze_cell_masks_macro"),
-                "--channels"
-            ]
-            # Add analysis channels as separate arguments (matching original workflow)
-            for channel in data_selection.get('analysis_channels', []):
-                analyze_args.append(channel)
-            
-            # Add optional arguments if provided
-            if data_selection.get('selected_regions'):
-                analyze_args.extend(["--regions"] + data_selection['selected_regions'])
-            if data_selection.get('selected_timepoints'):
-                analyze_args.extend(["--timepoints"] + data_selection['selected_timepoints'])
-            
-            used_service = False
-            if self.imagej_service is not None:
-                try:
-                    macro_path = get_path_str("analyze_cell_masks_macro")
-                    ij_args = [
-                        "--input", f"{output_dir}/masks",
-                        "--output", f"{output_dir}/analysis",
-                    ]
-                    if data_selection.get('selected_regions'):
-                        ij_args.extend(["--regions"] + data_selection['selected_regions'])
-                    if data_selection.get('selected_timepoints'):
-                        ij_args.extend(["--timepoints"] + data_selection['selected_timepoints'])
-                    ij_args.extend(["--channels"] + data_selection.get('analysis_channels', []))
-                    rc = self.imagej_service.run_macro(macro_path, ij_args)
-                    if rc == 0:
-                        used_service = True
-                        self.logger.info("ImageJService analyzed cell masks successfully")
-                except Exception as e:
-                    self.logger.debug(f"ImageJService analyze masks failed, fallback to script: {e}")
-            if not used_service:
+            if self.workflow_service is not None:
+                rc = self.workflow_service.analyze_cell_masks(
+                    output_dir,
+                    self.config.get('imagej_path'),
+                    data_selection.get('selected_regions'),
+                    data_selection.get('selected_timepoints'),
+                    data_selection.get('analysis_channels', []),
+                )
+                if rc != 0:
+                    self.logger.error("Failed to analyze cell masks")
+                    return False
+            else:
+                from percell.core.paths import get_path, get_path_str
+                analyze_script = get_path("analyze_cell_masks_module")
+                analyze_args = [
+                    "--input", f"{output_dir}/masks",
+                    "--output", f"{output_dir}/analysis",
+                    "--imagej", self.config.get('imagej_path'),
+                    "--macro", get_path_str("analyze_cell_masks_macro"),
+                    "--channels"
+                ] + data_selection.get('analysis_channels', [])
+                if data_selection.get('selected_regions'):
+                    analyze_args.extend(["--regions"] + data_selection['selected_regions'])
+                if data_selection.get('selected_timepoints'):
+                    analyze_args.extend(["--timepoints"] + data_selection['selected_timepoints'])
                 result = run_subprocess_with_spinner([sys.executable, str(analyze_script)] + analyze_args, title="Analyzing cell masks")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to analyze cell masks: {result.stderr}")
                     return False
-                self.logger.info("Cell masks analyzed successfully")
+            self.logger.info("Cell masks analyzed successfully")
             
             # Step 4: Include group metadata
             self.logger.info("Including group metadata...")
-            metadata_script = get_path("include_group_metadata_module")
-            metadata_args = [
-                "--grouped-cells-dir", f"{output_dir}/grouped_cells",
-                "--analysis-dir", f"{output_dir}/analysis",
-                "--output-dir", f"{output_dir}/analysis",
-                "--overwrite",
-                "--replace",
-                "--verbose",
-                "--channels"
-            ]
-            # Add analysis channels as separate arguments (matching original workflow)
-            for channel in data_selection.get('analysis_channels', []):
-                metadata_args.append(channel)
-            
-            result = run_subprocess_with_spinner([sys.executable, str(metadata_script)] + metadata_args, title="Including group metadata")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to include group metadata: {result.stderr}")
-                return False
+            if self.workflow_service is not None:
+                rc = self.workflow_service.include_group_metadata(output_dir, data_selection.get('analysis_channels', []))
+                if rc != 0:
+                    self.logger.error("Failed to include group metadata")
+                    return False
+            else:
+                from percell.core.paths import get_path
+                metadata_script = get_path("include_group_metadata_module")
+                metadata_args = [
+                    "--grouped-cells-dir", f"{output_dir}/grouped_cells",
+                    "--analysis-dir", f"{output_dir}/analysis",
+                    "--output-dir", f"{output_dir}/analysis",
+                    "--overwrite",
+                    "--replace",
+                    "--verbose",
+                    "--channels"
+                ] + data_selection.get('analysis_channels', [])
+                result = run_subprocess_with_spinner([sys.executable, str(metadata_script)] + metadata_args, title="Including group metadata")
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to include group metadata: {result.stderr}")
+                    return False
             self.logger.info("Group metadata included successfully")
             
             return True
@@ -1449,9 +1467,10 @@ class CleanupStage(StageBase):
     Preserves directory structure while removing contents.
     """
     
-    def __init__(self, config, logger, stage_name="cleanup", event_bus=None, file_service=None):
+    def __init__(self, config, logger, stage_name="cleanup", event_bus=None, file_service=None, cleanup_service=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.file_service = file_service
+        self.cleanup_service = cleanup_service
         self.cleanup_directories = [
             'cells',
             'masks'
@@ -1475,23 +1494,31 @@ class CleanupStage(StageBase):
             
             output_dir = Path(kwargs['output_dir'])
             
-            # Import cleanup functionality
-            try:
-                from .cleanup_directories import cleanup_directories, scan_cleanup_directories
-            except ImportError as e:
-                self.logger.error(f"Could not import cleanup_directories module: {e}")
-                return False
-            
             # Scan directories to see what can be cleaned up
             self.logger.info("Scanning directories for cleanup...")
-            directories_info = scan_cleanup_directories(
-                str(output_dir),
-                include_cells=True,
-                include_masks=True,
-                include_combined_masks=False,
-                include_grouped_cells=False,
-                include_grouped_masks=False
-            )
+            if hasattr(self, 'cleanup_service') and self.cleanup_service is not None:
+                directories_info = self.cleanup_service.scan(
+                    str(output_dir),
+                    include_cells=True,
+                    include_masks=True,
+                    include_combined_masks=False,
+                    include_grouped_cells=False,
+                    include_grouped_masks=False,
+                )
+            else:
+                try:
+                    from .cleanup_directories import scan_cleanup_directories
+                    directories_info = scan_cleanup_directories(
+                        str(output_dir),
+                        include_cells=True,
+                        include_masks=True,
+                        include_combined_masks=False,
+                        include_grouped_cells=False,
+                        include_grouped_masks=False,
+                    )
+                except ImportError as e:
+                    self.logger.error(f"Could not import cleanup_directories module: {e}")
+                    return False
             
             # Check if any directories have content
             total_size = sum(info['size_bytes'] for info in directories_info.values() if info['exists'])
@@ -1515,16 +1542,33 @@ class CleanupStage(StageBase):
             
             # Perform cleanup
             self.logger.info("Performing cleanup...")
-            deleted_count, freed_bytes = cleanup_directories(
-                str(output_dir),
-                delete_cells=True,
-                delete_masks=True,
-                delete_combined_masks=False,
-                delete_grouped_cells=False,
-                delete_grouped_masks=False,
-                dry_run=False,
-                force=True  # Force cleanup in pipeline mode
-            )
+            if hasattr(self, 'cleanup_service') and self.cleanup_service is not None:
+                deleted_count, freed_bytes = self.cleanup_service.cleanup(
+                    str(output_dir),
+                    delete_cells=True,
+                    delete_masks=True,
+                    delete_combined_masks=False,
+                    delete_grouped_cells=False,
+                    delete_grouped_masks=False,
+                    dry_run=False,
+                    force=True,
+                )
+            else:
+                try:
+                    from .cleanup_directories import cleanup_directories
+                    deleted_count, freed_bytes = cleanup_directories(
+                        str(output_dir),
+                        delete_cells=True,
+                        delete_masks=True,
+                        delete_combined_masks=False,
+                        delete_grouped_cells=False,
+                        delete_grouped_masks=False,
+                        dry_run=False,
+                        force=True,
+                    )
+                except ImportError as e:
+                    self.logger.error(f"Could not import cleanup_directories module: {e}")
+                    return False
             
             self.logger.info(f"Cleanup completed successfully!")
             self.logger.info(f"  • Directories emptied: {deleted_count}")

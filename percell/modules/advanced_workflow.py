@@ -24,8 +24,11 @@ class AdvancedWorkflowStage(StageBase):
     space-separated sequence, then executes the corresponding stages/modules.
     """
 
-    def __init__(self, config, logger, stage_name: str = "advanced_workflow"):
-        super().__init__(config, logger, stage_name)
+    def __init__(self, config, logger, stage_name: str = "advanced_workflow", event_bus=None, imagej_service=None, file_service=None, module_runner=None):
+        super().__init__(config, logger, stage_name, event_bus=event_bus)
+        self.imagej_service = imagej_service
+        self.file_service = file_service
+        self.module_runner = module_runner
 
         # Ordered, user-visible steps (key, label)
         self.available_steps: List[Tuple[str, str]] = [
@@ -53,8 +56,9 @@ class AdvancedWorkflowStage(StageBase):
         return True
 
     def run(self, **kwargs) -> bool:
-        from ..core.stages import get_stage_registry
+        from ..core.stages import get_stage_registry, StageExecutor
         registry = get_stage_registry()
+        executor = StageExecutor(self.config, self.pipeline_logger, registry, event_bus=self.event_bus)
 
         try:
             # 1) Show menu
@@ -94,7 +98,7 @@ class AdvancedWorkflowStage(StageBase):
             # 4) Execute
             for step_key in selected_steps:
                 self.logger.info(f"Executing step: {step_key}")
-                success = self._execute_step(step_key, registry, **kwargs)
+                success = self._execute_step(step_key, registry, executor, **kwargs)
                 if not success:
                     self.logger.error(f"Step failed: {step_key}")
                     return False
@@ -106,51 +110,27 @@ class AdvancedWorkflowStage(StageBase):
             self.logger.error(f"Error in Advanced Workflow Builder: {e}")
             return False
 
-    def _execute_step(self, step_key: str, registry, **kwargs) -> bool:
+    def _execute_step(self, step_key: str, registry, executor, **kwargs) -> bool:
         """Execute a single higher-level step by delegating to a stage or module."""
 
         # Stage-based steps
         if step_key == "data_selection":
-            stage_class = registry.get_stage_class('data_selection')
-            if not stage_class:
-                self.logger.error("DataSelectionStage not registered")
-                return False
-            return stage_class(self.config, self.pipeline_logger, 'data_selection').execute(**kwargs)
+            return executor.execute_stage('data_selection', **kwargs)
 
         if step_key == "segmentation":
-            stage_class = registry.get_stage_class('segmentation')
-            if not stage_class:
-                self.logger.error("SegmentationStage not registered")
-                return False
-            return stage_class(self.config, self.pipeline_logger, 'segmentation').execute(**kwargs)
+            return executor.execute_stage('segmentation', **kwargs)
 
         if step_key == "threshold_cells":
-            stage_class = registry.get_stage_class('threshold_grouped_cells')
-            if not stage_class:
-                self.logger.error("ThresholdGroupedCellsStage not registered")
-                return False
-            return stage_class(self.config, self.pipeline_logger, 'threshold_grouped_cells').execute(**kwargs)
+            return executor.execute_stage('threshold_grouped_cells', **kwargs)
 
         if step_key == "measure_roi_area":
-            stage_class = registry.get_stage_class('measure_roi_area')
-            if not stage_class:
-                self.logger.error("MeasureROIAreaStage not registered")
-                return False
-            return stage_class(self.config, self.pipeline_logger, 'measure_roi_area').execute(**kwargs)
+            return executor.execute_stage('measure_roi_area', **kwargs)
 
         if step_key == "analyze_masks":
-            stage_class = registry.get_stage_class('analysis')
-            if not stage_class:
-                self.logger.error("AnalysisStage not registered")
-                return False
-            return stage_class(self.config, self.pipeline_logger, 'analysis').execute(**kwargs)
+            return executor.execute_stage('analysis', **kwargs)
 
         if step_key == "cleanup":
-            stage_class = registry.get_stage_class('cleanup')
-            if not stage_class:
-                self.logger.error("CleanupStage not registered")
-                return False
-            return stage_class(self.config, self.pipeline_logger, 'cleanup').execute(**kwargs)
+            return executor.execute_stage('cleanup', **kwargs)
 
         # Module-based steps
         from ..core.paths import get_path, get_path_str
@@ -232,7 +212,7 @@ class AdvancedWorkflowStage(StageBase):
                     choice = 'n'
                 if choice in ("", "y", "yes"):
                     # Attempt to run extract_cells step automatically
-                    ok = self._execute_step("extract_cells", registry, **kwargs)
+                    ok = self._execute_step("extract_cells", registry, executor, **kwargs)
                     if not ok:
                         self.logger.error("Extract Cells failed; cannot proceed to Group Cells")
                         return False
@@ -253,16 +233,15 @@ class AdvancedWorkflowStage(StageBase):
 
     def _run_py_module(self, script_path: Path, args: List[str]) -> bool:
         try:
-            # Show a spinner while running each module, using a very compact title for 80x24 terminal
-            script_name = Path(script_path).stem  # Remove .py extension
-            # Truncate to 15 chars max to minimize spacing
+            # Prefer ModuleRunner if available
+            script_name = Path(script_path).stem
             title = script_name[:15] if len(script_name) > 15 else script_name
+            if self.module_runner is not None:
+                rc = self.module_runner.run(str(script_path), args, title=title)
+                return rc == 0
+            # Fallback to direct subprocess with spinner
             result = run_subprocess_with_spinner([sys.executable, str(script_path)] + args, title=title)
-            if result.returncode != 0:
-                self.logger.error(result.stderr)
-                return False
-            self.logger.info(result.stdout)
-            return True
+            return result.returncode == 0
         except Exception as e:
             self.logger.error(f"Error running module {script_path}: {e}")
             return False

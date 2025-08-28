@@ -10,7 +10,7 @@ This package contains the core functionality for the microscopy analysis pipelin
 - Utils: Utility functions for package resource management
 """
 
-from .cli import PipelineCLI, parse_arguments, create_cli, CLIError
+from percell.cli.app import PipelineCLI, parse_arguments, create_cli, CLIError
 from .config import Config, ConfigError, create_default_config, validate_software_paths, detect_software_paths
 from .logger import PipelineLogger, ModuleLogger, create_logger
 from .pipeline import Pipeline, create_pipeline
