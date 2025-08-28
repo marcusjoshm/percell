@@ -1546,10 +1546,11 @@ class CleanupStage(StageBase):
     Preserves directory structure while removing contents.
     """
     
-    def __init__(self, config, logger, stage_name="cleanup", event_bus=None, file_service=None, cleanup_service=None):
+    def __init__(self, config, logger, stage_name="cleanup", event_bus=None, file_service=None, cleanup_service=None, progress_reporter=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.file_service = file_service
         self.cleanup_service = cleanup_service
+        self.progress = progress_reporter
         self.cleanup_directories = [
             'cells',
             'masks'
@@ -1570,6 +1571,8 @@ class CleanupStage(StageBase):
         """Run the cleanup stage."""
         try:
             self.logger.info("Starting Cleanup Stage")
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.start(title="Cleaning up output directories")
             
             output_dir = Path(kwargs['output_dir'])
             
@@ -1652,11 +1655,19 @@ class CleanupStage(StageBase):
             self.logger.info(f"Cleanup completed successfully!")
             self.logger.info(f"  • Directories emptied: {deleted_count}")
             self.logger.info(f"  • Total space freed: {freed_bytes} bytes")
-            
+            if hasattr(self, 'progress') and self.progress:
+                try:
+                    self.progress.advance(max(1, int(deleted_count)))
+                except Exception:
+                    pass
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.stop()
             return True
             
         except Exception as e:
             self.logger.error(f"Error in Cleanup Stage: {e}")
+            if hasattr(self, 'progress') and self.progress:
+                self.progress.stop()
             return False
 
 
