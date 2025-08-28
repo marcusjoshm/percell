@@ -124,3 +124,59 @@ This refactoring will:
 - Enable parallel execution of independent stages
 
 The key insight is moving from a "everything imports everything" model to a "dependency injection with clear boundaries" model. This will dramatically reduce the cognitive load when adding new features.
+
+
+
+
+The refactored architecture shows significant improvement. You've successfully implemented many of the patterns I suggested:
+
+**Clear Improvements:**
+- **Proper layering**: The `domain`, `infrastructure`, `services`, and `cli` separation is well-defined
+- **Plugin architecture**: The `domain.plugin` interfaces with `PluginManager` service provide extensibility
+- **Dependency injection**: `ServiceFactory` centralizes dependency creation
+- **Event bus**: `PipelineEventBus` with `StageStarted`/`StageCompleted` events enables loose coupling
+- **Reduced circular dependencies**: Much cleaner module boundaries
+
+**Remaining Issues and Additional Suggestions:**
+
+1. **Legacy modules still tightly coupled**: The `percell.modules.*` still directly import core components and call each other. Consider:
+   - Move the business logic from these modules into domain services
+   - Convert them to thin adapters that delegate to domain services
+   - Use the plugin system for the analysis modules
+
+2. **Infrastructure layer needs more abstraction**: 
+   ```python
+   # Add interfaces for better testability
+   class ImageProcessingService(ABC):
+       @abstractmethod
+       def run_macro(self, macro_path: str, params: dict) -> Result
+   
+   class FileSystemService(ABC):
+       @abstractmethod  
+       def copy_files(self, source: Path, dest: Path) -> None
+   ```
+
+3. **Missing domain models**: Add value objects for core concepts:
+   ```python
+   @dataclass(frozen=True)
+   class CellMask:
+       image_data: np.ndarray
+       metadata: dict
+       
+   @dataclass(frozen=True)
+   class AnalysisParams:
+       threshold_method: str
+       min_area: float
+   ```
+
+4. **Command/Query separation**: Split operations into:
+   - Commands (modify state): `CreateCellMaskCommand`
+   - Queries (read data): `GetAnalysisResultsQuery`
+
+5. **Add validation layer**: Create a separate validation service to centralize input validation logic
+
+6. **Progress reporting**: The `percell.progress` module should be moved to infrastructure and abstracted
+
+7. **Consider removing `workflow_service`**: It still feels like a monolithic service. Instead, use the event bus to orchestrate workflows or implement a proper command handler pattern.
+
+The architecture is moving in the right direction, but the legacy modules in `percell.modules.*` are the main remaining technical debt. Converting these to proper domain services or plugins would complete the clean architecture transformation.
