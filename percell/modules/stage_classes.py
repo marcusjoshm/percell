@@ -6,7 +6,7 @@ Contains the concrete implementations of each pipeline stage.
 """
 
 import subprocess
-from percell.core import run_subprocess_with_spinner
+from percell.core.progress import run_subprocess_with_spinner
 import os
 import re
 import sys
@@ -832,7 +832,7 @@ class SegmentationStage(StageBase):
                 if channels:
                     bin_args.extend(["--channels"] + channels)
                 self.logger.info(f"Running bin_images.py with args: {bin_args}")
-                from percell.core import run_subprocess_with_spinner
+                from percell.core.progress import run_subprocess_with_spinner
                 result = run_subprocess_with_spinner([sys.executable, str(bin_script)] + bin_args, title="Binning images")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to bin images: {result.stderr}")
