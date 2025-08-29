@@ -339,6 +339,25 @@ class StageExecutor:
         self.execution_history = []
         self.event_bus = event_bus
     
+    def get_data_selection_filters(self) -> Dict[str, Any]:
+        """Return normalized Data Selection filters from config for stage consumption.
+
+        Keys:
+        - conditions: Optional[List[str]]
+        - regions: Optional[List[str]]
+        - timepoints: Optional[List[str]]
+        - segmentation_channel: Optional[str]
+        - analysis_channels: Optional[List[str]]
+        """
+        ds = self.config.get('data_selection') or {}
+        return {
+            'conditions': ds.get('selected_conditions') or None,
+            'regions': ds.get('selected_regions') or None,
+            'timepoints': ds.get('selected_timepoints') or None,
+            'segmentation_channel': ds.get('segmentation_channel'),
+            'analysis_channels': ds.get('analysis_channels') or None,
+        }
+
     def execute_stage(self, stage_name: str, **kwargs) -> bool:
         """
         Execute a single stage.
@@ -445,6 +464,9 @@ class StageExecutor:
         except Exception:
             # If reflection fails, fall back to legacy args only
             pass
+
+        # Provide data selection filters to all stages by default (non-intrusive)
+        kwargs.setdefault('data_selection_filters', self.get_data_selection_filters())
 
         stage = stage_class(self.config, self.logger, stage_name, **ctor_kwargs)
         success = stage.execute(**kwargs)

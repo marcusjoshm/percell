@@ -797,7 +797,17 @@ class SegmentationStage(StageBase):
         try:
             self.logger.info("Starting Single-cell Segmentation Stage")
             
-            # Get data selection parameters from config
+            # Prefer filters passed by executor; fallback to config
+            ds_filters = kwargs.get('data_selection_filters') or {}
+            if not ds_filters:
+                ds_filters = {
+                    'conditions': None,
+                    'regions': None,
+                    'timepoints': None,
+                    'segmentation_channel': None,
+                    'analysis_channels': None,
+                }
+            # Get data selection parameters from config (legacy compatibility)
             data_selection = self.config.get('data_selection')
             if not data_selection:
                 self.logger.error("No data selection information found in config")
@@ -813,10 +823,10 @@ class SegmentationStage(StageBase):
             
             # Step 1: Bin images for segmentation
             self.logger.info("Binning images for segmentation...")
-            conditions = data_selection.get('selected_conditions') or None
-            regions = data_selection.get('selected_regions') or None
-            timepoints = data_selection.get('selected_timepoints') or None
-            seg_channel = data_selection.get('segmentation_channel')
+            conditions = ds_filters.get('conditions') or data_selection.get('selected_conditions') or None
+            regions = ds_filters.get('regions') or data_selection.get('selected_regions') or None
+            timepoints = ds_filters.get('timepoints') or data_selection.get('selected_timepoints') or None
+            seg_channel = ds_filters.get('segmentation_channel') or data_selection.get('segmentation_channel')
             channels = [seg_channel] if seg_channel else None
 
             # Determine source directory for binning.
@@ -840,6 +850,7 @@ class SegmentationStage(StageBase):
 
             # Prefer domain service if available
             if getattr(self, 'image_binning_service', None) is not None:
+                self.logger.info(f"Using source_dir for binning: {source_dir}")
                 processed = self.image_binning_service.bin_images(
                     input_dir=source_dir,
                     output_dir=f"{output_dir}/preprocessed",
