@@ -1058,7 +1058,14 @@ class ProcessSingleCellDataStage(StageBase):
             # Step 3: Duplicate ROIs for analysis channels
             self.logger.info("Duplicating ROIs for analysis channels...")
             if hasattr(self, 'workflow_service') and self.workflow_service is not None:
-                rc = self.workflow_service.duplicate_rois_for_channels(output_dir, (ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', [])))
+                rc = self.workflow_service.duplicate_rois_for_channels(
+                    output_dir=output_dir,
+                    segmentation_channel=(ds_filters.get('segmentation_channel') or data_selection.get('segmentation_channel', '')),
+                    conditions=(ds_filters.get('conditions') or data_selection.get('selected_conditions', []) or []),
+                    regions=(ds_filters.get('regions') or data_selection.get('selected_regions', []) or []),
+                    timepoints=(ds_filters.get('timepoints') or data_selection.get('selected_timepoints', []) or []),
+                    analysis_channels=(ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', [])),
+                )
                 if rc != 0:
                     self.logger.error("Failed to duplicate ROIs")
                     return False
@@ -1067,8 +1074,16 @@ class ProcessSingleCellDataStage(StageBase):
                 duplicate_script = get_path("duplicate_rois_for_channels_module")
                 duplicate_args = [
                     "--roi-dir", f"{output_dir}/ROIs",
-                    "--channels"
+                    "--segmentation-channel", (ds_filters.get('segmentation_channel') or data_selection.get('segmentation_channel', '')),
+                    "--channels",
                 ] + (ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', [])) + ["--verbose"]
+                # Pass optional selection filters
+                if (ds_filters.get('conditions') or data_selection.get('selected_conditions')):
+                    duplicate_args += ["--conditions"] + (ds_filters.get('conditions') or data_selection.get('selected_conditions', []))
+                if (ds_filters.get('regions') or data_selection.get('selected_regions')):
+                    duplicate_args += ["--regions"] + (ds_filters.get('regions') or data_selection.get('selected_regions', []))
+                if (ds_filters.get('timepoints') or data_selection.get('selected_timepoints')):
+                    duplicate_args += ["--timepoints"] + (ds_filters.get('timepoints') or data_selection.get('selected_timepoints', []))
                 result = subprocess.run([sys.executable, str(duplicate_script)] + duplicate_args, capture_output=True, text=True)
                 if result.returncode != 0:
                     self.logger.error(f"Failed to duplicate ROIs: {result.stderr}")
@@ -1743,9 +1758,7 @@ class CompleteWorkflowStage(StageBase):
                 except Exception:
                     pass
 
-            # Start progress reporter
-            if hasattr(self, 'progress') and self.progress:
-                self.progress.start(title="Running complete workflow")
+            # Do not start an overall spinner here; it can interfere with interactive prompts
 
             for stage_name, stage_display_name in self.stages:
                 self.logger.info(f"Starting {stage_display_name}...")
@@ -1753,25 +1766,14 @@ class CompleteWorkflowStage(StageBase):
                 success = executor.execute_stage(stage_name, **stage_args)
                 if not success:
                     self.logger.error(f"{stage_display_name} failed!")
-                    if hasattr(self, 'progress') and self.progress:
-                        self.progress.stop()
                     return False
                 self.logger.info(f"{stage_display_name} completed successfully!")
-                if hasattr(self, 'progress') and self.progress:
-                    try:
-                        self.progress.advance(1)
-                    except Exception:
-                        pass
 
             self.logger.info("Complete Workflow finished successfully!")
-            if hasattr(self, 'progress') and self.progress:
-                self.progress.stop()
             return True
 
         except Exception as e:
             self.logger.error(f"Error in Complete Workflow: {e}")
-            if hasattr(self, 'progress') and self.progress:
-                self.progress.stop()
             return False
     
     def _create_stage_args(self, stage_name: str, base_args: dict) -> dict:

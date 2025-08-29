@@ -15,6 +15,7 @@ Design goals:
 from __future__ import annotations
 
 from contextlib import contextmanager
+import os
 from typing import Iterable, Iterator, Optional, Callable, Any, List, Dict
 import subprocess
 import time
@@ -192,9 +193,14 @@ def spinner() -> Iterator[None]:
         finally:
             _ACTIVE_SPINNERS -= 1
         return
+    # Allow disabling subprocess spinners via env (default off to reduce noise)
+    if os.getenv("PERCELL_SUBPROC_SPINNER", "0").strip().lower() not in {"1", "true", "yes", "on"}:
+        yield
+        return
+
     _ACTIVE_SPINNERS += 1
     try:
-        with alive_bar(None, force_tty=True):
+        with alive_bar(None, force_tty=True) as _:
             yield
     finally:
         _ACTIVE_SPINNERS -= 1
@@ -227,7 +233,10 @@ def run_subprocess_with_spinner(
         subprocess.CompletedProcess with stdout/stderr if captured
     """
     global _ACTIVE_SPINNERS
-    if alive_bar is None or _ACTIVE_SPINNERS > 0:
+    # Respect spinner disabled mode to avoid deadlocks with captured pipes
+    spinner_env = os.getenv("PERCELL_SUBPROC_SPINNER", "0").strip().lower()
+    spinner_enabled = spinner_env in {"1", "true", "yes", "on"}
+    if alive_bar is None or _ACTIVE_SPINNERS > 0 or not spinner_enabled:
         return subprocess.run(
             cmd,
             capture_output=capture_output,
@@ -282,7 +291,7 @@ try:
         theme=DEFAULT_PROGRESS_THEME,
         spinner=DEFAULT_PROGRESS_SPINNER,
         unknown=DEFAULT_PROGRESS_UNKNOWN,
-        enrich_print=True,
+        enrich_print=False,
         title_length=0,  # No title in bar - we'll print it separately
     )
 except Exception:

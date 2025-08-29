@@ -168,11 +168,17 @@ class AdvancedWorkflowStage(StageBase):
             data_selection = self.config.get('data_selection') or {}
             script = get_path("duplicate_rois_for_channels_module")
             output_dir = kwargs.get('output_dir')
-            channels = data_selection.get('analysis_channels', [])
             args = [
                 "--roi-dir", f"{output_dir}/ROIs",
+                "--segmentation-channel", data_selection.get('segmentation_channel', ''),
                 "--channels",
-            ] + channels + ["--verbose"]
+            ] + (data_selection.get('analysis_channels', []) or []) + ["--verbose"]
+            if data_selection.get('selected_conditions'):
+                args += ["--conditions"] + data_selection.get('selected_conditions', [])
+            if data_selection.get('selected_regions'):
+                args += ["--regions"] + data_selection.get('selected_regions', [])
+            if data_selection.get('selected_timepoints'):
+                args += ["--timepoints"] + data_selection.get('selected_timepoints', [])
             return self._run_py_module(script, args)
 
         if step_key == "extract_cells":

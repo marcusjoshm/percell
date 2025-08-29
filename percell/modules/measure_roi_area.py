@@ -157,22 +157,15 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
         )
         from percell.core.progress import spinner as progress_spinner
         print("ImageJ: Measure ROI Areas")
-        spin_ctx = progress_spinner()
-        spin = spin_ctx.__enter__()
-
-        # Stream output lines
-        while True:
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break
-            if output:
-                logger.info(f"ImageJ: {output.strip()}")
-
-        # Close spinner
-        try:
-            spin_ctx.__exit__(None, None, None)
-        except Exception:
-            pass
+        # Ensure spinner always closes using context manager
+        with progress_spinner():
+            # Stream output lines
+            while True:
+                output = process.stdout.readline()
+                if output == '' and process.poll() is not None:
+                    break
+                if output:
+                    logger.info(f"ImageJ: {output.strip()}")
 
         stdout, stderr = process.communicate()
         if stdout:

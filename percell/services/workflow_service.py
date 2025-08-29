@@ -111,12 +111,27 @@ class WorkflowService:
         ]
         return self._runner.run(str(script), args, title="resize_rois")
 
-    def duplicate_rois_for_channels(self, output_dir: str, analysis_channels: List[str]) -> int:
+    def duplicate_rois_for_channels(
+        self,
+        output_dir: str,
+        segmentation_channel: str,
+        conditions: List[str],
+        regions: List[str],
+        timepoints: List[str],
+        analysis_channels: List[str],
+    ) -> int:
         script = get_path("duplicate_rois_for_channels_module")
         args: List[str] = [
             "--roi-dir", f"{output_dir}/ROIs",
-            "--channels",
-        ] + analysis_channels + ["--verbose"]
+            "--segmentation-channel", segmentation_channel,
+        ]
+        if conditions:
+            args += ["--conditions"] + conditions
+        if regions:
+            args += ["--regions"] + regions
+        if timepoints:
+            args += ["--timepoints"] + timepoints
+        args += ["--channels"] + analysis_channels + ["--verbose"]
         return self._runner.run(str(script), args, title="dup_rois")
 
     def extract_cells(self, output_dir: str, imagej_path: str, analysis_channels: List[str]) -> int:

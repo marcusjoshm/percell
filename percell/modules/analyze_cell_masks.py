@@ -126,53 +126,25 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
         logger.info(f"Running ImageJ command: {' '.join(cmd)}")
         logger.info(f"ImageJ will {'auto-close' if auto_close else 'remain open'} after execution")
         
-        # Run ImageJ in headless mode with the macro
-        # Show spinner while batch macro runs; still stream logs
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        from percell.core.progress import spinner as progress_spinner
-        print("ImageJ: Analyze Cell Masks")
-        spin_ctx = progress_spinner()
-        spin = spin_ctx.__enter__()
-        
-        # Variables for processing output
+        # Run ImageJ; rely on centralized progress runner (spinner disabled by default)
+        from percell.core.progress import run_subprocess_with_spinner
+        result = run_subprocess_with_spinner(cmd, title="ImageJ: Analyze Cell Masks", capture_output=True, text=True, check=False)
+
         results_count = 0
-        
-        # Monitor and log the output in real-time
-        while True:
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break
-            if output:
-                line = output.strip()
-                logger.info(f"ImageJ: {line}")
-                
-                # Count how many files were analyzed
+        if result.stdout:
+            for line in result.stdout.splitlines():
+                line = line.strip()
+                if line:
+                    logger.info(f"ImageJ: {line}")
                 if line.startswith("ANALYSIS_END:"):
                     results_count += 1
-        
-        # Get any remaining output
-        # Close spinner
-        try:
-            spin_ctx.__exit__(None, None, None)
-        except Exception:
-            pass
-        stdout, stderr = process.communicate()
-        if stdout:
-            logger.info(f"ImageJ additional output: {stdout.strip()}")
-        if stderr:
-            logger.warning(f"ImageJ errors: {stderr.strip()}")
-        
-        # Check if the command executed successfully
-        if process.returncode != 0:
-            logger.error(f"ImageJ returned non-zero exit code: {process.returncode}")
-            if results_count == 0:
-                return False
-        
+        if result.stderr:
+            logger.warning(f"ImageJ errors: {result.stderr.strip()}")
+
+        if result.returncode != 0 and results_count == 0:
+            logger.error(f"ImageJ returned non-zero exit code: {result.returncode}")
+            return False
+
         logger.info(f"Successfully processed {results_count} mask files")
         return results_count > 0
         
