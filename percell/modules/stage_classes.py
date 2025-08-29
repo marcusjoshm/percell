@@ -825,7 +825,13 @@ class SegmentationStage(StageBase):
             raw_data_dir = f"{output_dir}/raw_data"
             source_dir = raw_data_dir
             try:
-                raw_has_tifs = _Path(raw_data_dir).exists() and any(_Path(raw_data_dir).glob("**/*.tif"))
+                # Accept .tif/.tiff (case-insensitive)
+                raw_has_tifs = _Path(raw_data_dir).exists() and (
+                    any(_Path(raw_data_dir).glob("**/*.tif")) or
+                    any(_Path(raw_data_dir).glob("**/*.tiff")) or
+                    any(_Path(raw_data_dir).glob("**/*.TIF")) or
+                    any(_Path(raw_data_dir).glob("**/*.TIFF"))
+                )
             except Exception:
                 raw_has_tifs = False
             if not raw_has_tifs:

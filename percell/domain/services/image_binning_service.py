@@ -37,7 +37,15 @@ class ImageBinningService:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        all_files: List[Path] = list(input_path.glob("**/*.tif"))
+        # Find TIFF images (both .tif and .tiff, case-insensitive)
+        patterns = ["**/*.tif", "**/*.tiff", "**/*.TIF", "**/*.TIFF"]
+        seen: Set[Path] = set()
+        all_files: List[Path] = []
+        for pat in patterns:
+            for p in input_path.glob(pat):
+                if p not in seen:
+                    seen.add(p)
+                    all_files.append(p)
         if not all_files:
             # Early exit: nothing to process
             return 0
@@ -61,10 +69,9 @@ class ImageBinningService:
                 file_path = Path(file_path)
                 # Determine condition (top-level directory)
                 relative_path = file_path.relative_to(input_path)
-                current_condition = relative_path.parts[0] if len(relative_path.parts) > 0 else None
-                if not current_condition:
-                    continue
-                if selected_conditions is not None and current_condition not in selected_conditions:
+                current_condition = relative_path.parts[0] if len(relative_path.parts) > 1 else None
+                # Apply condition filter only when requested
+                if selected_conditions is not None and (not current_condition or current_condition not in selected_conditions):
                     continue
 
                 # Parse metadata from filename
