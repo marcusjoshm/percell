@@ -1333,37 +1333,17 @@ class MeasureROIAreaStage(StageBase):
             self.logger.info(f"Input directory: {input_dir}")
             self.logger.info(f"Output directory: {output_dir}")
 
-            # Prefer ImageJService with macro; fallback to Python module
-            success = False
-            used_service = False
-            if self.imagej_service is not None:
-                try:
-                    from percell.core.paths import get_path_str
-                    macro_path = get_path_str("measure_roi_area_macro")
-                    params = {
-                        "input_dir": str(input_dir),
-                        "output_dir": str(output_dir),
-                        "auto_close": "true",
-                    }
-                    rc = self.imagej_service.run_macro(macro_path, params)
-                    if rc == 0:
-                        used_service = True
-                        success = True
-                        self.logger.info("ImageJService measured ROI areas successfully")
-                except Exception as e:
-                    self.logger.debug(f"ImageJService measure ROI areas failed, fallback to module: {e}")
-
-            if not used_service:
-                # Use the Python module that drives ImageJ for interactive behavior
-                from .measure_roi_area import measure_roi_areas
-                imagej_path = self.config.get('imagej_path')
-                self.logger.info(f"Measuring ROI areas using ImageJ binary: {imagej_path}")
-                success = measure_roi_areas(
-                    input_dir=str(input_dir),
-                    output_dir=str(output_dir), 
-                    imagej_path=str(imagej_path),
-                    auto_close=True
-                )
+            # Use the Python module that drives ImageJ (the ImageJService path is not properly 
+            # implemented for this workflow since it requires finding ROI-image pairs)
+            from .measure_roi_area import measure_roi_areas
+            imagej_path = self.config.get('imagej_path')
+            self.logger.info(f"Measuring ROI areas using ImageJ binary: {imagej_path}")
+            success = measure_roi_areas(
+                input_dir=str(input_dir),
+                output_dir=str(output_dir), 
+                imagej_path=str(imagej_path),
+                auto_close=True
+            )
             
             if success:
                 self.logger.info("ROI area measurement completed successfully")

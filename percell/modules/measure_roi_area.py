@@ -65,12 +65,44 @@ def create_macro_with_parameters(macro_template_file, roi_file, image_file, csv_
             f'csv_file = "{csv_file_clean}";\n'
             f'auto_close = {auto_close_str};\n'
         )
-        body_lines = []
-        for line in macro_content.splitlines():
-            if line.strip().startswith('#@'):
-                continue
-            body_lines.append(line)
-        final_macro = header + "\n" + "\n".join(body_lines) + "\n"
+        # Build a clean macro body programmatically to avoid any stray '#'
+        body = "\n".join([
+            'setBatchMode(true);',
+            'if (roi_file == "") exit("Error: ROI file not specified");',
+            'if (image_file == "") exit("Error: Image file not specified");',
+            'if (csv_file == "") exit("Error: CSV output file not specified");',
+            'if (!File.exists(roi_file)) exit("Error: ROI file does not exist: " + roi_file);',
+            'if (!File.exists(image_file)) exit("Error: Image file does not exist: " + image_file);',
+            'open(image_file);',
+            'image_name = getTitle();',
+            'run("ROI Manager...");',
+            'roiManager("Open", roi_file);',
+            'num_rois = roiManager("count");',
+            'if (num_rois > 0) {',
+            '  run("Clear Results");',
+            '  run("Set Measurements...", "area display redirect=None decimal=3");',
+            '  roiManager("Deselect");',
+            '  roiManager("Measure");',
+            '  image_basename = File.getName(image_file);',
+            '  if (endsWith(image_basename, ".tif")) image_basename = substring(image_basename, 0, lengthOf(image_basename) - 4);',
+            '  else if (endsWith(image_basename, ".tiff")) image_basename = substring(image_basename, 0, lengthOf(image_basename) - 5);',
+            '  for (i = 0; i < num_rois; i++) {',
+            '    setResult("Image", i, image_basename);',
+            '    roiManager("Select", i);',
+            '    cell_number = "CELL" + (i + 1);',
+            '    setResult("Cell_ID", i, cell_number);',
+            '  }',
+            '  updateResults();',
+            '  saveAs("Results", csv_file);',
+            '}',
+            'if (isOpen("ROI Manager")) { selectWindow("ROI Manager"); run("Close"); }',
+            'if (isOpen("Results")) { selectWindow("Results"); run("Close"); }',
+            'while (nImages > 0) { selectImage(nImages); close(); }',
+            'setBatchMode(false);',
+            'if (auto_close) run("Quit");',
+            ''
+        ])
+        final_macro = header + "\n" + body + "\n"
         
         # Create temporary macro file with unique name
         temp_dir = tempfile.gettempdir()
@@ -80,6 +112,18 @@ def create_macro_with_parameters(macro_template_file, roi_file, image_file, csv_
         
         with open(temp_macro_file, 'w') as f:
             f.write(final_macro)
+        # Debug: log the first 10 lines of the generated macro to verify parameter injection
+        try:
+            with open(temp_macro_file, 'r') as f:
+                preview_lines = []
+                for i, l in enumerate(f):
+                    if i >= 30:
+                        break
+                    preview_lines.append(l)
+                preview = ''.join(preview_lines)
+            logger.info("Macro preview (first 10 lines):\n%s", preview)
+        except Exception:
+            pass
         
         logger.info(f"Created macro file: {temp_macro_file}")
         logger.info(f"  ROI file: {roi_file}")
@@ -96,44 +140,52 @@ def create_macro_with_parameters(macro_template_file, roi_file, image_file, csv_
 
 def run_imagej_macro(imagej_path, macro_file, auto_close=False):
     """
-    Run ImageJ with the dedicated macro using -macro mode.
-    
-    Args:
-        imagej_path (str): Path to the ImageJ executable
-        macro_file (str): Path to the dedicated ImageJ macro file
-        auto_close (bool): Whether the macro will automatically close ImageJ
-        
-    Returns:
-        bool: True if successful, False otherwise
+    Run ImageJ with the dedicated macro using -batch mode (consistent with analyze_cell_masks).
+    Streams stdout/stderr and shows a spinner while running.
     """
     try:
-        # Use -macro mode for user interaction
-        cmd = [imagej_path, '-macro', str(macro_file)]
-        
+        cmd = [imagej_path, '-batch', str(macro_file)]
+
         logger.info(f"Running ImageJ command: {' '.join(cmd)}")
         logger.info(f"ImageJ will {'auto-close' if auto_close else 'remain open'} after execution")
-        
-        # Avoid spinner here to prevent nested progress issues
-        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
-        
-        # Log the output
-        if result.stdout:
-            logger.info("ImageJ output:")
-            for line in result.stdout.splitlines():
-                logger.info(f"  {line}")
-        
-        if result.stderr:
-            logger.warning("ImageJ errors:")
-            for line in result.stderr.splitlines():
-                logger.warning(f"  {line}")
-        
-        # Check if the command executed successfully
-        if result.returncode != 0:
-            logger.error(f"ImageJ returned non-zero exit code: {result.returncode}")
+
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        from percell.core.progress import spinner as progress_spinner
+        print("ImageJ: Measure ROI Areas")
+        spin_ctx = progress_spinner()
+        spin = spin_ctx.__enter__()
+
+        # Stream output lines
+        while True:
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                break
+            if output:
+                logger.info(f"ImageJ: {output.strip()}")
+
+        # Close spinner
+        try:
+            spin_ctx.__exit__(None, None, None)
+        except Exception:
+            pass
+
+        stdout, stderr = process.communicate()
+        if stdout:
+            logger.info(f"ImageJ additional output: {stdout.strip()}")
+        if stderr:
+            logger.warning(f"ImageJ errors: {stderr.strip()}")
+
+        if process.returncode != 0:
+            logger.error(f"ImageJ returned non-zero exit code: {process.returncode}")
             return False
-        
+
         return True
-        
+
     except Exception as e:
         logger.error(f"Error running ImageJ: {e}")
         return False
