@@ -980,11 +980,9 @@ class ProcessSingleCellDataStage(StageBase):
             if hasattr(self, 'progress') and self.progress:
                 self.progress.start(title="Processing single-cell data")
             
-            # Get data selection parameters from config
-            data_selection = self.config.get('data_selection')
-            if not data_selection:
-                self.logger.error("No data selection information found in config")
-                return False
+            # Prefer executor-provided filters
+            ds_filters = kwargs.get('data_selection_filters') or {}
+            data_selection = self.config.get('data_selection') or {}
             
             # Get input and output directories
             input_dir = kwargs.get('input_dir')
@@ -995,7 +993,7 @@ class ProcessSingleCellDataStage(StageBase):
                 return False
             
             # Step 1: ROI tracking (if multiple timepoints)
-            timepoints = data_selection.get('selected_timepoints', [])
+            timepoints = ds_filters.get('timepoints') or data_selection.get('selected_timepoints', [])
             if timepoints and len(timepoints) > 1:
                 self.logger.info("Tracking ROIs across timepoints...")
                 if hasattr(self, 'workflow_service') and self.workflow_service is not None:
@@ -1029,7 +1027,7 @@ class ProcessSingleCellDataStage(StageBase):
                 "--input", f"{output_dir}/preprocessed",
                 "--output", f"{output_dir}/ROIs",
                 "--imagej", self.config.get('imagej_path'),
-                "--channel", data_selection.get('segmentation_channel', ''),
+                "--channel", (ds_filters.get('segmentation_channel') or data_selection.get('segmentation_channel', '')),
                 "--macro", get_path_str("resize_rois_macro"),
                 "--auto-close"
             ]
@@ -1060,7 +1058,7 @@ class ProcessSingleCellDataStage(StageBase):
             # Step 3: Duplicate ROIs for analysis channels
             self.logger.info("Duplicating ROIs for analysis channels...")
             if hasattr(self, 'workflow_service') and self.workflow_service is not None:
-                rc = self.workflow_service.duplicate_rois_for_channels(output_dir, data_selection.get('analysis_channels', []))
+                rc = self.workflow_service.duplicate_rois_for_channels(output_dir, (ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', [])))
                 if rc != 0:
                     self.logger.error("Failed to duplicate ROIs")
                     return False
@@ -1070,7 +1068,7 @@ class ProcessSingleCellDataStage(StageBase):
                 duplicate_args = [
                     "--roi-dir", f"{output_dir}/ROIs",
                     "--channels"
-                ] + data_selection.get('analysis_channels', []) + ["--verbose"]
+                ] + (ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', [])) + ["--verbose"]
                 result = run_subprocess_with_spinner([sys.executable, str(duplicate_script)] + duplicate_args, title="Duplicating ROIs")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to duplicate ROIs: {result.stderr}")
@@ -1090,7 +1088,7 @@ class ProcessSingleCellDataStage(StageBase):
                 "--macro", get_path_str("extract_cells_macro"),
                 "--auto-close",
                 "--channels"
-            ] + data_selection.get('analysis_channels', [])
+            ] + (ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', []))
             used_service = False
             if self.imagej_service is not None:
                 try:
@@ -1120,7 +1118,7 @@ class ProcessSingleCellDataStage(StageBase):
             # Step 5: Group cells
             self.logger.info("Grouping cells...")
             if hasattr(self, 'workflow_service') and self.workflow_service is not None:
-                rc = self.workflow_service.group_cells(output_dir, int(kwargs.get('bins', 5)), data_selection.get('analysis_channels', []))
+                rc = self.workflow_service.group_cells(output_dir, int(kwargs.get('bins', 5)), (ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', [])))
                 if rc != 0:
                     self.logger.error("Failed to group cells")
                     return False
@@ -1133,7 +1131,7 @@ class ProcessSingleCellDataStage(StageBase):
                     "--bins", str(kwargs.get('bins', 5)),
                     "--force-clusters",
                     "--channels"
-                ] + data_selection.get('analysis_channels', [])
+                ] + (ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', []))
                 result = run_subprocess_with_spinner([sys.executable, str(group_script)] + group_args, title="Grouping cells")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to group cells: {result.stderr}")
@@ -1198,11 +1196,9 @@ class ThresholdGroupedCellsStage(StageBase):
         try:
             self.logger.info("Starting Threshold Grouped Cells Stage")
             
-            # Get data selection parameters from config
-            data_selection = self.config.get('data_selection')
-            if not data_selection:
-                self.logger.error("No data selection information found in config")
-                return False
+            # Prefer executor-provided filters
+            ds_filters = kwargs.get('data_selection_filters') or {}
+            data_selection = self.config.get('data_selection') or {}
             
             # Get output directory
             output_dir = kwargs.get('output_dir')
@@ -1453,11 +1449,9 @@ class AnalysisStage(StageBase):
             if hasattr(self, 'progress') and self.progress:
                 self.progress.start(title="Running analysis")
             
-            # Get data selection parameters from config
-            data_selection = self.config.get('data_selection')
-            if not data_selection:
-                self.logger.error("No data selection information found in config")
-                return False
+            # Prefer executor-provided filters
+            ds_filters = kwargs.get('data_selection_filters') or {}
+            data_selection = self.config.get('data_selection') or {}
             
             # Get output directory
             output_dir = kwargs.get('output_dir')
@@ -1467,7 +1461,7 @@ class AnalysisStage(StageBase):
             
             # Step 1: Combine masks
             self.logger.info("Combining masks...")
-            analysis_channels = data_selection.get('analysis_channels', [])
+            analysis_channels = ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', [])
             if self.workflow_service is not None:
                 rc = self.workflow_service.combine_masks(output_dir, analysis_channels)
                 if rc != 0:
@@ -1490,7 +1484,7 @@ class AnalysisStage(StageBase):
             # Step 2: Create cell masks
             self.logger.info("Creating cell masks...")
             if self.workflow_service is not None:
-                rc = self.workflow_service.create_cell_masks(output_dir, self.config.get('imagej_path'), data_selection.get('analysis_channels', []))
+                rc = self.workflow_service.create_cell_masks(output_dir, self.config.get('imagej_path'), analysis_channels)
                 if rc != 0:
                     self.logger.error("Failed to create cell masks")
                     return False
@@ -1505,7 +1499,7 @@ class AnalysisStage(StageBase):
                     "--macro", get_path_str("create_cell_masks_macro"),
                     "--auto-close",
                     "--channels"
-                ] + data_selection.get('analysis_channels', [])
+                ] + analysis_channels
                 result = run_subprocess_with_spinner([sys.executable, str(create_masks_script)] + create_masks_args, title="Creating cell masks")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to create cell masks: {result.stderr}")
@@ -1518,9 +1512,9 @@ class AnalysisStage(StageBase):
                 rc = self.workflow_service.analyze_cell_masks(
                     output_dir,
                     self.config.get('imagej_path'),
-                    data_selection.get('selected_regions'),
-                    data_selection.get('selected_timepoints'),
-                    data_selection.get('analysis_channels', []),
+                    (ds_filters.get('regions') or data_selection.get('selected_regions')),
+                    (ds_filters.get('timepoints') or data_selection.get('selected_timepoints')),
+                    analysis_channels,
                 )
                 if rc != 0:
                     self.logger.error("Failed to analyze cell masks")
@@ -1534,11 +1528,11 @@ class AnalysisStage(StageBase):
                     "--imagej", self.config.get('imagej_path'),
                     "--macro", get_path_str("analyze_cell_masks_macro"),
                     "--channels"
-                ] + data_selection.get('analysis_channels', [])
-                if data_selection.get('selected_regions'):
-                    analyze_args.extend(["--regions"] + data_selection['selected_regions'])
-                if data_selection.get('selected_timepoints'):
-                    analyze_args.extend(["--timepoints"] + data_selection['selected_timepoints'])
+                ] + analysis_channels
+                if (ds_filters.get('regions') or data_selection.get('selected_regions')):
+                    analyze_args.extend(["--regions"] + (ds_filters.get('regions') or data_selection['selected_regions']))
+                if (ds_filters.get('timepoints') or data_selection.get('selected_timepoints')):
+                    analyze_args.extend(["--timepoints"] + (ds_filters.get('timepoints') or data_selection['selected_timepoints']))
                 result = run_subprocess_with_spinner([sys.executable, str(analyze_script)] + analyze_args, title="Analyzing cell masks")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to analyze cell masks: {result.stderr}")
@@ -1548,7 +1542,7 @@ class AnalysisStage(StageBase):
             # Step 4: Include group metadata
             self.logger.info("Including group metadata...")
             if self.workflow_service is not None:
-                rc = self.workflow_service.include_group_metadata(output_dir, data_selection.get('analysis_channels', []))
+                rc = self.workflow_service.include_group_metadata(output_dir, analysis_channels)
                 if rc != 0:
                     self.logger.error("Failed to include group metadata")
                     return False
@@ -1563,7 +1557,7 @@ class AnalysisStage(StageBase):
                     "--replace",
                     "--verbose",
                     "--channels"
-                ] + data_selection.get('analysis_channels', [])
+                ] + analysis_channels
                 result = run_subprocess_with_spinner([sys.executable, str(metadata_script)] + metadata_args, title="Including group metadata")
                 if result.returncode != 0:
                     self.logger.error(f"Failed to include group metadata: {result.stderr}")
