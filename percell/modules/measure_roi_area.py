@@ -51,24 +51,26 @@ def create_macro_with_parameters(macro_template_file, roi_file, image_file, csv_
         # Read the macro template
         with open(macro_template_file, 'r') as f:
             macro_content = f.read()
-        
-        # Replace the macro content with actual parameter values
+
         # Convert paths to forward slashes for ImageJ compatibility
         roi_file_clean = roi_file.replace(os.sep, '/')
         image_file_clean = image_file.replace(os.sep, '/')
         csv_file_clean = csv_file.replace(os.sep, '/')
         auto_close_str = str(auto_close).lower()
-        
-        # Replace the parameter declarations with actual assignments
-        final_macro = macro_content.replace(
-            '#@ String roi_file', f'roi_file = "{roi_file_clean}";'
-        ).replace(
-            '#@ String image_file', f'image_file = "{image_file_clean}";'
-        ).replace(
-            '#@ String csv_file', f'csv_file = "{csv_file_clean}";'
-        ).replace(
-            '#@ Boolean auto_close', f'auto_close = {auto_close_str};'
+
+        # Build a header that sets variables, and strip any ImageJ2 parameter annotations ("#@ ...")
+        header = (
+            f'roi_file = "{roi_file_clean}";\n'
+            f'image_file = "{image_file_clean}";\n'
+            f'csv_file = "{csv_file_clean}";\n'
+            f'auto_close = {auto_close_str};\n'
         )
+        body_lines = []
+        for line in macro_content.splitlines():
+            if line.strip().startswith('#@'):
+                continue
+            body_lines.append(line)
+        final_macro = header + "\n" + "\n".join(body_lines) + "\n"
         
         # Create temporary macro file with unique name
         temp_dir = tempfile.gettempdir()
@@ -111,14 +113,8 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
         logger.info(f"Running ImageJ command: {' '.join(cmd)}")
         logger.info(f"ImageJ will {'auto-close' if auto_close else 'remain open'} after execution")
         
-        from percell.core.progress import run_subprocess_with_spinner
-        result = run_subprocess_with_spinner(
-            cmd,
-            title="ImageJ: Measure ROI Areas",
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        # Avoid spinner here to prevent nested progress issues
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         
         # Log the output
         if result.stdout:
