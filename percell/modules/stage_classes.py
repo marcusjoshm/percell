@@ -1047,7 +1047,7 @@ class ProcessSingleCellDataStage(StageBase):
                 except Exception as e:
                     self.logger.debug(f"ImageJService resize ROIs failed, fallback to script: {e}")
             if not used_service:
-                result = run_subprocess_with_spinner([sys.executable, str(resize_script)] + resize_args, title="Resizing ROIs")
+                result = subprocess.run([sys.executable, str(resize_script)] + resize_args, capture_output=True, text=True)
                 if result.returncode != 0:
                     self.logger.error(f"Failed to resize ROIs: {result.stderr}")
                     if hasattr(self, 'progress') and self.progress:
@@ -1069,7 +1069,7 @@ class ProcessSingleCellDataStage(StageBase):
                     "--roi-dir", f"{output_dir}/ROIs",
                     "--channels"
                 ] + (ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', [])) + ["--verbose"]
-                result = run_subprocess_with_spinner([sys.executable, str(duplicate_script)] + duplicate_args, title="Duplicating ROIs")
+                result = subprocess.run([sys.executable, str(duplicate_script)] + duplicate_args, capture_output=True, text=True)
                 if result.returncode != 0:
                     self.logger.error(f"Failed to duplicate ROIs: {result.stderr}")
                     if hasattr(self, 'progress') and self.progress:
@@ -1107,7 +1107,7 @@ class ProcessSingleCellDataStage(StageBase):
                 except Exception as e:
                     self.logger.debug(f"ImageJService extract cells failed, fallback to script: {e}")
             if not used_service:
-                result = run_subprocess_with_spinner([sys.executable, str(extract_script)] + extract_args, title="Extracting cells")
+                result = subprocess.run([sys.executable, str(extract_script)] + extract_args, capture_output=True, text=True)
                 if result.returncode != 0:
                     self.logger.error(f"Failed to extract cells: {result.stderr}")
                     if hasattr(self, 'progress') and self.progress:
@@ -1132,7 +1132,7 @@ class ProcessSingleCellDataStage(StageBase):
                     "--force-clusters",
                     "--channels"
                 ] + (ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', []))
-                result = run_subprocess_with_spinner([sys.executable, str(group_script)] + group_args, title="Grouping cells")
+                result = subprocess.run([sys.executable, str(group_script)] + group_args, capture_output=True, text=True)
                 if result.returncode != 0:
                     self.logger.error(f"Failed to group cells: {result.stderr}")
                     if hasattr(self, 'progress') and self.progress:

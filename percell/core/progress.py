@@ -101,11 +101,11 @@ def progress_bar(
     Returns:
         A callable update(delta: int) -> None that advances the spinner
     """
-    if alive_bar is None:
-        # Fallback: provide a no-op updater
+    global _ACTIVE_SPINNERS
+    if alive_bar is None or _ACTIVE_SPINNERS > 0:
+        # Fallback: provide a no-op updater when alive-progress unavailable or already active
         def noop_update(_: int) -> None:
             return
-
         yield noop_update
         return
 
@@ -114,19 +114,23 @@ def progress_bar(
     if title:
         print(f"{title}")
     
-    with alive_bar(None, manual=manual, force_tty=True) as bar:
-        def update(delta: int = 1) -> None:
-            try:
-                if manual:
-                    bar(delta)
-                else:
-                    # In automatic mode, alive-progress expects bar() with no args
-                    bar()
-            except Exception:
-                # Avoid breaking the caller due to bar errors
-                pass
+    _ACTIVE_SPINNERS += 1
+    try:
+        with alive_bar(None, manual=manual, force_tty=True) as bar:
+            def update(delta: int = 1) -> None:
+                try:
+                    if manual:
+                        bar(delta)
+                    else:
+                        # In automatic mode, alive-progress expects bar() with no args
+                        bar()
+                except Exception:
+                    # Avoid breaking the caller due to bar errors
+                    pass
 
-        yield update
+            yield update
+    finally:
+        _ACTIVE_SPINNERS -= 1
 
 
 def iter_with_progress(
