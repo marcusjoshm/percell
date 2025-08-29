@@ -813,11 +813,11 @@ class SegmentationStage(StageBase):
             
             # Step 1: Bin images for segmentation
             self.logger.info("Binning images for segmentation...")
-            conditions = data_selection.get('selected_conditions') or []
-            regions = data_selection.get('selected_regions') or []
-            timepoints = data_selection.get('selected_timepoints') or []
+            conditions = data_selection.get('selected_conditions') or None
+            regions = data_selection.get('selected_regions') or None
+            timepoints = data_selection.get('selected_timepoints') or None
             seg_channel = data_selection.get('segmentation_channel')
-            channels = [seg_channel] if seg_channel else []
+            channels = [seg_channel] if seg_channel else None
 
             # Determine source directory for binning.
             # Prefer output_dir/raw_data (produced by DataSelectionStage). Fallback to input_dir if missing/empty.

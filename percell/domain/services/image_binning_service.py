@@ -42,11 +42,11 @@ class ImageBinningService:
             # Early exit: nothing to process
             return 0
 
-        # Convert selection lists to sets; treat ["all"] as no filter
-        selected_conditions: Optional[Set[str]] = None if _is_all(conditions) else set(conditions or [])
-        selected_regions: Optional[Set[str]] = None if _is_all(regions) else set(regions or [])
-        selected_timepoints: Optional[Set[str]] = None if _is_all(timepoints) else set(timepoints or [])
-        selected_channels: Optional[Set[str]] = None if _is_all(channels) else set(channels or [])
+        # Convert selection lists to sets; treat None, [] or ["all"] as no filter
+        selected_conditions: Optional[Set[str]] = _normalize_selection(conditions)
+        selected_regions: Optional[Set[str]] = _normalize_selection(regions)
+        selected_timepoints: Optional[Set[str]] = _normalize_selection(timepoints)
+        selected_channels: Optional[Set[str]] = _normalize_selection(channels)
 
         processed = 0
 
@@ -134,5 +134,11 @@ def _parse_region(filename: str) -> Optional[str]:
 
 
 __all__ = ["ImageBinningService"]
+
+
+def _normalize_selection(items: Optional[Sequence[str]]) -> Optional[Set[str]]:
+    if items is None or len(items) == 0 or _is_all(items):
+        return None
+    return set(items)
 
 
