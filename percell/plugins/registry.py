@@ -15,6 +15,13 @@ def register_all_plugins(manager: PluginManager, *extra_plugins: AnalysisPlugin)
         # Safe to ignore if sample plugin not available
         pass
 
+    # Register binning plugin
+    try:
+        from .binning_plugin import BinningPlugin
+        manager.register_plugin(BinningPlugin())
+    except Exception:
+        pass
+
     for plugin in extra_plugins:
         try:
             manager.register_plugin(plugin)

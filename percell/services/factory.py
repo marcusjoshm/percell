@@ -6,6 +6,7 @@ from percell.core.config import Config
 from percell.infrastructure.file_service import FileService
 from percell.infrastructure.imagej_service import ImageJService
 from percell.infrastructure.progress_reporter import AliveProgressReporter
+from percell.domain.services.image_binning_service import ImageBinningService
 from percell.services.module_runner import ModuleRunner
 from percell.services.workflow_service import WorkflowService
 from percell.services.cleanup_service import CleanupService
@@ -22,6 +23,7 @@ class ServiceFactory:
         self._workflow_service: Optional[WorkflowService] = None
         self._cleanup_service: Optional[CleanupService] = None
         self._progress_reporter: Optional[AliveProgressReporter] = None
+        self._image_binning_service: Optional[ImageBinningService] = None
 
     def get_file_service(self) -> FileService:
         if self._file_service is None:
@@ -53,6 +55,11 @@ class ServiceFactory:
         if self._progress_reporter is None:
             self._progress_reporter = AliveProgressReporter()
         return self._progress_reporter
+
+    def get_image_binning_service(self) -> ImageBinningService:
+        if self._image_binning_service is None:
+            self._image_binning_service = ImageBinningService(self.get_progress_reporter())
+        return self._image_binning_service
 
 
 __all__ = ["ServiceFactory"]
