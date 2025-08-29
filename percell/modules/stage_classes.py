@@ -756,12 +756,13 @@ class SegmentationStage(StageBase):
     Includes: bin_images_for_segmentation, interactive_segmentation
     """
     
-    def __init__(self, config, logger, stage_name="segmentation", event_bus=None, imagej_service=None, file_service=None, workflow_service=None, progress_reporter=None):
+    def __init__(self, config, logger, stage_name="segmentation", event_bus=None, imagej_service=None, file_service=None, workflow_service=None, progress_reporter=None, image_binning_service=None):
         super().__init__(config, logger, stage_name, event_bus=event_bus)
         self.imagej_service = imagej_service
         self.file_service = file_service
         self.workflow_service = workflow_service
         self.progress = progress_reporter
+        self.image_binning_service = image_binning_service
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for segmentation stage."""
@@ -818,7 +819,19 @@ class SegmentationStage(StageBase):
             seg_channel = data_selection.get('segmentation_channel')
             channels = [seg_channel] if seg_channel else []
 
-            if hasattr(self, 'workflow_service') and self.workflow_service is not None:
+            # Prefer domain service if available
+            if getattr(self, 'image_binning_service', None) is not None:
+                processed = self.image_binning_service.bin_images(
+                    input_dir=f"{output_dir}/raw_data",
+                    output_dir=f"{output_dir}/preprocessed",
+                    bin_factor=4,
+                    conditions=conditions,
+                    regions=regions,
+                    timepoints=timepoints,
+                    channels=channels,
+                )
+                self.logger.info(f"Images binned successfully using domain service. Processed: {processed}")
+            elif hasattr(self, 'workflow_service') and self.workflow_service is not None:
                 rc = self.workflow_service.bin_images(output_dir, conditions, regions, timepoints, channels)
                 if rc != 0:
                     self.logger.error("Failed to bin images")

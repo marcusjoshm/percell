@@ -424,6 +424,15 @@ class StageExecutor:
                         ctor_kwargs['cleanup_service'] = factory.get_cleanup_service()
                 except Exception:
                     pass
+            if 'image_binning_service' in params:
+                try:
+                    factory = getattr(self, 'service_factory', None)
+                    if factory is None and hasattr(self.logger, 'service_factory'):
+                        factory = getattr(self.logger, 'service_factory')
+                    if factory is not None:
+                        ctor_kwargs['image_binning_service'] = factory.get_image_binning_service()
+                except Exception:
+                    pass
             if 'progress_reporter' in params:
                 try:
                     factory = getattr(self, 'service_factory', None)
