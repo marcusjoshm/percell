@@ -29,6 +29,9 @@ except Exception:  # pragma: no cover - handled at runtime if missing
     config_handler = None  # type: ignore
 
 
+# Track nested spinner usage to avoid alive_progress reentrancy issues
+_ACTIVE_SPINNERS = 0
+
 def is_progress_available() -> bool:
     """Return True if alive-progress is importable."""
     return alive_bar is not None
@@ -173,11 +176,24 @@ def spinner() -> Iterator[None]:
         with spinner():
             do_work()
     """
+    global _ACTIVE_SPINNERS
     if alive_bar is None:
         yield
         return
-    with alive_bar(None, force_tty=True):
-        yield
+    # Prevent nested alive_progress spinners (not supported)
+    if _ACTIVE_SPINNERS > 0:
+        _ACTIVE_SPINNERS += 1
+        try:
+            yield
+        finally:
+            _ACTIVE_SPINNERS -= 1
+        return
+    _ACTIVE_SPINNERS += 1
+    try:
+        with alive_bar(None, force_tty=True):
+            yield
+    finally:
+        _ACTIVE_SPINNERS -= 1
 
 
 def run_subprocess_with_spinner(
@@ -206,7 +222,8 @@ def run_subprocess_with_spinner(
     Returns:
         subprocess.CompletedProcess with stdout/stderr if captured
     """
-    if alive_bar is None:
+    global _ACTIVE_SPINNERS
+    if alive_bar is None or _ACTIVE_SPINNERS > 0:
         return subprocess.run(
             cmd,
             capture_output=capture_output,
