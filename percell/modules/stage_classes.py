@@ -819,10 +819,23 @@ class SegmentationStage(StageBase):
             seg_channel = data_selection.get('segmentation_channel')
             channels = [seg_channel] if seg_channel else []
 
+            # Determine source directory for binning.
+            # Prefer output_dir/raw_data (produced by DataSelectionStage). Fallback to input_dir if missing/empty.
+            from pathlib import Path as _Path
+            raw_data_dir = f"{output_dir}/raw_data"
+            source_dir = raw_data_dir
+            try:
+                raw_has_tifs = _Path(raw_data_dir).exists() and any(_Path(raw_data_dir).glob("**/*.tif"))
+            except Exception:
+                raw_has_tifs = False
+            if not raw_has_tifs:
+                self.logger.warning("No files found in output/raw_data. Falling back to input_dir for binning. Run Data Selection first for curated copies.")
+                source_dir = str(input_dir)
+
             # Prefer domain service if available
             if getattr(self, 'image_binning_service', None) is not None:
                 processed = self.image_binning_service.bin_images(
-                    input_dir=f"{output_dir}/raw_data",
+                    input_dir=source_dir,
                     output_dir=f"{output_dir}/preprocessed",
                     bin_factor=4,
                     conditions=conditions,

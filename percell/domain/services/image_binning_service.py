@@ -38,6 +38,9 @@ class ImageBinningService:
         output_path.mkdir(parents=True, exist_ok=True)
 
         all_files: List[Path] = list(input_path.glob("**/*.tif"))
+        if not all_files:
+            # Early exit: nothing to process
+            return 0
 
         # Convert selection lists to sets; treat ["all"] as no filter
         selected_conditions: Optional[Set[str]] = None if _is_all(conditions) else set(conditions or [])
