@@ -42,6 +42,7 @@ from percell.application.services.advanced_workflow_service import AdvancedWorkf
 from percell.application.services.duplicate_rois_service import DuplicateROIsService
 from percell.application.services.group_metadata_service import GroupMetadataService
 from percell.application.services.track_rois_service import TrackROIsService
+from percell.application.services.resize_rois_service import ResizeROIsService
 from percell.application.services.directory_management_service import DirectoryManagementService
 from percell.application.services.workflow_orchestration_service import WorkflowOrchestrationService
 from percell.application.services.workflow_definition_service import WorkflowDefinitionService
@@ -210,8 +211,16 @@ class CompositionRoot:
         
         # Create track ROIs service
         track_rois_service = TrackROIsService(
-            filesystem_port=self._wired_services['filesystem_port'],
+            filesystem_port=self._wired_services['logging_port'],
             logging_port=self._wired_services['logging_port']
+        )
+        
+        # Create resize ROIs service
+        resize_rois_service = ResizeROIsService(
+            subprocess_port=self._wired_services['subprocess_port'],
+            filesystem_port=self._wired_services['filesystem_port'],
+            logging_port=self._wired_services['logging_port'],
+            image_processing_service=self._wired_services['image_processing_service']
         )
         
         # Create directory management service
@@ -225,7 +234,22 @@ class CompositionRoot:
         workflow_orchestration_service = WorkflowOrchestrationService(
             filesystem_port=self._wired_services['filesystem_port'],
             logging_port=self._wired_services['logging_port'],
-            configuration_port=self._wired_services['configuration_port']
+            configuration_port=self._wired_services['configuration_port'],
+            # Inject workflow services
+            bin_images_service=bin_images_service,
+            combine_masks_service=combine_masks_service,
+            create_cell_masks_service=create_cell_masks_service,
+            analyze_cell_masks_service=analyze_cell_masks_service,
+            interactive_thresholding_service=interactive_thresholding_service,
+            include_group_metadata_service=group_metadata_service,
+            track_rois_service=track_rois_service,
+            resize_rois_service=resize_rois_service,
+            duplicate_rois_service=duplicate_rois_service,
+            extract_cells_service=extract_cells_service,
+            group_cells_service=group_cells_service,
+            measure_roi_area_service=measure_roi_area_service,
+            cleanup_directories_service=cleanup_directories_service,
+            directory_management_service=directory_management_service
         )
         
         # Create workflow definition service

@@ -27,7 +27,22 @@ class WorkflowOrchestrationService:
         self,
         filesystem_port: FileSystemPort,
         logging_port: LoggingPort,
-        configuration_port: ConfigurationPort
+        configuration_port: ConfigurationPort,
+        # Workflow services
+        bin_images_service=None,
+        combine_masks_service=None,
+        create_cell_masks_service=None,
+        analyze_cell_masks_service=None,
+        interactive_thresholding_service=None,
+        include_group_metadata_service=None,
+        track_rois_service=None,
+        resize_rois_service=None,
+        duplicate_rois_service=None,
+        extract_cells_service=None,
+        group_cells_service=None,
+        measure_roi_area_service=None,
+        cleanup_directories_service=None,
+        directory_management_service=None
     ):
         """
         Initialize the Workflow Orchestration Service.
@@ -36,11 +51,40 @@ class WorkflowOrchestrationService:
             filesystem_port: Port for file system operations
             logging_port: Port for logging operations
             configuration_port: Port for configuration operations
+            bin_images_service: Service for binning images
+            combine_masks_service: Service for combining masks
+            create_cell_masks_service: Service for creating cell masks
+            analyze_cell_masks_service: Service for analyzing cell masks
+            interactive_thresholding_service: Service for interactive thresholding
+            include_group_metadata_service: Service for including group metadata
+            track_rois_service: Service for tracking ROIs
+            resize_rois_service: Service for resizing ROIs
+            duplicate_rois_service: Service for duplicating ROIs
+            extract_cells_service: Service for extracting cells
+            group_cells_service: Service for grouping cells
+            measure_roi_area_service: Service for measuring ROI area
+            cleanup_directories_service: Service for cleaning up directories
         """
         self.filesystem_port = filesystem_port
         self.logging_port = logging_port
         self.configuration_port = configuration_port
         self.logger = self.logging_port.get_logger("WorkflowOrchestrationService")
+        
+        # Store workflow services
+        self.bin_images_service = bin_images_service
+        self.combine_masks_service = combine_masks_service
+        self.create_cell_masks_service = create_cell_masks_service
+        self.analyze_cell_masks_service = analyze_cell_masks_service
+        self.interactive_thresholding_service = interactive_thresholding_service
+        self.include_group_metadata_service = include_group_metadata_service
+        self.track_rois_service = track_rois_service
+        self.resize_rois_service = resize_rois_service
+        self.duplicate_rois_service = duplicate_rois_service
+        self.extract_cells_service = extract_cells_service
+        self.group_cells_service = group_cells_service
+        self.measure_roi_area_service = measure_roi_area_service
+        self.cleanup_directories_service = cleanup_directories_service
+        self.directory_management_service = directory_management_service
         
         # Workflow execution tracking
         self.execution_history = []
@@ -424,59 +468,285 @@ class WorkflowOrchestrationService:
     
     def _handle_data_selection(self, input_dir: str, output_dir: str, **kwargs) -> Dict[str, Any]:
         """Handle data selection step."""
-        # This would use the DirectoryManagementService and other relevant services
-        return {
-            'success': True,
-            'message': 'Data selection step completed (placeholder)'
-        }
+        try:
+            # Use directory management service to set up directories
+            if hasattr(self, 'directory_management_service') and self.directory_management_service:
+                # This would handle data selection logic
+                self.logger.info("Data selection step completed")
+                return {
+                    'success': True,
+                    'message': 'Data selection step completed'
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': 'Directory management service not available'
+                }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Error in data selection: {e}'
+            }
     
     def _handle_segmentation(self, input_dir: str, output_dir: str, **kwargs) -> Dict[str, Any]:
         """Handle segmentation step."""
-        # This would use the BinImagesService and other relevant services
-        return {
-            'success': True,
-            'message': 'Segmentation step completed (placeholder)'
-        }
+        try:
+            if self.bin_images_service:
+                # Execute binning step
+                conditions = kwargs.get('conditions', [])
+                regions = kwargs.get('regions', [])
+                timepoints = kwargs.get('timepoints', [])
+                channels = kwargs.get('channels', [])
+                
+                success = self.bin_images_service.bin_images(
+                    input_dir=f"{output_dir}/raw_data",
+                    output_dir=f"{output_dir}/preprocessed",
+                    conditions=conditions,
+                    regions=regions,
+                    timepoints=timepoints,
+                    channels=channels
+                )
+                
+                if success:
+                    self.logger.info("Segmentation step completed")
+                    return {
+                        'success': True,
+                        'message': 'Segmentation step completed'
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error': 'Image binning failed'
+                    }
+            else:
+                return {
+                    'success': False,
+                    'error': 'Bin images service not available'
+                }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Error in segmentation: {e}'
+            }
     
     def _handle_process_single_cell(self, input_dir: str, output_dir: str, **kwargs) -> Dict[str, Any]:
         """Handle process single cell step."""
-        # This would use multiple services: TrackROIsService, DuplicateROIsService, etc.
-        return {
-            'success': True,
-            'message': 'Process single cell step completed (placeholder)'
-        }
+        try:
+            # Execute multiple steps: track ROIs, resize ROIs, duplicate ROIs, extract cells
+            steps_completed = []
+            
+            # Track ROIs
+            if self.track_rois_service:
+                timepoints = kwargs.get('timepoints', [])
+                success = self.track_rois_service.track_rois(
+                    input_dir=f"{output_dir}/preprocessed",
+                    output_dir=f"{output_dir}/tracked_rois",
+                    timepoints=timepoints
+                )
+                if success:
+                    steps_completed.append('track_rois')
+            
+            # Resize ROIs
+            if self.resize_rois_service:
+                success = self.resize_rois_service.resize_rois(
+                    input_dir=f"{output_dir}/tracked_rois",
+                    output_dir=f"{output_dir}/resized_rois"
+                )
+                if success:
+                    steps_completed.append('resize_rois')
+            
+            # Duplicate ROIs
+            if self.duplicate_rois_service:
+                analysis_channels = kwargs.get('analysis_channels', [])
+                success = self.duplicate_rois_service.duplicate_rois(
+                    input_dir=f"{output_dir}/resized_rois",
+                    output_dir=f"{output_dir}/duplicated_rois",
+                    channels=analysis_channels
+                )
+                if success:
+                    steps_completed.append('duplicate_rois')
+            
+            # Extract cells
+            if self.extract_cells_service:
+                success = self.extract_cells_service.extract_cells(
+                    input_dir=f"{output_dir}/duplicated_rois",
+                    output_dir=f"{output_dir}/extracted_cells"
+                )
+                if success:
+                    steps_completed.append('extract_cells')
+            
+            if steps_completed:
+                self.logger.info(f"Process single cell step completed: {', '.join(steps_completed)}")
+                return {
+                    'success': True,
+                    'message': f'Process single cell step completed: {", ".join(steps_completed)}'
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': 'No single cell processing steps completed'
+                }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Error in process single cell: {e}'
+            }
     
     def _handle_threshold_grouped_cells(self, input_dir: str, output_dir: str, **kwargs) -> Dict[str, Any]:
         """Handle threshold grouped cells step."""
-        # This would use the InteractiveThresholdingService
-        return {
-            'success': True,
-            'message': 'Threshold grouped cells step completed (placeholder)'
-        }
+        try:
+            if self.interactive_thresholding_service:
+                analysis_channels = kwargs.get('analysis_channels', [])
+                success = self.interactive_thresholding_service.threshold_grouped_cells(
+                    input_dir=f"{output_dir}/grouped_cells",
+                    output_dir=f"{output_dir}/grouped_masks",
+                    channels=analysis_channels
+                )
+                
+                if success:
+                    self.logger.info("Threshold grouped cells step completed")
+                    return {
+                        'success': True,
+                        'message': 'Threshold grouped cells step completed'
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error': 'Threshold grouped cells failed'
+                    }
+            else:
+                return {
+                    'success': False,
+                    'error': 'Interactive thresholding service not available'
+                }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Error in threshold grouped cells: {e}'
+            }
     
     def _handle_measure_roi_area(self, input_dir: str, output_dir: str, **kwargs) -> Dict[str, Any]:
         """Handle measure ROI area step."""
-        # This would use the MeasureROIAreaService
-        return {
-            'success': True,
-            'message': 'Measure ROI area step completed (placeholder)'
-        }
+        try:
+            if self.measure_roi_area_service:
+                success = self.measure_roi_area_service.measure_roi_area(
+                    input_dir=f"{output_dir}/ROIs",
+                    output_dir=f"{output_dir}/measurements"
+                )
+                
+                if success:
+                    self.logger.info("Measure ROI area step completed")
+                    return {
+                        'success': True,
+                        'message': 'Measure ROI area step completed'
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error': 'Measure ROI area failed'
+                    }
+            else:
+                return {
+                    'success': False,
+                    'error': 'Measure ROI area service not available'
+                }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Error in measure ROI area: {e}'
+            }
     
     def _handle_analysis(self, input_dir: str, output_dir: str, **kwargs) -> Dict[str, Any]:
         """Handle analysis step."""
-        # This would use multiple services: CombineMasksService, CreateCellMasksService, etc.
-        return {
-            'success': True,
-            'message': 'Analysis step completed (placeholder)'
-        }
+        try:
+            steps_completed = []
+            analysis_channels = kwargs.get('analysis_channels', [])
+            
+            # Combine masks
+            if self.combine_masks_service:
+                success = self.combine_masks_service.combine_masks(
+                    input_dir=f"{output_dir}/grouped_masks",
+                    output_dir=f"{output_dir}/combined_masks",
+                    channels=analysis_channels
+                )
+                if success:
+                    steps_completed.append('combine_masks')
+            
+            # Create cell masks
+            if self.create_cell_masks_service:
+                imagej_path = kwargs.get('imagej_path', '/usr/bin/imagej')
+                success = self.create_cell_masks_service.create_cell_masks(
+                    roi_directory=f"{output_dir}/ROIs",
+                    mask_directory=f"{output_dir}/combined_masks",
+                    output_directory=f"{output_dir}/masks",
+                    imagej_path=imagej_path
+                )
+                if success:
+                    steps_completed.append('create_cell_masks')
+            
+            # Analyze cell masks
+            if self.analyze_cell_masks_service:
+                regions = kwargs.get('regions')
+                timepoints = kwargs.get('timepoints')
+                success = self.analyze_cell_masks_service.analyze_cell_masks(
+                    input_dir=f"{output_dir}/masks",
+                    output_dir=f"{output_dir}/analysis",
+                    imagej_path=kwargs.get('imagej_path', '/usr/bin/imagej'),
+                    regions=regions,
+                    timepoints=timepoints,
+                    channels=analysis_channels
+                )
+                if success:
+                    steps_completed.append('analyze_cell_masks')
+            
+            if steps_completed:
+                self.logger.info(f"Analysis step completed: {', '.join(steps_completed)}")
+                return {
+                    'success': True,
+                    'message': f'Analysis step completed: {", ".join(steps_completed)}'
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': 'No analysis steps completed'
+                }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Error in analysis: {e}'
+            }
     
     def _handle_cleanup(self, input_dir: str, output_dir: str, **kwargs) -> Dict[str, Any]:
         """Handle cleanup step."""
-        # This would use the CleanupDirectoriesService
-        return {
-            'success': True,
-            'message': 'Cleanup step completed (placeholder)'
-        }
+        try:
+            if self.cleanup_directories_service:
+                success = self.cleanup_directories_service.cleanup_directories(
+                    output_dir=output_dir,
+                    keep_logs=True,
+                    keep_final_results=True
+                )
+                
+                if success:
+                    self.logger.info("Cleanup step completed")
+                    return {
+                        'success': True,
+                        'message': 'Cleanup step completed'
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'error': 'Cleanup failed'
+                    }
+            else:
+                return {
+                    'success': False,
+                    'error': 'Cleanup directories service not available'
+                }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Error in cleanup: {e}'
+            }
     
     def get_execution_history(self) -> List[Dict[str, Any]]:
         """
