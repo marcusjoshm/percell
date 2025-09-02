@@ -12,8 +12,20 @@ class WorkflowService:
 
     def __init__(self, module_runner: ModuleRunner) -> None:
         self._runner = module_runner
+        # Try to get the hexagonal workflow service if available
+        try:
+            self._hexagonal_service = get_composition_root().get_service('hexagonal_workflow_service')
+            self._use_hexagonal = True
+        except Exception:
+            self._hexagonal_service = None
+            self._use_hexagonal = False
 
     def bin_images(self, output_dir: str, conditions: List[str], regions: List[str], timepoints: List[str], channels: List[str]) -> int:
+        # Use hexagonal service if available
+        if self._use_hexagonal and self._hexagonal_service:
+            return self._hexagonal_service.bin_images(output_dir, conditions, regions, timepoints, channels)
+        
+        # Fall back to old module-based approach
         script = get_path("bin_images_module")
         args: List[str] = [
             "--input", f"{output_dir}/raw_data",
@@ -31,6 +43,11 @@ class WorkflowService:
         return self._runner.run(str(script), args, title="bin_images")
 
     def combine_masks(self, output_dir: str, analysis_channels: List[str]) -> int:
+        # Use hexagonal service if available
+        if self._use_hexagonal and self._hexagonal_service:
+            return self._hexagonal_service.combine_masks(output_dir, analysis_channels)
+        
+        # Fall back to old module-based approach
         script = get_path("combine_masks_module")
         args: List[str] = [
             "--input-dir", f"{output_dir}/grouped_masks",
@@ -40,6 +57,11 @@ class WorkflowService:
         return self._runner.run(str(script), args, title="combine_masks")
 
     def create_cell_masks(self, output_dir: str, imagej_path: str, analysis_channels: List[str]) -> int:
+        # Use hexagonal service if available
+        if self._use_hexagonal and self._hexagonal_service:
+            return self._hexagonal_service.create_cell_masks(output_dir, imagej_path, analysis_channels)
+        
+        # Fall back to old module-based approach
         script = get_path("create_cell_masks_module")
         args: List[str] = [
             "--roi-dir", f"{output_dir}/ROIs",
@@ -68,6 +90,11 @@ class WorkflowService:
         return self._runner.run(str(script), args, title="analyze_masks")
 
     def threshold_grouped_cells(self, output_dir: str, imagej_path: str, analysis_channels: List[str]) -> int:
+        # Use hexagonal service if available
+        if self._use_hexagonal and self._hexagonal_service:
+            return self._hexagonal_service.threshold_grouped_cells(output_dir, imagej_path, analysis_channels)
+        
+        # Fall back to old module-based approach
         script = get_path("otsu_threshold_grouped_cells_module")
         args: List[str] = [
             "--input-dir", f"{output_dir}/grouped_cells",
@@ -79,6 +106,11 @@ class WorkflowService:
         return self._runner.run(str(script), args, title="threshold")
 
     def include_group_metadata(self, output_dir: str, analysis_channels: List[str]) -> int:
+        # Use hexagonal service if available
+        if self._use_hexagonal and self._hexagonal_service:
+            return self._hexagonal_service.include_group_metadata(output_dir, analysis_channels)
+        
+        # Fall back to old module-based approach
         script = get_path("include_group_metadata_module")
         args: List[str] = [
             "--grouped-cells-dir", f"{output_dir}/grouped_cells",
@@ -93,6 +125,11 @@ class WorkflowService:
 
     # Process single-cell helpers
     def track_rois(self, output_dir: str, timepoints: List[str]) -> int:
+        # Use hexagonal service if available
+        if self._use_hexagonal and self._hexagonal_service:
+            return self._hexagonal_service.track_rois(output_dir, timepoints)
+        
+        # Fall back to old module-based approach
         script = get_path("track_rois_module")
         args: List[str] = [
             "--input", f"{output_dir}/preprocessed",
@@ -101,6 +138,12 @@ class WorkflowService:
         return self._runner.run(str(script), args, title="track_rois")
 
     def resize_rois(self, output_dir: str, imagej_path: str, segmentation_channel: str) -> int:
+        # Use hexagonal service if available
+        if self._use_hexagonal and self._hexagonal_service:
+            # Note: The hexagonal service has a different signature, so we'll use the old approach for now
+            pass
+        
+        # Fall back to old module-based approach
         script = get_path("resize_rois_module")
         args: List[str] = [
             "--input", f"{output_dir}/preprocessed",
@@ -121,6 +164,12 @@ class WorkflowService:
         timepoints: List[str],
         analysis_channels: List[str],
     ) -> int:
+        # Use hexagonal service if available
+        if self._use_hexagonal and self._hexagonal_service:
+            # Note: The hexagonal service has a different signature, so we'll use the old approach for now
+            pass
+        
+        # Fall back to old module-based approach
         script = get_path("duplicate_rois_for_channels_module")
         args: List[str] = [
             "--roi-dir", f"{output_dir}/ROIs",
@@ -136,6 +185,12 @@ class WorkflowService:
         return self._runner.run(str(script), args, title="dup_rois")
 
     def extract_cells(self, output_dir: str, imagej_path: str, analysis_channels: List[str]) -> int:
+        # Use hexagonal service if available
+        if self._use_hexagonal and self._hexagonal_service:
+            # Note: The hexagonal service has a different signature, so we'll use the old approach for now
+            pass
+        
+        # Fall back to old module-based approach
         script = get_path("extract_cells_module")
         args: List[str] = [
             "--roi-dir", f"{output_dir}/ROIs",
@@ -149,6 +204,11 @@ class WorkflowService:
         return self._runner.run(str(script), args, title="extract")
 
     def group_cells(self, output_dir: str, bins: int, analysis_channels: List[str]) -> int:
+        # Use hexagonal service if available
+        if self._use_hexagonal and self._hexagonal_service:
+            return self._hexagonal_service.group_cells(output_dir, bins, analysis_channels)
+        
+        # Fall back to old module-based approach
         script = get_path("group_cells_module")
         args: List[str] = [
             "--cells-dir", f"{output_dir}/cells",
