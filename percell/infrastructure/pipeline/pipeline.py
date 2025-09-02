@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 import argparse
 
-from .config import Config
-from .logger import PipelineLogger
-from .stages import get_stage_registry, StageExecutor
+from percell.infrastructure.configuration.config import Config
+from percell.infrastructure.logging.logger import PipelineLogger
+from percell.infrastructure.stages.stages import get_stage_registry, StageExecutor
 try:
     from percell.services.event_bus import PipelineEventBus
 except Exception:  # pragma: no cover - optional during transition

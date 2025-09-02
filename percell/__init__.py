@@ -8,9 +8,9 @@ __version__ = "1.0.0"
 __author__ = "Joshua Marcus"
 
 # Import main components for easy access
-from .core.pipeline import Pipeline, create_pipeline
-from .core.config import Config, ConfigError, create_default_config
-from .core.logger import PipelineLogger, ModuleLogger
+from .infrastructure.pipeline.pipeline import Pipeline, create_pipeline
+from .infrastructure.configuration.config import Config, ConfigError, create_default_config
+from .infrastructure.logging.logger import PipelineLogger, ModuleLogger
 from percell.cli.app import PipelineCLI, parse_arguments, create_cli, CLIError
 
 __all__ = [

@@ -4,7 +4,7 @@ from typing import List
 
 from percell.infrastructure.configuration.config import create_default_config
 from percell.infrastructure.logging.logger import PipelineLogger
-from percell.core.stages import StageBase, StageExecutor, StageRegistry
+from percell.infrastructure.stages.stages import StageBase, StageExecutor, StageRegistry
 from percell.services.event_bus import PipelineEventBus, StageStarted, StageCompleted
 
 

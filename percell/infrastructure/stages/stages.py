@@ -9,8 +9,8 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 
-from .config import Config
-from .logger import PipelineLogger, ModuleLogger
+from percell.infrastructure.configuration.config import Config
+from percell.infrastructure.logging.logger import PipelineLogger, ModuleLogger
 from typing import Any
 try:
     # Optional event bus for loose coupling

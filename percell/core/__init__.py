@@ -11,10 +11,10 @@ This package contains the core functionality for the microscopy analysis pipelin
 """
 
 from percell.cli.app import PipelineCLI, parse_arguments, create_cli, CLIError
-from .config import Config, ConfigError, create_default_config, validate_software_paths, detect_software_paths
-from .logger import PipelineLogger, ModuleLogger, create_logger
-from .pipeline import Pipeline, create_pipeline
-from .stages import (
+from percell.infrastructure.configuration.config import Config, ConfigError, create_default_config, validate_software_paths, detect_software_paths
+from percell.infrastructure.logging.logger import PipelineLogger, ModuleLogger, create_logger
+from percell.infrastructure.pipeline.pipeline import Pipeline, create_pipeline
+from percell.infrastructure.stages.stages import (
     StageBase, 
     FileProcessingStage, 
     StageRegistry, 
@@ -23,7 +23,7 @@ from .stages import (
     register_stage, 
     get_stage_registry
 )
-from .paths import (
+from percell.infrastructure.filesystem.paths import (
     get_path_config,
     get_path,
     get_path_str,
@@ -31,7 +31,7 @@ from .paths import (
     ensure_executable,
     list_all_paths
 )
-from .progress import (
+from percell.infrastructure.progress.progress import (
     is_progress_available,
     configure_global,
     progress_bar,

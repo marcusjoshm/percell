@@ -4,8 +4,8 @@ import argparse
 
 from percell.infrastructure.configuration.config import create_default_config
 from percell.infrastructure.logging.logger import PipelineLogger
-from percell.core.pipeline import Pipeline
-from percell.core.stages import StageBase, get_stage_registry
+from percell.infrastructure.pipeline.pipeline import Pipeline
+from percell.infrastructure.stages.stages import StageBase, get_stage_registry
 
 
 class _FakeDataSelection(StageBase):

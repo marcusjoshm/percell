@@ -4,7 +4,7 @@ import argparse
 
 from percell.infrastructure.configuration.config import create_default_config
 from percell.infrastructure.logging.logger import PipelineLogger
-from percell.core.pipeline import Pipeline
+from percell.infrastructure.pipeline.pipeline import Pipeline
 from percell import PipelineCLI, create_cli, parse_arguments, CLIError
 
 

@@ -14,7 +14,7 @@ from pathlib import Path
 from percell.infrastructure.configuration.config import Config, ConfigError, create_default_config
 from percell.infrastructure.logging.logger import PipelineLogger
 from percell.cli.app import parse_arguments, CLIError, show_header, create_cli
-from percell.core.pipeline import Pipeline
+from percell.infrastructure.pipeline.pipeline import Pipeline
 
 
 def main():
