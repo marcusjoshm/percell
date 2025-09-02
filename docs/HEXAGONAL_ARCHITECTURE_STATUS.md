@@ -87,6 +87,27 @@ This document provides a status update on the hexagonal architecture refactoring
 - **Service Registration**: New services available through composition root interface
 - **Configuration Integration**: Proper configuration handling for all adapters
 
+### Phase 3: Legacy Code Migration (COMPLETED)
+
+#### Infrastructure Module Migration
+- **Progress Module**: Moved `core/progress.py` → `infrastructure/progress/`
+- **Logging Module**: Moved `core/logger.py` → `infrastructure/logging/`
+- **Configuration Module**: Moved `core/config.py` → `infrastructure/configuration/`
+- **Filesystem Module**: Moved `core/paths.py` → `infrastructure/filesystem/`
+- **Stages Module**: Moved `core/stages.py` → `infrastructure/stages/`
+- **Pipeline Module**: Moved `core/pipeline.py` → `infrastructure/pipeline/`
+
+#### Import Updates
+- **All Test Files**: Updated to use new infrastructure locations
+- **Main Package**: Updated `__init__.py` to use new infrastructure locations
+- **Core Compatibility**: Maintained backward compatibility through re-exports
+- **Clean Dependencies**: All imports now use proper infrastructure paths
+
+#### Verification
+- **All Tests Passing**: Confirmed functionality after migration
+- **Import Validation**: Verified all modules can be imported correctly
+- **No Breaking Changes**: Maintained existing API compatibility
+
 ## 🔄 Current Architecture
 
 ```
@@ -114,11 +135,8 @@ percell/
 │       └── create_cell_masks_cli.py  ✅ COMPLETE
 ├── main/                     ✅ COMPLETE
 │   └── composition_root.py   ✅ COMPLETE
-└── core/                     ⚠️ LEGACY (TO BE REFACTORED)
-    ├── progress.py           ⚠️ NEEDS MOVING
-    ├── logger.py             ⚠️ NEEDS MOVING
-    ├── config.py             ⚠️ NEEDS MOVING
-    └── paths.py              ⚠️ NEEDS MOVING
+└── core/                     ✅ COMPATIBILITY LAYER
+    └── __init__.py           ✅ RE-EXPORTS FROM INFRASTRUCTURE
 ```
 
 ## 🎯 Key Achievements
@@ -155,15 +173,17 @@ percell/
 - [x] Create `ImageJAdapter` implementing `ImageProcessingService`
 - [x] Create `StageRegistryAdapter` implementing `StageRegistryPort`
 
-#### 2. Move Legacy Code 🔄 NEXT PRIORITY
-- [ ] Move `core/progress.py` → `infrastructure/progress/`
-- [ ] Move `core/logger.py` → `infrastructure/logging/`
-- [ ] Move `core/config.py` → `infrastructure/configuration/`
-- [ ] Move `core/paths.py` → `infrastructure/filesystem/`
+#### 2. Move Legacy Code ✅ COMPLETED
+- [x] Move `core/progress.py` → `infrastructure/progress/`
+- [x] Move `core/logger.py` → `infrastructure/logging/`
+- [x] Move `core/config.py` → `infrastructure/configuration/`
+- [x] Move `core/paths.py` → `infrastructure/filesystem/`
+- [x] Move `core/stages.py` → `infrastructure/stages/`
+- [x] Move `core/pipeline.py` → `infrastructure/pipeline/`
 
-#### 3. Create More Application Services
+#### 3. Create More Application Services 🔄 NEXT PRIORITY
 - [ ] Refactor `extract_cells.py` → `ExtractCellsService`
-- [ ] Refactor `analyze_cell_masks.py` → `AnalyzeCellMasksService`
+- [ ] Refactor `analyze_cells.py` → `AnalyzeCellsService`
 - [ ] Refactor `measure_roi_area.py` → `MeasureROIAreaService`
 
 ### Medium Term (Next 1-2 months)
@@ -279,8 +299,8 @@ The hexagonal architecture implementation has made significant progress. The imp
 3. **Better Testability**: Dependency injection and isolation
 4. **Scalable Design**: Easy to extend with new features
 
-**Phase 1 (Foundation)** and **Phase 2 (Infrastructure Layer)** are now complete. The infrastructure layer provides all necessary adapters for external dependencies, and the composition root properly wires everything together.
+**Phase 1 (Foundation)**, **Phase 2 (Infrastructure Layer)**, and **Phase 3 (Legacy Code Migration)** are now complete. The infrastructure layer provides all necessary adapters for external dependencies, all legacy code has been migrated to proper infrastructure locations, and the composition root properly wires everything together.
 
-The next phase focuses on migrating legacy code from the `percell.core` module to the proper infrastructure locations, followed by expanding the application layer with more services.
+The next phase focuses on expanding the application layer with more services, refactoring the remaining modules to use the new hexagonal architecture.
 
-**Status**: ✅ **Phase 1 & 2 Complete** - Ready for Phase 3 (Legacy Code Migration)
+**Status**: ✅ **Phase 1, 2 & 3 Complete** - Ready for Phase 4 (Application Layer Expansion)
