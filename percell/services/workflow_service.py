@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from percell.infrastructure.filesystem.paths import get_path, get_path_str
 from percell.services.module_runner import ModuleRunner
+from percell.main.composition_root import get_composition_root
 
 
 class WorkflowService:

@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from ..core.stages import StageBase
+from percell.infrastructure.stages.stages import StageBase
 
 
 class AdvancedWorkflowStage(StageBase):
@@ -56,7 +56,7 @@ class AdvancedWorkflowStage(StageBase):
         return True
 
     def run(self, **kwargs) -> bool:
-        from ..core.stages import get_stage_registry, StageExecutor
+        from percell.infrastructure.stages.stages import get_stage_registry, StageExecutor
         registry = get_stage_registry()
         executor = StageExecutor(self.config, self.pipeline_logger, registry, event_bus=self.event_bus)
 

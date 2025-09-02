@@ -13,7 +13,7 @@ import sys
 import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Set, Optional
-from ..core.stages import StageBase
+from percell.infrastructure.stages.stages import StageBase
 
 
 class DataSelectionStage(StageBase):
@@ -1741,7 +1741,7 @@ class CompleteWorkflowStage(StageBase):
         """Run the complete workflow sequentially using StageExecutor (DI-aware)."""
         try:
             self.logger.info("Starting Complete Workflow")
-            from ..core.stages import get_stage_registry, StageExecutor
+            from percell.infrastructure.stages.stages import get_stage_registry, StageExecutor
             # Create a ServiceFactory to provide DI services to sub-stages
             try:
                 from percell.services.factory import ServiceFactory
