@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from percell.core.paths import get_path, get_path_str
+from percell.infrastructure.filesystem.paths import get_path, get_path_str
 from percell.services.module_runner import ModuleRunner
 
 

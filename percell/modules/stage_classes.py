@@ -6,7 +6,7 @@ Contains the concrete implementations of each pipeline stage.
 """
 
 import subprocess
-from percell.core.progress import run_subprocess_with_spinner
+from percell.infrastructure.progress.progress import run_subprocess_with_spinner
 import os
 import re
 import sys
@@ -104,7 +104,7 @@ class DataSelectionStage(StageBase):
             self.logger.info("Starting output directory structure setup...")
             
             # Use the setup_output_structure.sh script
-            from percell.core.paths import get_path, ensure_executable
+            from percell.infrastructure.filesystem.paths import get_path, ensure_executable
             script_path = get_path("setup_output_structure_script")
             
             # Make sure the script is executable
@@ -292,7 +292,7 @@ class DataSelectionStage(StageBase):
             self.logger.info(f"Starting input directory structure preparation: {input_path}")
             
             # Use the prepare_input_structure.sh script
-            from percell.core.paths import get_path, ensure_executable
+            from percell.infrastructure.filesystem.paths import get_path, ensure_executable
             script_path = get_path("prepare_input_structure_script")
             
             # Make sure the script is executable
@@ -767,7 +767,7 @@ class SegmentationStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for segmentation stage."""
         # Check if required scripts exist
-        from percell.core.paths import path_exists
+        from percell.infrastructure.filesystem.paths import path_exists
         required_scripts = [
             ("bin_images_module", "Python module"),
             ("launch_segmentation_tools_script", "Bash script")
@@ -868,7 +868,7 @@ class SegmentationStage(StageBase):
                     return False
                 self.logger.info("Images binned successfully")
             else:
-                from percell.core.paths import get_path, ensure_executable
+                from percell.infrastructure.filesystem.paths import get_path, ensure_executable
                 bin_script = get_path("bin_images_module")
                 bin_args = [
                     "--input", f"{output_dir}/raw_data",
@@ -899,7 +899,7 @@ class SegmentationStage(StageBase):
             
             # Step 2: Launch interactive segmentation
             self.logger.info("Launching interactive segmentation tools...")
-            from percell.core.paths import get_path, ensure_executable
+            from percell.infrastructure.filesystem.paths import get_path, ensure_executable
             seg_script_path = get_path("launch_segmentation_tools_script")
             preprocessed_dir = f"{output_dir}/preprocessed"
             
@@ -945,7 +945,7 @@ class ProcessSingleCellDataStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for process single-cell data stage."""
         # Check if required scripts exist
-        from percell.core.paths import path_exists
+        from percell.infrastructure.filesystem.paths import path_exists
         required_scripts = [
             "track_rois_module",
             "resize_rois_module",
@@ -1003,7 +1003,7 @@ class ProcessSingleCellDataStage(StageBase):
                         return False
                     self.logger.info("ROI tracking completed successfully")
                 else:
-                    from percell.core.paths import get_path
+                    from percell.infrastructure.filesystem.paths import get_path
                     track_script = get_path("track_rois_module")
                     track_args = [
                         "--input", f"{output_dir}/preprocessed",
@@ -1021,7 +1021,7 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 2: Resize ROIs (try ImageJService; fallback to script)
             self.logger.info("Resizing ROIs...")
-            from percell.core.paths import get_path, get_path_str
+            from percell.infrastructure.filesystem.paths import get_path, get_path_str
             resize_script = get_path("resize_rois_module")
             resize_args = [
                 "--input", f"{output_dir}/preprocessed",
@@ -1070,7 +1070,7 @@ class ProcessSingleCellDataStage(StageBase):
                     self.logger.error("Failed to duplicate ROIs")
                     return False
             else:
-                from percell.core.paths import get_path
+                from percell.infrastructure.filesystem.paths import get_path
                 duplicate_script = get_path("duplicate_rois_for_channels_module")
                 duplicate_args = [
                     "--roi-dir", f"{output_dir}/ROIs",
@@ -1138,7 +1138,7 @@ class ProcessSingleCellDataStage(StageBase):
                     self.logger.error("Failed to group cells")
                     return False
             else:
-                from percell.core.paths import get_path
+                from percell.infrastructure.filesystem.paths import get_path
                 group_script = get_path("group_cells_module")
                 group_args = [
                     "--cells-dir", f"{output_dir}/cells",
@@ -1184,7 +1184,7 @@ class ThresholdGroupedCellsStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for threshold grouped cells stage."""
         # Check if required scripts exist
-        from percell.core.paths import path_exists
+        from percell.infrastructure.filesystem.paths import path_exists
         required_scripts = ["otsu_threshold_grouped_cells_module"]
         for script_name in required_scripts:
             if not path_exists(script_name):
@@ -1234,7 +1234,7 @@ class ThresholdGroupedCellsStage(StageBase):
                     return False
                 self.logger.info("Grouped cells thresholded successfully")
             else:
-                from percell.core.paths import get_path, get_path_str
+                from percell.infrastructure.filesystem.paths import get_path, get_path_str
                 threshold_script = get_path("otsu_threshold_grouped_cells_module")
                 threshold_args = [
                     "--input-dir", f"{output_dir}/grouped_cells",
@@ -1299,7 +1299,7 @@ class MeasureROIAreaStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for measure ROI area stage."""
         # Check if required module exists
-        from percell.core.paths import path_exists
+        from percell.infrastructure.filesystem.paths import path_exists
         if not path_exists("measure_roi_area_module"):
             self.logger.error("Required module not found: measure_roi_area_module")
             return False
@@ -1409,7 +1409,7 @@ class AnalysisStage(StageBase):
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for analysis stage."""
         # Check if required scripts exist
-        from percell.core.paths import path_exists
+        from percell.infrastructure.filesystem.paths import path_exists
         required_scripts = [
             "combine_masks_module",
             "create_cell_masks_module", 
@@ -1463,7 +1463,7 @@ class AnalysisStage(StageBase):
                     self.logger.error("Failed to combine masks")
                     return False
             else:
-                from percell.core.paths import get_path
+                from percell.infrastructure.filesystem.paths import get_path
                 combine_script = get_path("combine_masks_module")
                 combine_args = [
                     "--input-dir", f"{output_dir}/grouped_masks",
@@ -1484,7 +1484,7 @@ class AnalysisStage(StageBase):
                     self.logger.error("Failed to create cell masks")
                     return False
             else:
-                from percell.core.paths import get_path, get_path_str
+                from percell.infrastructure.filesystem.paths import get_path, get_path_str
                 create_masks_script = get_path("create_cell_masks_module")
                 create_masks_args = [
                     "--roi-dir", f"{output_dir}/ROIs",
@@ -1515,7 +1515,7 @@ class AnalysisStage(StageBase):
                     self.logger.error("Failed to analyze cell masks")
                     return False
             else:
-                from percell.core.paths import get_path, get_path_str
+                from percell.infrastructure.filesystem.paths import get_path, get_path_str
                 analyze_script = get_path("analyze_cell_masks_module")
                 analyze_args = [
                     "--input", f"{output_dir}/masks",
@@ -1542,7 +1542,7 @@ class AnalysisStage(StageBase):
                     self.logger.error("Failed to include group metadata")
                     return False
             else:
-                from percell.core.paths import get_path
+                from percell.infrastructure.filesystem.paths import get_path
                 metadata_script = get_path("include_group_metadata_module")
                 metadata_args = [
                     "--grouped-cells-dir", f"{output_dir}/grouped_cells",

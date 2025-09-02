@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from percell.core.config import Config
+from percell.infrastructure.configuration.config import Config
 from percell.infrastructure.file_service import FileService
 from percell.infrastructure.imagej_service import ImageJService
 from percell.infrastructure.progress_reporter import AliveProgressReporter

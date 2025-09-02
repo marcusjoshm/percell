@@ -127,7 +127,7 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
         logger.info(f"ImageJ will {'auto-close' if auto_close else 'remain open'} after execution")
         
         # Run ImageJ; rely on centralized progress runner (spinner disabled by default)
-        from percell.core.progress import run_subprocess_with_spinner
+        from percell.infrastructure.progress.progress import run_subprocess_with_spinner
         result = run_subprocess_with_spinner(cmd, title="ImageJ: Analyze Cell Masks", capture_output=True, text=True, check=False)
 
         results_count = 0

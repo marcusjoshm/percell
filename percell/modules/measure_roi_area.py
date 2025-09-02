@@ -155,7 +155,7 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
             stderr=subprocess.PIPE,
             text=True
         )
-        from percell.core.progress import spinner as progress_spinner
+        from percell.infrastructure.progress.progress import spinner as progress_spinner
         print("ImageJ: Measure ROI Areas")
         # Ensure spinner always closes using context manager
         with progress_spinner():

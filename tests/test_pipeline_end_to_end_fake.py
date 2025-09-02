@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 
-from percell.core.config import create_default_config
-from percell.core.logger import PipelineLogger
+from percell.infrastructure.configuration.config import create_default_config
+from percell.infrastructure.logging.logger import PipelineLogger
 from percell.core.pipeline import Pipeline
 from percell.core.stages import StageBase, get_stage_registry
 

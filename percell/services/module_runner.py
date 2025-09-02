@@ -4,7 +4,7 @@ import sys
 import subprocess
 from typing import List, Optional
 
-from percell.core.progress import run_subprocess_with_spinner
+from percell.infrastructure.progress.progress import run_subprocess_with_spinner
 
 
 class ModuleRunner:

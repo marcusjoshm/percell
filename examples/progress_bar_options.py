@@ -11,7 +11,7 @@ import time
 import inspect
 from typing import Any
 
-from percell.core import (
+from percell.infrastructure import (
     is_progress_available,
     configure_global,
     progress_bar,
@@ -65,8 +65,8 @@ def main() -> None:
     configure_global(theme="smooth", spinner="it", enrich_print=True)
 
     # Display available options (parameters) from the progress API in percell.core.progress
-    from percell.core.progress import progress_bar as _progress_bar_impl
-    from percell.core.progress import configure_global as _configure_global_impl
+    from percell.infrastructure.progress.progress import progress_bar as _progress_bar_impl
+    from percell.infrastructure.progress.progress import configure_global as _configure_global_impl
 
     print_function_options(_configure_global_impl, "configure_global")
     print_function_options(_progress_bar_impl, "progress_bar")

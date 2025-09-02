@@ -125,7 +125,7 @@ Examples:
         # Load config defaults
         try:
             from percell.modules.directory_setup import load_config
-            from percell.core.paths import get_path
+            from percell.infrastructure.filesystem.paths import get_path
 
             if args.config:
                 config_path = args.config
@@ -193,7 +193,7 @@ Examples:
             try:
                 from percell.modules.set_directories import set_default_directories
                 from percell.modules.directory_setup import load_config
-                from percell.core.paths import get_path
+                from percell.infrastructure.filesystem.paths import get_path
                 config_path = args.config or str(get_path('config_default'))
                 config = load_config(config_path)
                 input_path, output_path = set_default_directories(config, config_path)

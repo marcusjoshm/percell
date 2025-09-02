@@ -11,8 +11,8 @@ import argparse
 from pathlib import Path
 
 # Import from the package (no sys.path manipulation needed!)
-from percell.core.config import Config, ConfigError, create_default_config
-from percell.core.logger import PipelineLogger
+from percell.infrastructure.configuration.config import Config, ConfigError, create_default_config
+from percell.infrastructure.logging.logger import PipelineLogger
 from percell.cli.app import parse_arguments, CLIError, show_header, create_cli
 from percell.core.pipeline import Pipeline
 
@@ -25,7 +25,7 @@ def main():
         register_all_stages()
         
         # Load configuration
-        from percell.core.paths import get_path_str, path_exists
+        from percell.infrastructure.filesystem.paths import get_path_str, path_exists
         try:
             config_path = get_path_str("config_default")
             if path_exists("config_default"):

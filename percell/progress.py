@@ -3,7 +3,7 @@ from __future__ import annotations
 # Compatibility alias for tooling that expects percell.progress
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional
 
-from percell.core import progress as _core_progress
+from percell.infrastructure.progress import progress as _core_progress
 
 
 def is_progress_available() -> bool:

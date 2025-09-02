@@ -34,8 +34,28 @@ fi
 
 echo "Generating Pyan3 call graphs into $OUT_DIR ..."
 
+# Probe files individually to skip ones that crash pyan3
+GOOD_FILES=()
+BAD_FILES=()
+for f in "${PY_FILES[@]}"; do
+  if "${PYAN3_CMD[@]}" "$f" --dot --no-defines --uses --file /dev/null >/dev/null 2>&1; then
+    GOOD_FILES+=("$f")
+  else
+    BAD_FILES+=("$f")
+  fi
+done
+
+if [ ${#GOOD_FILES[@]} -eq 0 ]; then
+  echo "No analyzable Python files for pyan3 (all failed probe). Aborting."
+  exit 1
+fi
+
+if [ ${#BAD_FILES[@]} -gt 0 ]; then
+  echo "Note: Skipping ${#BAD_FILES[@]} files that pyan3 failed to parse."
+fi
+
 # Generate a graph focused on usage (calls) edges
-"${PYAN3_CMD[@]}" "${PY_FILES[@]}" \
+"${PYAN3_CMD[@]}" "${GOOD_FILES[@]}" \
   --dot \
   --colored \
   --annotated \
@@ -44,7 +64,7 @@ echo "Generating Pyan3 call graphs into $OUT_DIR ..."
   --file "$OUT_DIR/callgraph_uses.dot"
 
 # Also emit SVG directly to avoid Graphviz clustering issues on large graphs
-"${PYAN3_CMD[@]}" "${PY_FILES[@]}" \
+"${PYAN3_CMD[@]}" "${GOOD_FILES[@]}" \
   --svg \
   --colored \
   --annotated \
@@ -53,14 +73,14 @@ echo "Generating Pyan3 call graphs into $OUT_DIR ..."
   --file "$OUT_DIR/callgraph_uses.svg"
 
 # Generate a graph showing definitions/structure edges
-"${PYAN3_CMD[@]}" "${PY_FILES[@]}" \
+"${PYAN3_CMD[@]}" "${GOOD_FILES[@]}" \
   --dot \
   --colored \
   --annotated \
   --file "$OUT_DIR/callgraph_defines.dot"
 
 # Also emit SVG directly
-"${PYAN3_CMD[@]}" "${PY_FILES[@]}" \
+"${PYAN3_CMD[@]}" "${GOOD_FILES[@]}" \
   --svg \
   --colored \
   --annotated \
