@@ -108,6 +108,33 @@ This document provides a status update on the hexagonal architecture refactoring
 - **Import Validation**: Verified all modules can be imported correctly
 - **No Breaking Changes**: Maintained existing API compatibility
 
+### Phase 4: Application Layer Expansion (IN PROGRESS)
+
+#### Workflow Service Integration
+- **HexagonalWorkflowService**: New service implementing hexagonal architecture
+  - Provides same interface as old WorkflowService
+  - Uses WorkflowOrchestrationService for actual execution
+  - Implements all workflow methods (bin_images, combine_masks, etc.)
+  - Clean dependency injection through composition root
+
+- **WorkflowOrchestrationService Enhancement**: 
+  - Replaced placeholder implementations with actual service calls
+  - Injects all workflow services through composition root
+  - Implements proper step handlers for each workflow stage
+  - Provides comprehensive workflow execution capabilities
+
+- **Legacy WorkflowService Integration**: 
+  - Updated to use hexagonal services when available
+  - Maintains backward compatibility with old module-based approach
+  - Implements fallback mechanism for gradual migration
+  - All workflow methods now check for hexagonal service availability
+
+#### Composition Root Expansion
+- **ResizeROIsService**: Added to composition root with proper dependencies
+- **HexagonalWorkflowService**: Integrated into service registry
+- **Enhanced Service Wiring**: All workflow services properly injected
+- **Dependency Management**: Clean separation of concerns maintained
+
 ## 🔄 Current Architecture
 
 ```
@@ -182,9 +209,11 @@ percell/
 - [x] Move `core/pipeline.py` → `infrastructure/pipeline/`
 
 #### 3. Create More Application Services 🔄 NEXT PRIORITY
-- [ ] Refactor `extract_cells.py` → `ExtractCellsService`
-- [ ] Refactor `analyze_cells.py` → `AnalyzeCellsService`
-- [ ] Refactor `measure_roi_area.py` → `MeasureROIAreaService`
+- [x] Refactor workflow services to use hexagonal architecture
+- [x] Integrate HexagonalWorkflowService with legacy WorkflowService
+- [x] Enhance WorkflowOrchestrationService with actual implementations
+- [ ] Refactor remaining individual modules to application services
+- [ ] Create workflow orchestration services for complex workflows
 
 ### Medium Term (Next 1-2 months)
 
@@ -303,4 +332,4 @@ The hexagonal architecture implementation has made significant progress. The imp
 
 The next phase focuses on expanding the application layer with more services, refactoring the remaining modules to use the new hexagonal architecture.
 
-**Status**: ✅ **Phase 1, 2 & 3 Complete** - Ready for Phase 4 (Application Layer Expansion)
+**Status**: ✅ **Phase 1, 2 & 3 Complete** - Phase 4 (Application Layer Expansion) 25% Complete
