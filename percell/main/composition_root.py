@@ -47,6 +47,7 @@ from percell.application.services.directory_management_service import DirectoryM
 from percell.application.services.workflow_orchestration_service import WorkflowOrchestrationService
 from percell.application.services.workflow_definition_service import WorkflowDefinitionService
 from percell.application.services.workflow_execution_service import WorkflowExecutionService
+from percell.application.services.hexagonal_workflow_service import HexagonalWorkflowService
 
 # Configuration and logging (moved to infrastructure layer)
 from percell.infrastructure.configuration.config import Config, create_default_config
@@ -266,6 +267,12 @@ class CompositionRoot:
             configuration_port=self._wired_services['configuration_port']
         )
         
+        # Create hexagonal workflow service
+        hexagonal_workflow_service = HexagonalWorkflowService(
+            workflow_orchestration_service=workflow_orchestration_service,
+            logging_port=self._wired_services['logging_port']
+        )
+        
         self._wired_services['create_cell_masks_service'] = create_cell_masks_service
         self._wired_services['extract_cells_service'] = extract_cells_service
         self._wired_services['analyze_cell_masks_service'] = analyze_cell_masks_service
@@ -283,6 +290,7 @@ class CompositionRoot:
         self._wired_services['workflow_orchestration_service'] = workflow_orchestration_service
         self._wired_services['workflow_definition_service'] = workflow_definition_service
         self._wired_services['workflow_execution_service'] = workflow_execution_service
+        self._wired_services['hexagonal_workflow_service'] = hexagonal_workflow_service
     
     def get_service(self, service_name: str) -> Any:
         """
