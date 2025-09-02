@@ -1,0 +1,208 @@
+I'll activate the virtual environment for you.
+
+```bash
+source venv/bin/activate
+```
+Now let me run the tests to see the current status of the hexagonal architecture implementation:
+
+```bash
+python -m pytest tests/test_hexagonal_architecture.py -v
+```
+Great! Now let me check what other tests exist to get a complete picture:
+
+```bash
+python -m pytest tests/ -v
+```
+Now let me check the current CLI to see what's working:
+
+```bash
+python -m percell.adapters.cli.create_cell_masks_cli --help
+```
+Perfect! Now let me examine the current state of the legacy modules to understand what still needs to be refactored:
+
+Ran tool
+Ran tool
+Now let me check what's in the main CLI app to understand the current state:
+
+Read file: percell/cli/app.py
+Based on my comprehensive review of the codebase and documentation, here's the current status of the hexagonal architecture refactoring and a detailed to-do list:
+
+## Current Progress Towards Hexagonal Architecture
+
+### ✅ **COMPLETED (Phase 1 - Foundation)**
+
+1. **Domain Layer** - Fully established
+   - Comprehensive domain ports (`percell/domain/ports.py`)
+   - Domain exceptions (`percell/domain/exceptions.py`)
+   - Domain models and CQRS structure
+
+2. **Application Layer** - Structure complete with 5 services implemented
+   - `CreateCellMasksService` ✅
+   - `ExtractCellsService` ✅
+   - `AnalyzeCellMasksService` ✅
+   - `MeasureROIAreaService` ✅
+   - `ResizeROIsService` ✅
+
+3. **Infrastructure Layer** - Core adapters implemented
+   - `SubprocessAdapter` ✅
+   - `FileSystemAdapter` ✅
+   - `ConfigurationAdapter` ✅
+   - `LoggingAdapter` ✅
+   - `ProgressReporter` ✅
+
+4. **Adapter Layer** - CLI adapters implemented
+   - All 5 CLI adapters for the implemented services ✅
+
+5. **Composition Root** - Fully functional
+   - Dependency injection working
+   - All services properly wired
+   - Tests passing (11/11)
+
+### 🔄 **IN PROGRESS (Phase 2 - Infrastructure)**
+
+1. **Legacy Code Migration** - Partially complete
+   - Infrastructure concerns moved from `core/` to `infrastructure/`
+   - Some legacy code still exists in `core/`
+
+### ❌ **NOT STARTED (Phases 3-5)**
+
+1. **Remaining Module Refactoring** - 15+ modules still need conversion
+2. **Legacy CLI Refactoring** - Main CLI still uses old architecture
+3. **Pipeline Orchestration** - Core pipeline still uses old structure
+4. **Full Cleanup** - Remove all `percell.core` dependencies
+
+## �� **COMPREHENSIVE TO-DO LIST**
+
+### **IMMEDIATE PRIORITIES (Next 1-2 weeks)**
+
+#### 1. Complete Infrastructure Layer
+- [ ] **Move remaining legacy code from `core/` to `infrastructure/`**
+  - [ ] Move `core/progress.py` → `infrastructure/progress/`
+  - [ ] Move `core/logger.py` → `infrastructure/logging/`
+  - [ ] Move `core/config.py` → `infrastructure/configuration/`
+  - [ ] Move `core/paths.py` → `infrastructure/filesystem/`
+
+- [ ] **Create missing infrastructure adapters**
+  - [ ] `StageRegistryAdapter` implementing `StageRegistryPort`
+  - [ ] `PipelineAdapter` for pipeline orchestration
+  - [ ] `WorkflowAdapter` for workflow management
+
+#### 2. Refactor High-Priority Modules
+- [ ] **Convert remaining high-impact modules to application services**
+  - [ ] `group_cells.py` → `GroupCellsService`
+  - [ ] `combine_masks.py` → `CombineMasksService`
+  - [ ] `cleanup_directories.py` → `CleanupDirectoriesService`
+  - [ ] `advanced_workflow.py` → `AdvancedWorkflowService`
+
+#### 3. Update Composition Root
+- [ ] **Add new services to composition root**
+- [ ] **Create service factory methods for dynamic service creation**
+- [ ] **Add configuration validation and error handling**
+
+### **MEDIUM TERM (Next 1-2 months)**
+
+#### 1. Complete Application Layer
+- [ ] **Refactor remaining modules (10+ remaining)**
+  - [ ] `bin_images.py` → `BinImagesService`
+  - [ ] `directory_setup.py` → `DirectorySetupService`
+  - [ ] `set_directories.py` → `SetDirectoriesService`
+  - [ ] `duplicate_rois_for_channels.py` → `DuplicateROIsService`
+  - [ ] `include_group_metadata.py` → `GroupMetadataService`
+  - [ ] `track_rois.py` → `TrackROIsService`
+  - [ ] `otsu_threshold_grouped_cells.py` → `OtsuThresholdService`
+
+- [ ] **Create workflow orchestration services**
+  - [ ] `PipelineWorkflow` - Main pipeline orchestration
+  - [ ] `ValidationWorkflow` - Input validation workflow
+  - [ ] `ErrorHandlingWorkflow` - Error recovery workflow
+
+#### 2. Refactor Main CLI
+- [ ] **Convert main CLI to use new architecture**
+  - [ ] Replace direct module calls with service calls
+  - [ ] Use composition root for dependency injection
+  - [ ] Implement command/query pattern
+  - [ ] Add proper error handling and user feedback
+
+#### 3. Create Pipeline Orchestration
+- [ ] **Refactor core pipeline to use new architecture**
+  - [ ] `Pipeline` class → `PipelineService`
+  - [ ] `StageRegistry` → `StageRegistryService`
+  - [ ] `StageExecutor` → `StageExecutionService`
+
+### **LONG TERM (Next 3-6 months)**
+
+#### 1. Complete Migration
+- [ ] **Remove all legacy dependencies**
+  - [ ] Update all imports throughout codebase
+  - [ ] Remove `from percell.core` imports
+  - [ ] Remove `from percell.modules` imports
+  - [ ] Ensure clean dependency flow: Adapters → Application → Domain
+
+#### 2. Advanced Features
+- [ ] **Implement new capabilities using clean architecture**
+  - [ ] Web API adapters
+  - [ ] Plugin system refactoring
+  - [ ] Configuration management improvements
+  - [ ] Performance monitoring and optimization
+
+#### 3. Testing and Documentation
+- [ ] **Comprehensive testing**
+  - [ ] Unit tests for all application services
+  - [ ] Integration tests for adapters
+  - [ ] End-to-end workflow tests
+  - [ ] Performance regression tests
+
+- [ ] **Documentation updates**
+  - [ ] API documentation for new services
+  - [ ] Architecture decision records
+  - [ ] Migration guides for developers
+  - [ ] User guides for new CLI
+
+### **CRITICAL BLOCKERS TO ADDRESS**
+
+#### 1. **Circular Dependencies**
+- [ ] **Fix remaining circular imports**
+  - [ ] `percell.core.pipeline` → `percell.modules.stage_registry`
+  - [ ] `percell.cli.app` → `percell.modules.*`
+
+#### 2. **Legacy Pipeline Integration**
+- [ ] **Refactor pipeline orchestration**
+  - [ ] Replace `Pipeline` class with `PipelineService`
+  - [ ] Update stage execution to use new services
+  - [ ] Integrate with composition root
+
+#### 3. **Configuration Management**
+- [ ] **Centralize configuration**
+  - [ ] Move all config logic to infrastructure layer
+  - [ ] Create configuration validation service
+  - [ ] Implement configuration hot-reloading
+
+## 🎯 **SUCCESS METRICS & VALIDATION**
+
+### **Architecture Quality**
+- [ ] Zero circular dependencies
+- [ ] Clean dependency flow (inward only)
+- [ ] Domain layer has no external dependencies
+- [ ] All business logic in application layer
+
+### **Code Quality**
+- [ ] Reduced coupling between components
+- [ ] Improved testability (target: 90%+ coverage)
+- [ ] Clear separation of concerns
+- [ ] Consistent error handling patterns
+
+### **Maintainability**
+- [ ] Easier to add new features
+- [ ] Easier to modify existing features
+- [ ] Easier to test components
+- [ ] Clearer code organization
+
+## �� **RECOMMENDED NEXT STEPS**
+
+1. **Start with infrastructure cleanup** - Move remaining legacy code from `core/`
+2. **Refactor 2-3 more high-impact modules** - Focus on most-used functionality
+3. **Update composition root** - Add new services and improve error handling
+4. **Begin CLI refactoring** - Start with one workflow to establish pattern
+5. **Create integration tests** - Validate new architecture with real workflows
+
+The foundation is solid and the pattern is established. The next phase should focus on systematic migration of the remaining modules while maintaining the clean architecture principles already implemented.
