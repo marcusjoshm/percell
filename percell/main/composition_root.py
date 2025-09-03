@@ -48,6 +48,7 @@ from percell.application.services.workflow_orchestration_service import Workflow
 from percell.application.services.workflow_definition_service import WorkflowDefinitionService
 from percell.application.services.workflow_execution_service import WorkflowExecutionService
 from percell.application.services.hexagonal_workflow_service import HexagonalWorkflowService
+from percell.application.services.comprehensive_workflow_service import ComprehensiveWorkflowService
 
 # Configuration and logging (moved to infrastructure layer)
 from percell.infrastructure.configuration.config import Config, create_default_config
@@ -273,6 +274,28 @@ class CompositionRoot:
             logging_port=self._wired_services['logging_port']
         )
         
+        # Create comprehensive workflow service
+        comprehensive_workflow_service = ComprehensiveWorkflowService(
+            filesystem_port=self._wired_services['filesystem_port'],
+            logging_port=self._wired_services['logging_port'],
+            configuration_port=self._wired_services['configuration_port'],
+            # Inject all workflow services
+            bin_images_service=bin_images_service,
+            combine_masks_service=combine_masks_service,
+            create_cell_masks_service=create_cell_masks_service,
+            analyze_cell_masks_service=analyze_cell_masks_service,
+            interactive_thresholding_service=interactive_thresholding_service,
+            include_group_metadata_service=group_metadata_service,
+            track_rois_service=track_rois_service,
+            resize_rois_service=resize_rois_service,
+            duplicate_rois_service=duplicate_rois_service,
+            extract_cells_service=extract_cells_service,
+            group_cells_service=group_cells_service,
+            measure_roi_area_service=measure_roi_area_service,
+            cleanup_directories_service=cleanup_directories_service,
+            directory_management_service=directory_management_service
+        )
+        
         self._wired_services['create_cell_masks_service'] = create_cell_masks_service
         self._wired_services['extract_cells_service'] = extract_cells_service
         self._wired_services['analyze_cell_masks_service'] = analyze_cell_masks_service
@@ -291,6 +314,7 @@ class CompositionRoot:
         self._wired_services['workflow_definition_service'] = workflow_definition_service
         self._wired_services['workflow_execution_service'] = workflow_execution_service
         self._wired_services['hexagonal_workflow_service'] = hexagonal_workflow_service
+        self._wired_services['comprehensive_workflow_service'] = comprehensive_workflow_service
     
     def get_service(self, service_name: str) -> Any:
         """
