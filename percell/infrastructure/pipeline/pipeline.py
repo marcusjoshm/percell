@@ -78,6 +78,20 @@ class Pipeline:
             except Exception:
                 pass
 
+        # Try to get hexagonal workflow service for modern execution
+        self.hexagonal_workflow_service = None
+        try:
+            from percell.main.composition_root import get_composition_root
+            composition_root = get_composition_root()
+            self.hexagonal_workflow_service = composition_root.get_service('hexagonal_workflow_service')
+            if self.hexagonal_workflow_service:
+                self.logger.info("Hexagonal workflow service available - using modern execution path")
+            else:
+                self.logger.info("Hexagonal workflow service not available - using legacy execution path")
+        except Exception as e:
+            self.logger.debug(f"Could not initialize hexagonal workflow service: {e}")
+            self.logger.info("Using legacy execution path")
+
         # Determine which stages to run
         self.stages_to_run = self._determine_stages()
         
@@ -191,8 +205,14 @@ class Pipeline:
             # Get pipeline arguments
             pipeline_args = self.get_pipeline_arguments()
             
-            # Execute stages
-            success = self.executor.execute_stages(self.stages_to_run, **pipeline_args)
+            # Try hexagonal execution first if available
+            if self.hexagonal_workflow_service and self._can_use_hexagonal_execution():
+                self.logger.info("Using hexagonal workflow service for execution")
+                success = self._execute_with_hexagonal_service(pipeline_args)
+            else:
+                self.logger.info("Using legacy stage executor for execution")
+                # Execute stages with legacy system
+                success = self.executor.execute_stages(self.stages_to_run, **pipeline_args)
             
             if success:
                 self.logger.info("Pipeline completed successfully")
@@ -201,13 +221,14 @@ class Pipeline:
                 self.logger.save_execution_summary()
                 
                 # Print execution summary
-                summary = self.executor.get_execution_summary()
-                self.logger.info(f"Execution summary:")
-                self.logger.info(f"  Total stages: {summary['total_stages']}")
-                self.logger.info(f"  Successful: {summary['successful_stages']}")
-                self.logger.info(f"  Failed: {summary['failed_stages']}")
-                self.logger.info(f"  Success rate: {summary['success_rate']:.1%}")
-                self.logger.info(f"  Total duration: {summary['total_duration']:.2f}s")
+                if hasattr(self.executor, 'get_execution_summary'):
+                    summary = self.executor.get_execution_summary()
+                    self.logger.info(f"Execution summary:")
+                    self.logger.info(f"  Total stages: {summary['total_stages']}")
+                    self.logger.info(f"  Successful: {summary['successful_stages']}")
+                    self.logger.info(f"  Failed: {summary['failed_stages']}")
+                    self.logger.info(f"  Success rate: {summary['success_rate']:.1%}")
+                    self.logger.info(f"  Total duration: {summary['total_duration']:.2f}s")
                 
             else:
                 self.logger.error("Pipeline failed")
@@ -235,6 +256,124 @@ class Pipeline:
             List of stage names in order
         """
         return self.registry.get_stage_order()
+
+    def _can_use_hexagonal_execution(self) -> bool:
+        """
+        Check if we can use hexagonal execution for the selected stages.
+        
+        Returns:
+            True if hexagonal execution is possible, False otherwise
+        """
+        # Check if all selected stages can be handled by hexagonal service
+        hexagonal_stages = {
+            'data_selection', 'segmentation', 'process_single_cell', 
+            'threshold_grouped_cells', 'measure_roi_area', 'analysis', 'cleanup'
+        }
+        
+        for stage in self.stages_to_run:
+            if stage not in hexagonal_stages:
+                self.logger.debug(f"Stage '{stage}' not supported by hexagonal service, using legacy execution")
+                return False
+        
+        return True
+
+    def _execute_with_hexagonal_service(self, pipeline_args: Dict[str, Any]) -> bool:
+        """
+        Execute the pipeline using the hexagonal workflow service.
+        
+        Args:
+            pipeline_args: Pipeline arguments
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            self.logger.info("Executing with hexagonal workflow service")
+            
+            # Map pipeline arguments to hexagonal service parameters
+            output_dir = pipeline_args['output_dir']
+            conditions = pipeline_args.get('conditions', [])
+            regions = pipeline_args.get('regions', [])
+            timepoints = pipeline_args.get('timepoints', [])
+            analysis_channels = pipeline_args.get('analysis_channels', [])
+            segmentation_channel = pipeline_args.get('segmentation_channel', 'ch01')
+            
+            # Execute each stage using the hexagonal service
+            for stage in self.stages_to_run:
+                self.logger.info(f"Executing stage '{stage}' with hexagonal service")
+                
+                if stage == 'data_selection':
+                    # Data selection is already done by the pipeline setup
+                    self.logger.info("Data selection stage completed (handled by pipeline setup)")
+                    continue
+                    
+                elif stage == 'segmentation':
+                    result = self.hexagonal_workflow_service.bin_images(
+                        output_dir=output_dir,
+                        conditions=conditions,
+                        regions=regions,
+                        timepoints=timepoints,
+                        channels=[segmentation_channel]
+                    )
+                    if result != 0:
+                        self.logger.error(f"Segmentation stage failed with code: {result}")
+                        return False
+                        
+                elif stage == 'process_single_cell':
+                    # This includes resize_rois, duplicate_rois, and extract_cells
+                    result = self.hexagonal_workflow_service.resize_rois(output_dir)
+                    if result != 0:
+                        self.logger.error(f"Resize ROIs stage failed with code: {result}")
+                        return False
+                        
+                    result = self.hexagonal_workflow_service.duplicate_rois_for_channels(
+                        output_dir, conditions, regions, timepoints, segmentation_channel, analysis_channels
+                    )
+                    if result != 0:
+                        self.logger.error(f"Duplicate ROIs stage failed with code: {result}")
+                        return False
+                        
+                    result = self.hexagonal_workflow_service.extract_cells(
+                        output_dir, conditions, regions, timepoints, analysis_channels
+                    )
+                    if result != 0:
+                        self.logger.error(f"Extract cells stage failed with code: {result}")
+                        return False
+                        
+                elif stage == 'threshold_grouped_cells':
+                    result = self.hexagonal_workflow_service.threshold_grouped_cells(
+                        output_dir, conditions, regions, timepoints, analysis_channels
+                    )
+                    if result != 0:
+                        self.logger.error(f"Threshold grouped cells stage failed with code: {result}")
+                        return False
+                        
+                elif stage == 'measure_roi_area':
+                    result = self.hexagonal_workflow_service.measure_roi_area(output_dir)
+                    if result != 0:
+                        self.logger.error(f"Measure ROI area stage failed with code: {result}")
+                        return False
+                        
+                elif stage == 'analysis':
+                    result = self.hexagonal_workflow_service.analyze_cell_masks(output_dir)
+                    if result != 0:
+                        self.logger.error(f"Analysis stage failed with code: {result}")
+                        return False
+                        
+                elif stage == 'cleanup':
+                    result = self.hexagonal_workflow_service.cleanup_directories(output_dir)
+                    if result != 0:
+                        self.logger.error(f"Cleanup stage failed with code: {result}")
+                        return False
+                
+                self.logger.info(f"Stage '{stage}' completed successfully")
+            
+            self.logger.info("All stages completed successfully with hexagonal service")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error in hexagonal execution: {e}")
+            return False
 
 
 def create_pipeline(config: Config, logger: PipelineLogger, args: argparse.Namespace) -> Pipeline:
