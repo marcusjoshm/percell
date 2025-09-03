@@ -57,6 +57,133 @@ class BinImagesService:
             numpy.ndarray: Binned image
         """
         return downscale_local_mean(image, (bin_factor, bin_factor))
+
+    def bin_images(
+        self,
+        input_dir: str,
+        output_dir: str,
+        *,
+        bin_factor: int = 4,
+        conditions: Optional[List[str]] = None,
+        regions: Optional[List[str]] = None,
+        timepoints: Optional[List[str]] = None,
+        channels: Optional[List[str]] = None,
+    ) -> int:
+        """
+        Bin multiple images in a directory structure.
+        
+        Args:
+            input_dir: Input directory containing images
+            output_dir: Output directory for binned images
+            bin_factor: Binning factor (default: 4)
+            conditions: List of conditions to process
+            regions: List of regions to process
+            timepoints: List of timepoints to process
+            channels: List of channels to process
+            
+        Returns:
+            0 on success, 1 on failure
+        """
+        try:
+            input_path = Path(input_dir)
+            output_path = Path(output_dir)
+            output_path.mkdir(parents=True, exist_ok=True)
+
+            # Find TIFF images (both .tif and .tiff, case-insensitive)
+            patterns = ["**/*.tif", "**/*.tiff", "**/*.TIF", "**/*.TIFF"]
+            seen: Set[Path] = set()
+            all_files: List[Path] = []
+            for pat in patterns:
+                for p in input_path.glob(pat):
+                    if p not in seen:
+                        seen.add(p)
+                        all_files.append(p)
+            
+            self.logger.info(f"[Binning] Input dir: {input_path} | Found files: {len(all_files)}")
+            if not all_files:
+                # Early exit: nothing to process
+                return 0
+
+            # Convert selection lists to sets; treat None, [] or ["all"] as no filter
+            selected_conditions = set(conditions) if conditions else None
+            selected_regions = set(regions) if regions else None
+            selected_timepoints = set(timepoints) if timepoints else None
+            selected_channels = set(channels) if channels else None
+
+            self.logger.info(
+                "[Binning] Filters -> conditions=%s regions=%s timepoints=%s channels=%s",
+                selected_conditions, selected_regions, selected_timepoints, selected_channels,
+            )
+
+            processed = 0
+            skipped_cond = skipped_region = skipped_time = skipped_chan = 0
+
+            for file_path in all_files:
+                try:
+                    file_path = Path(file_path)
+                    # Determine condition (top-level directory)
+                    relative_path = file_path.relative_to(input_path)
+                    current_condition = relative_path.parts[0] if len(relative_path.parts) > 1 else None
+                    
+                    # Apply condition filter only when requested
+                    if selected_conditions and (not current_condition or current_condition not in selected_conditions):
+                        skipped_cond += 1
+                        continue
+
+                    # Parse metadata from filename
+                    filename = file_path.name
+                    region, timepoint, channel = self._extract_metadata_from_filename(filename)
+
+                    if selected_regions and (not region or region not in selected_regions):
+                        skipped_region += 1
+                        continue
+                    if selected_timepoints and (not timepoint or timepoint not in selected_timepoints):
+                        skipped_time += 1
+                        continue
+                    if selected_channels and (not channel or channel not in selected_channels):
+                        self.logger.info(
+                            "[Binning] Skip by channel | file=%s parsed=%s filters=%s",
+                            filename, channel, selected_channels,
+                        )
+                        skipped_chan += 1
+                        continue
+                    
+                    self.logger.info(
+                        "[Binning] Accept file: %s | cond=%s region=%s time=%s channel=%s",
+                        filename, current_condition, region, timepoint, channel,
+                    )
+
+                    # Compute output path, preserving structure
+                    out_file = output_path / relative_path.parent / (f"bin{bin_factor}x{bin_factor}_" + filename)
+                    self.logger.info("[Binning] Output path: %s", out_file)
+                    out_file.parent.mkdir(parents=True, exist_ok=True)
+
+                    # Read, bin, write
+                    image = io.imread(file_path)
+                    self.logger.info("[Binning] Read image: shape=%s dtype=%s", getattr(image, 'shape', None), getattr(image, 'dtype', None))
+                    binned = self.bin_image(image, bin_factor)
+                    out_array = binned.astype(image.dtype, copy=False)
+                    
+                    # Write binned image
+                    io.imsave(out_file, out_array)
+                    self.logger.info("[Binning] Wrote: %s", out_file)
+                    processed += 1
+
+                except Exception as e:
+                    self.logger.error(f"Error processing {file_path}: {e}")
+                    continue
+
+            # Log summary
+            self.logger.info(
+                "[Binning] Summary -> processed=%d, skipped: cond=%d region=%d timepoint=%d channel=%d",
+                processed, skipped_cond, skipped_region, skipped_time, skipped_chan
+            )
+
+            return 0 if processed > 0 else 1
+
+        except Exception as e:
+            self.logger.error(f"Error in bin_images: {e}")
+            return 1
     
     def _extract_metadata_from_filename(self, filename: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         """

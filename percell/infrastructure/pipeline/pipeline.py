@@ -416,9 +416,34 @@ class Pipeline:
             segmentation_channel = pipeline_args.get('segmentation_channel', 'ch01')
             
             if stage == 'data_selection':
-                # Data selection is already done by the pipeline setup
-                self.logger.info("Data selection stage completed (handled by pipeline setup)")
-                return True
+                # Use the data selection service to actually perform data selection
+                try:
+                    from percell.main.composition_root import get_composition_root
+                    composition_root = get_composition_root()
+                    data_selection_service = composition_root.get_service('data_selection_service')
+                    
+                    if data_selection_service:
+                        result = data_selection_service.execute_data_selection(
+                            input_dir=pipeline_args.get('input_dir', ''),
+                            output_dir=output_dir,
+                            **pipeline_args
+                        )
+                        
+                        if result.get('success'):
+                            self.logger.info("Data selection stage completed successfully")
+                            # Store the results for use by other stages
+                            pipeline_args['data_selection_results'] = result
+                            return True
+                        else:
+                            self.logger.error(f"Data selection failed: {result.get('error', 'Unknown error')}")
+                            return False
+                    else:
+                        self.logger.error("Data selection service not available")
+                        return False
+                        
+                except Exception as e:
+                    self.logger.error(f"Error in data selection: {e}")
+                    return False
                 
             elif stage == 'segmentation':
                 result = self.hexagonal_workflow_service.bin_images(
