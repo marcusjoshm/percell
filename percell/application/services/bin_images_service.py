@@ -111,8 +111,9 @@ class BinImagesService:
             selected_channels = set(channels) if channels else None
 
             self.logger.info(
-                "[Binning] Filters -> conditions=%s regions=%s timepoints=%s channels=%s",
-                selected_conditions, selected_regions, selected_timepoints, selected_channels,
+                f"[Binning] Filters -> conditions={selected_conditions} "
+                f"regions={selected_regions} timepoints={selected_timepoints} "
+                f"channels={selected_channels}"
             )
 
             processed = 0
@@ -142,31 +143,30 @@ class BinImagesService:
                         continue
                     if selected_channels and (not channel or channel not in selected_channels):
                         self.logger.info(
-                            "[Binning] Skip by channel | file=%s parsed=%s filters=%s",
-                            filename, channel, selected_channels,
+                            f"[Binning] Skip by channel | file={filename} parsed={channel} filters={selected_channels}"
                         )
                         skipped_chan += 1
                         continue
                     
                     self.logger.info(
-                        "[Binning] Accept file: %s | cond=%s region=%s time=%s channel=%s",
-                        filename, current_condition, region, timepoint, channel,
+                        f"[Binning] Accept file: {filename} | cond={current_condition} "
+                        f"region={region} time={timepoint} channel={channel}"
                     )
 
                     # Compute output path, preserving structure
                     out_file = output_path / relative_path.parent / (f"bin{bin_factor}x{bin_factor}_" + filename)
-                    self.logger.info("[Binning] Output path: %s", out_file)
+                    self.logger.info(f"[Binning] Output path: {out_file}")
                     out_file.parent.mkdir(parents=True, exist_ok=True)
 
                     # Read, bin, write
                     image = io.imread(file_path)
-                    self.logger.info("[Binning] Read image: shape=%s dtype=%s", getattr(image, 'shape', None), getattr(image, 'dtype', None))
+                    self.logger.info(f"[Binning] Read image: shape={getattr(image, 'shape', None)} dtype={getattr(image, 'dtype', None)}")
                     binned = self.bin_image(image, bin_factor)
                     out_array = binned.astype(image.dtype, copy=False)
                     
                     # Write binned image
                     io.imsave(out_file, out_array)
-                    self.logger.info("[Binning] Wrote: %s", out_file)
+                    self.logger.info(f"[Binning] Wrote: {out_file}")
                     processed += 1
 
                 except Exception as e:
@@ -175,8 +175,9 @@ class BinImagesService:
 
             # Log summary
             self.logger.info(
-                "[Binning] Summary -> processed=%d, skipped: cond=%d region=%d timepoint=%d channel=%d",
-                processed, skipped_cond, skipped_region, skipped_time, skipped_chan
+                f"[Binning] Summary -> processed={processed}, skipped: "
+                f"cond={skipped_cond} region={skipped_region} timepoint={skipped_time} "
+                f"channel={skipped_chan}"
             )
 
             return 0 if processed > 0 else 1

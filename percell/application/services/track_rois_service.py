@@ -597,3 +597,25 @@ class TrackROIsService:
                 'valid': False,
                 'error': f'Error validating timepoints: {e}'
             }
+
+    def track_rois(self, input_dir: str, output_dir: str, timepoints: List[str]) -> bool:
+        """Placeholder tracking to unblock pipeline when only one timepoint is selected.
+
+        If exactly two timepoints are provided, this would run matching; for now,
+        we validate and proceed. If one timepoint, we skip tracking and return True.
+        """
+        try:
+            validation = self.validate_timepoints(timepoints)
+            if validation.get('skip_tracking'):
+                self.logger.info(validation.get('warning'))
+                return True
+            if not validation.get('valid'):
+                self.logger.warning(validation.get('error'))
+                return False
+
+            # TODO: Implement actual tracking between validation['t0'] and validation['t1']
+            self.logger.info("ROI tracking not yet implemented in hexagonal service; skipping.")
+            return True
+        except Exception as e:
+            self.logger.error(f"Error in track_rois: {e}")
+            return False

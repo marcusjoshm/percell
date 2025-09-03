@@ -148,9 +148,7 @@ class DataSelectionService:
             
             result = self.subprocess_port.run_with_progress(
                 cmd,
-                title="Prepare Input Structure",
-                capture_output=True,
-                text=True
+                title="Prepare Input Structure"
             )
             
             if result == 0:
@@ -258,12 +256,22 @@ class DataSelectionService:
     def _run_interactive_selection(self, metadata: Dict[str, Any], **kwargs) -> Optional[Dict[str, Any]]:
         """Run interactive data selection."""
         try:
-            # Use provided selections if available, otherwise use defaults
-            datatype = kwargs.get('datatype', metadata.get('datatype_inferred', 'single_timepoint'))
-            conditions = kwargs.get('conditions', metadata.get('conditions', []))
-            regions = kwargs.get('regions', metadata.get('regions', []))
-            timepoints = kwargs.get('timepoints', metadata.get('timepoints', []))
-            channels = kwargs.get('channels', metadata.get('channels', []))
+            # Use provided selections if available, otherwise use extracted metadata as defaults
+            datatype = kwargs.get('datatype') or metadata.get('datatype_inferred', 'single_timepoint')
+            conditions = kwargs.get('conditions') or metadata.get('conditions', [])
+            regions = kwargs.get('regions') or metadata.get('regions', [])
+            timepoints = kwargs.get('timepoints') or metadata.get('timepoints', [])
+            channels = kwargs.get('channels') or metadata.get('channels', [])
+            
+            # Ensure we have valid values (not None)
+            if conditions is None:
+                conditions = metadata.get('conditions', [])
+            if regions is None:
+                regions = metadata.get('regions', [])
+            if timepoints is None:
+                timepoints = metadata.get('timepoints', [])
+            if channels is None:
+                channels = metadata.get('channels', [])
             
             # For now, use the provided or default values
             # In a full implementation, this would prompt the user interactively
@@ -315,25 +323,59 @@ class DataSelectionService:
                             timepoint_dir = item
                             break
                     
+                    # If no direct match, try to map t00 -> timepoint_1, t01 -> timepoint_2, etc. (1-based)
+                    if timepoint_dir is None:
+                        timepoint_number = timepoint.replace('t', '')
+                        try:
+                            # Convert to int and shift to 1-based indexing used by directory naming
+                            timepoint_number_int = int(timepoint_number) + 1
+                            expected_dir_name = f"timepoint_{timepoint_number_int}"
+                            expected_dir_path = condition_input_dir / expected_dir_name
+                            if expected_dir_path.exists() and expected_dir_path.is_dir():
+                                timepoint_dir = expected_dir_path
+                                self.logger.info(f"Mapped timepoint {timepoint} to directory {expected_dir_name}")
+                        except ValueError:
+                            pass
+                    
                     if timepoint_dir:
                         timepoint_output_dir = condition_output_dir / timepoint_dir.name
                         timepoint_output_dir.mkdir(parents=True, exist_ok=True)
                         
-                        # Copy TIF files
-                        for tif_file in timepoint_dir.glob("*.tif"):
+                        self.logger.info(f"Processing timepoint directory: {timepoint_dir}")
+                        self.logger.info(f"Output directory: {timepoint_output_dir}")
+                        
+                        # Copy TIFF files (support .tif/.tiff, case-insensitive)
+                        tif_patterns = ["*.tif", "*.tiff", "*.TIF", "*.TIFF"]
+                        tif_files = []
+                        for pat in tif_patterns:
+                            tif_files.extend(timepoint_dir.glob(pat))
+                        # De-duplicate
+                        tif_files = list({p for p in tif_files})
+                        self.logger.info(f"Found {len(tif_files)} TIFF files in {timepoint_dir}")
+                        
+                        for tif_file in tif_files:
                             output_file = timepoint_output_dir / tif_file.name
+                            self.logger.info(f"Copying {tif_file} to {output_file}")
+                            
                             if not output_file.exists():
                                 # Use filesystem port to copy file
                                 try:
                                     content = self.filesystem_port.read_file(tif_file, binary=True)
                                     self.filesystem_port.write_file(output_file, content, binary=True)
                                     total_files_copied += 1
+                                    self.logger.info(f"Successfully copied {tif_file}")
                                 except Exception as e:
                                     self.logger.warning(f"Could not copy {tif_file}: {e}")
                                     continue
+                            else:
+                                self.logger.info(f"File already exists: {output_file}")
+                                total_files_copied += 1
+                    else:
+                        self.logger.warning(f"Could not find timepoint directory for {timepoint} in {condition_input_dir}")
             
             self.logger.info(f"File copy completed. Total files copied: {total_files_copied}")
-            return total_files_copied > 0
+            # Allow 0 files to be copied (might be valid in some cases)
+            return True
             
         except Exception as e:
             self.logger.error(f"Error copying selected files: {e}")

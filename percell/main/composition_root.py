@@ -214,7 +214,7 @@ class CompositionRoot:
         
         # Create track ROIs service
         track_rois_service = TrackROIsService(
-            filesystem_port=self._wired_services['logging_port'],
+            filesystem_port=self._wired_services['filesystem_port'],
             logging_port=self._wired_services['logging_port']
         )
         
@@ -259,7 +259,8 @@ class CompositionRoot:
             group_cells_service=group_cells_service,
             measure_roi_area_service=measure_roi_area_service,
             cleanup_directories_service=cleanup_directories_service,
-            directory_management_service=directory_management_service
+            directory_management_service=directory_management_service,
+            data_selection_service=data_selection_service
         )
         
         # Create workflow definition service

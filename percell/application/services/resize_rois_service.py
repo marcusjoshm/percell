@@ -292,9 +292,7 @@ auto_close = {str(auto_close).lower()};
             # Use the subprocess port for execution
             result = self.subprocess_port.run_with_progress(
                 cmd,
-                title="ImageJ: Resize ROIs",
-                capture_output=True,
-                text=True
+                title="ImageJ: Resize ROIs"
             )
             
             # Check if the command executed successfully

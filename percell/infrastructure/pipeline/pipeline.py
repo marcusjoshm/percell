@@ -301,7 +301,8 @@ class Pipeline:
             regions = pipeline_args.get('regions', [])
             timepoints = pipeline_args.get('timepoints', [])
             analysis_channels = pipeline_args.get('analysis_channels', [])
-            segmentation_channel = pipeline_args.get('segmentation_channel', 'ch01')
+            # Coalesce None/empty segmentation channel to default 'ch01'
+            segmentation_channel = pipeline_args.get('segmentation_channel') or 'ch01'
             
             # Execute each stage using the hexagonal service
             for stage in self.stages_to_run:
@@ -324,8 +325,31 @@ class Pipeline:
                     return True
                     
                 elif stage == 'data_selection':
-                    # Data selection is already done by the pipeline setup
-                    self.logger.info("Data selection stage completed (handled by pipeline setup)")
+                    # Delegate to DataSelectionService via composition root
+                    try:
+                        from percell.main.composition_root import get_composition_root
+                        composition_root = get_composition_root()
+                        data_selection_service = composition_root.get_service('data_selection_service')
+                        if data_selection_service:
+                            input_dir = pipeline_args.get('input_dir', '')
+                            kwargs = {k: v for k, v in pipeline_args.items() if k not in ['input_dir', 'output_dir']}
+                            result = data_selection_service.execute_data_selection(
+                                input_dir=input_dir,
+                                output_dir=output_dir,
+                                **kwargs
+                            )
+                            if result.get('success'):
+                                self.logger.info("Data selection stage completed successfully")
+                                pipeline_args['data_selection_results'] = result
+                            else:
+                                self.logger.error(f"Data selection failed: {result.get('error', 'Unknown error')}")
+                                return False
+                        else:
+                            self.logger.error("Data selection service not available")
+                            return False
+                    except Exception as e:
+                        self.logger.error(f"Error in data selection: {e}")
+                        return False
                     continue
                     
                 elif stage == 'segmentation':
@@ -413,7 +437,7 @@ class Pipeline:
             regions = pipeline_args.get('regions', [])
             timepoints = pipeline_args.get('timepoints', [])
             analysis_channels = pipeline_args.get('analysis_channels', [])
-            segmentation_channel = pipeline_args.get('segmentation_channel', 'ch01')
+            segmentation_channel = pipeline_args.get('segmentation_channel') or 'ch01'
             
             if stage == 'data_selection':
                 # Use the data selection service to actually perform data selection
@@ -423,10 +447,10 @@ class Pipeline:
                     data_selection_service = composition_root.get_service('data_selection_service')
                     
                     if data_selection_service:
-                        # Extract input_dir from pipeline_args to avoid duplicate parameter
+                        # Extract input_dir and output_dir from pipeline_args to avoid duplicate parameters
                         input_dir = pipeline_args.get('input_dir', '')
-                        # Remove input_dir from kwargs to avoid duplicate parameter
-                        kwargs = {k: v for k, v in pipeline_args.items() if k != 'input_dir'}
+                        # Remove input_dir and output_dir from kwargs to avoid duplicate parameters
+                        kwargs = {k: v for k, v in pipeline_args.items() if k not in ['input_dir', 'output_dir']}
                         
                         result = data_selection_service.execute_data_selection(
                             input_dir=input_dir,

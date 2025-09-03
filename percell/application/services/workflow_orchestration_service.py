@@ -42,7 +42,8 @@ class WorkflowOrchestrationService:
         group_cells_service=None,
         measure_roi_area_service=None,
         cleanup_directories_service=None,
-        directory_management_service=None
+        directory_management_service=None,
+        data_selection_service=None
     ):
         """
         Initialize the Workflow Orchestration Service.
@@ -85,6 +86,7 @@ class WorkflowOrchestrationService:
         self.measure_roi_area_service = measure_roi_area_service
         self.cleanup_directories_service = cleanup_directories_service
         self.directory_management_service = directory_management_service
+        self.data_selection_service = data_selection_service
         
         # Workflow execution tracking
         self.execution_history = []
@@ -467,20 +469,29 @@ class WorkflowOrchestrationService:
             }
     
     def _handle_data_selection(self, input_dir: str, output_dir: str, **kwargs) -> Dict[str, Any]:
-        """Handle data selection step."""
+        """Handle data selection step by delegating to DataSelectionService."""
         try:
-            # Use directory management service to set up directories
-            if hasattr(self, 'directory_management_service') and self.directory_management_service:
-                # This would handle data selection logic
-                self.logger.info("Data selection step completed")
+            if self.data_selection_service is None:
+                return {
+                    'success': False,
+                    'error': 'Data selection service not available'
+                }
+            result = self.data_selection_service.execute_data_selection(
+                input_dir=input_dir,
+                output_dir=output_dir,
+                **kwargs
+            )
+            if result.get('success'):
                 return {
                     'success': True,
-                    'message': 'Data selection step completed'
+                    'message': result.get('message', 'Data selection completed successfully'),
+                    'metadata': result.get('metadata'),
+                    'selections': result.get('selections')
                 }
             else:
                 return {
                     'success': False,
-                    'error': 'Directory management service not available'
+                    'error': result.get('error', 'Data selection failed')
                 }
         except Exception as e:
             return {
@@ -498,7 +509,7 @@ class WorkflowOrchestrationService:
                 timepoints = kwargs.get('timepoints', [])
                 channels = kwargs.get('channels', [])
                 
-                success = self.bin_images_service.bin_images(
+                rc = self.bin_images_service.bin_images(
                     input_dir=f"{output_dir}/raw_data",
                     output_dir=f"{output_dir}/preprocessed",
                     conditions=conditions,
@@ -507,7 +518,7 @@ class WorkflowOrchestrationService:
                     channels=channels
                 )
                 
-                if success:
+                if rc == 0:
                     self.logger.info("Segmentation step completed")
                     return {
                         'success': True,
@@ -548,8 +559,24 @@ class WorkflowOrchestrationService:
             
             # Resize ROIs
             if self.resize_rois_service:
-                # Get ImageJ path from configuration or use default
-                imagej_path = kwargs.get('imagej_path', '/Applications/ImageJ.app/Contents/MacOS/ImageJ')
+                # Get ImageJ path from kwargs, config, or detection; fallback to common default
+                imagej_path = kwargs.get('imagej_path')
+                if not imagej_path:
+                    try:
+                        cfg = self.configuration_port.get_config()
+                        # Support Config object with dict-like get
+                        imagej_path = cfg.get('imagej_path') if hasattr(cfg, 'get') else None
+                    except Exception:
+                        imagej_path = None
+                if not imagej_path:
+                    try:
+                        detected = self.configuration_port.detect_software_paths() or {}
+                        imagej_path = detected.get('imagej_path')
+                    except Exception:
+                        imagej_path = None
+                if not imagej_path:
+                    imagej_path = '/usr/local/bin/imagej'
+
                 segmentation_channel = kwargs.get('segmentation_channel', 'ch01')  # Default to ch01
                 
                 success = self.resize_rois_service.resize_rois(
@@ -582,7 +609,7 @@ class WorkflowOrchestrationService:
             
             # Extract cells
             if self.extract_cells_service:
-                imagej_path = kwargs.get('imagej_path', '/Applications/ImageJ.app/Contents/MacOS/ImageJ')
+                imagej_path = kwargs.get('imagej_path') or '/usr/local/bin/imagej'
                 analysis_channels = kwargs.get('analysis_channels', [])
                 conditions = kwargs.get('conditions', [])
                 regions = kwargs.get('regions', [])
