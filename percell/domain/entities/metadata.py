@@ -6,7 +6,7 @@ Represents metadata extracted from microscopy files and filenames.
 
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
-from pathlib import Path
+from percell.domain.value_objects.file_path import FilePath
 
 
 @dataclass
@@ -26,7 +26,7 @@ class Metadata:
     
     # File information
     filename: Optional[str] = None
-    file_path: Optional[Path] = None
+    file_path: Optional[FilePath] = None
     file_extension: Optional[str] = None
     
     # Image properties

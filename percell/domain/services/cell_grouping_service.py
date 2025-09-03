@@ -9,19 +9,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
-import logging
 import numpy as np
-import cv2
+ 
 
-from sklearn.mixture import GaussianMixture
-from sklearn.cluster import KMeans
+ 
 
 from percell.domain.value_objects.file_path import FilePath
 from percell.ports.outbound.storage_port import StoragePort
 from percell.domain.services.metadata_service import MetadataService
 
 
-logger = logging.getLogger(__name__)
+ 
 
 
 @dataclass
@@ -53,7 +51,6 @@ class CellGroupingService:
         # Discover candidate cell directories (contain CELL*.tif)
         candidate_dirs = self._find_cell_directories(cells_dir)
         if not candidate_dirs:
-            logger.error("No cell directories found in %s", cells_dir)
             return 0
 
         processed = 0
@@ -63,7 +60,6 @@ class CellGroupingService:
             if self._group_and_sum_cells(cell_dir, output_dir, config):
                 processed += 1
 
-        logger.info("Successfully processed %d out of %d cell directories", processed, len(candidate_dirs))
         return processed
 
     # ---- Internals ----
@@ -99,24 +95,36 @@ class CellGroupingService:
             if img is not None and img.ndim > 2:
                 img = np.mean(img, axis=2).astype(img.dtype)
             return img
-        except Exception as exc:
-            logger.warning("Failed to read image %s: %s", path, exc)
+        except Exception:
             return None
 
     def _compute_auc(self, img: np.ndarray) -> float:
         return float(np.sum(img))
 
     def _resize_to_target(self, img: np.ndarray, target_height: int, target_width: int) -> np.ndarray:
+        """Resize image to fit within target (H, W) using nearest-neighbor and pad to center.
+        Pure NumPy implementation to avoid external dependencies.
+        """
         height, width = img.shape[:2]
-        img_aspect = width / height
-        target_aspect = target_width / target_height
+        if height == 0 or width == 0 or target_height == 0 or target_width == 0:
+            return np.zeros((target_height, target_width), dtype=img.dtype)
+
+        img_aspect = width / max(1, height)
+        target_aspect = target_width / max(1, target_height)
+
         if img_aspect > target_aspect:
             new_width = target_width
-            new_height = int(new_width / img_aspect)
+            new_height = max(1, int(round(new_width / img_aspect)))
         else:
             new_height = target_height
-            new_width = int(new_height * img_aspect)
-        resized = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
+            new_width = max(1, int(round(new_height * img_aspect)))
+
+        # Nearest-neighbor resize via index mapping
+        y_indices = (np.linspace(0, height - 1, new_height)).astype(int)
+        x_indices = (np.linspace(0, width - 1, new_width)).astype(int)
+        resized = img[np.ix_(y_indices, x_indices)]
+
+        # Center-pad into target canvas
         result = np.zeros((target_height, target_width), dtype=img.dtype)
         pad_top = (target_height - new_height) // 2
         pad_left = (target_width - new_width) // 2
@@ -156,63 +164,63 @@ class CellGroupingService:
             means = {i: float(np.mean(auc_values[labels == i])) if np.any(labels == i) else 0.0 for i in range(actual_bins)}
             return labels, means
 
-        # Try GMM first
-        if intensity_range >= 1e-6:
-            try:
-                gmm = GaussianMixture(
-                    n_components=actual_bins, random_state=0, n_init=10, max_iter=300, reg_covar=1e-4, init_params='kmeans'
-                )
-                gmm.fit(auc_log.reshape(-1, 1))
-                labels = gmm.predict(auc_log.reshape(-1, 1))
-                unique = np.unique(labels)
-                means = {int(l): float(np.mean(auc_values[labels == l])) for l in unique}
-                # If not enough clusters produced and forcing requested, fall through to kmeans or equal split
-                if len(unique) >= actual_bins or not force_clusters:
-                    return labels, means
-            except Exception:
-                pass
+        # Pure NumPy k-means (Lloyd's algorithm) with k-means++ init
+        rng = np.random.default_rng(0)
+        data = auc_log.reshape(-1, 1)
+        k = actual_bins
 
-        # KMeans fallback or primary
-        try:
-            kmeans = KMeans(n_clusters=actual_bins, random_state=0, n_init=10, max_iter=300)
-            labels = kmeans.fit_predict(auc_log.reshape(-1, 1))
-            centers = kmeans.cluster_centers_.flatten()
-            unique = np.unique(labels)
-            means = {int(l): float(centers[int(l)]) for l in unique}
-            if force_clusters and len(unique) < actual_bins:
-                # Redistribute evenly
-                sorted_idx = np.argsort(auc_values)
-                cells_per = n // actual_bins
-                rem = n % actual_bins
-                new_labels = np.zeros_like(labels)
-                start = 0
-                for i in range(actual_bins):
-                    size = cells_per + (1 if i < rem else 0)
-                    end = start + size
-                    new_labels[sorted_idx[start:end]] = i
-                    start = end
-                labels = new_labels
-                means = {i: float(np.mean(auc_values[labels == i])) if np.any(labels == i) else 0.0 for i in range(actual_bins)}
-            return labels, means
-        except Exception:
-            # As last resort: equal distribution
+        # k-means++ initialization
+        centers = np.empty((k, 1), dtype=float)
+        centers[0] = data[rng.integers(0, n)]
+        closest_dist_sq = ((data - centers[0]) ** 2).sum(axis=1)
+        for ci in range(1, k):
+            probs = closest_dist_sq / closest_dist_sq.sum() if closest_dist_sq.sum() > 0 else np.ones(n) / n
+            idx = rng.choice(n, p=probs)
+            centers[ci] = data[idx]
+            dist_sq = ((data - centers[ci]) ** 2).sum(axis=1)
+            closest_dist_sq = np.minimum(closest_dist_sq, dist_sq)
+
+        labels = np.zeros(n, dtype=int)
+        max_iters = 100
+        for _ in range(max_iters):
+            # Assign step
+            dists = np.square(data - centers.T)  # shape (n, k)
+            new_labels = np.argmin(dists, axis=1)
+            if np.array_equal(new_labels, labels):
+                break
+            labels = new_labels
+            # Update step
+            for ci in range(k):
+                mask = labels == ci
+                if np.any(mask):
+                    centers[ci] = data[mask].mean(axis=0)
+                else:
+                    # Reinitialize empty cluster to random point
+                    centers[ci] = data[rng.integers(0, n)]
+
+        unique = np.unique(labels)
+        means = {int(l): float(np.mean(auc_values[labels == l])) for l in unique}
+
+        if force_clusters and len(unique) < k:
+            # Redistribute evenly by sorted intensity
             sorted_idx = np.argsort(auc_values)
-            cells_per = n // actual_bins
-            rem = n % actual_bins
-            labels = np.zeros(n, dtype=int)
+            cells_per = n // k
+            rem = n % k
+            new_labels = np.zeros_like(labels)
             start = 0
-            for i in range(actual_bins):
+            for i in range(k):
                 size = cells_per + (1 if i < rem else 0)
                 end = start + size
-                labels[sorted_idx[start:end]] = i
+                new_labels[sorted_idx[start:end]] = i
                 start = end
-            means = {i: float(np.mean(auc_values[labels == i])) if np.any(labels == i) else 0.0 for i in range(actual_bins)}
-            return labels, means
+            labels = new_labels
+            means = {i: float(np.mean(auc_values[labels == i])) if np.any(labels == i) else 0.0 for i in range(k)}
+
+        return labels, means
 
     def _group_and_sum_cells(self, cell_dir: FilePath, output_root: FilePath, config: GroupingConfig) -> bool:
         image_files = self.storage.list_files(cell_dir, pattern="CELL*.tif", recursive=False)
         if not image_files:
-            logger.warning("No cell images found in %s", cell_dir)
             return False
 
         # Read images and compute AUC
@@ -228,13 +236,11 @@ class CellGroupingService:
             image_data.append((fp, auc, img))
 
         if not image_data:
-            logger.warning("No valid images to process in %s", cell_dir)
             return False
 
         auc_values = np.array([d[1] for d in image_data], dtype=float)
         labels, cluster_means = self._cluster_labels(auc_values, config.bins, config.force_clusters)
         if labels.size == 0:
-            logger.warning("No labels produced for %s", cell_dir)
             return False
 
         # Sort clusters by mean intensity for consistent binning
@@ -275,13 +281,19 @@ class CellGroupingService:
         for i, sum_img in enumerate(sum_images):
             if sum_img is None:
                 continue
-            norm = cv2.normalize(sum_img, None, 0, 65535, cv2.NORM_MINMAX).astype(np.uint16)
+            min_val = float(np.min(sum_img))
+            max_val = float(np.max(sum_img))
+            if max_val - min_val <= 1e-12:
+                norm = np.zeros_like(sum_img, dtype=np.uint16)
+            else:
+                scaled = (sum_img - min_val) / (max_val - min_val)
+                norm = (scaled * 65535.0).clip(0, 65535).astype(np.uint16)
             out_name = f"{cell_dir.get_name()}_bin_{i+1}.tif"
             out_path = output_subdir.join(out_name)
             try:
                 self.storage.write_image(norm, out_path)
-            except Exception as exc:
-                logger.warning("Failed to write %s: %s", out_path, exc)
+            except Exception:
+                pass
 
         # Write info text
         info_lines = [
@@ -308,8 +320,6 @@ class CellGroupingService:
                 # Extract numeric id if prefixed with CELL
                 cell_id = ''.join(c for c in base if c.isdigit()) or base
                 mean_auc = 0.0
-                # Convert cluster means from original cluster ids to mapped group ids
-                # If cluster_means were based on original labels, keep as is
                 if original in cluster_means:
                     mean_auc = float(cluster_means[original])
                 rows.append(f"{fp},{cell_id},{mapped},Group_{mapped},{mean_auc:.6f},{auc:.6f}\n")

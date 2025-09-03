@@ -7,7 +7,6 @@ and independent of concrete tools (adapters handle I/O and external macros).
 
 from __future__ import annotations
 
-import logging
 import re
 from typing import Iterable, List, Optional, Set
 
@@ -16,7 +15,6 @@ from percell.ports.outbound.storage_port import StoragePort
 from percell.domain.services.metadata_service import MetadataService
 
 
-logger = logging.getLogger(__name__)
 
 
 class ROIProcessor:
@@ -35,12 +33,10 @@ class ROIProcessor:
         """
         channels_set: Set[str] = set(channels)
         if not self.storage.directory_exists(roi_dir):
-            logger.error("ROI directory not found: %s", roi_dir)
             return 0
 
         roi_files = self.storage.list_files(roi_dir, pattern="**/*.zip", recursive=True)
         if not roi_files:
-            logger.warning("No ROI files found in %s", roi_dir)
             return 0
 
         created = 0
@@ -62,7 +58,6 @@ class ROIProcessor:
                 except Exception:
                     pass
             if channel is None:
-                logger.info("Skipping ROI without channel token: %s", name)
                 continue
 
             for target_channel in channels_set:
@@ -75,11 +70,9 @@ class ROIProcessor:
                 try:
                     self.storage.copy_file(roi_file, destination)
                     created += 1
-                except Exception as exc:
-                    logger.warning("Failed to copy %s -> %s: %s", roi_file, destination, exc)
+                except Exception:
                     continue
 
-        logger.info("Created %d ROI copies for requested channels", created)
         return created
 
 

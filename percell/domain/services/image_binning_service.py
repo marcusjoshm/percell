@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Iterable, List, Optional, Set
-import logging
 import numpy as np
 
 from percell.domain.value_objects.file_path import FilePath
@@ -17,7 +16,7 @@ from percell.domain.services.metadata_service import MetadataService
 from percell.ports.outbound.storage_port import StoragePort
 
 
-logger = logging.getLogger(__name__)
+ 
 
 
 @dataclass
@@ -57,12 +56,7 @@ class ImageBinningService:
 
         Returns number of processed files.
         """
-        logger.info(
-            "Starting image binning: input=%s output=%s bin_factor=%s",
-            input_dir,
-            output_dir,
-            bin_factor,
-        )
+        
 
         selection = self._build_selection(
             target_conditions, target_regions, target_timepoints, target_channels
@@ -73,7 +67,7 @@ class ImageBinningService:
             self.storage.create_directory(output_dir)
 
         files = self._discover_input_files(input_dir)
-        logger.info("Discovered %d candidate image files", len(files))
+        
 
         processed_count = 0
         for image_path in files:
@@ -96,12 +90,9 @@ class ImageBinningService:
                 binned = self._bin_image_array(image, bin_factor)
                 self.storage.write_image(binned.astype(image.dtype), destination)
                 processed_count += 1
-                logger.info("Saved binned image to %s", destination)
-            except Exception as exc:  # pragma: no cover - safety
-                logger.error("Failed processing %s: %s", image_path, exc, exc_info=True)
+            except Exception:  # pragma: no cover - safety
                 continue
 
-        logger.info("Image binning complete. Processed %d files.", processed_count)
         return processed_count
 
     def _build_selection(

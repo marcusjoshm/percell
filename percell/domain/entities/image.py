@@ -7,7 +7,7 @@ Represents microscopy images with their properties and data.
 from dataclasses import dataclass
 from typing import Optional, List, Tuple, Any
 import numpy as np
-from pathlib import Path
+from percell.domain.value_objects.file_path import FilePath
 
 from .metadata import Metadata
 from .roi import ROI
@@ -27,7 +27,7 @@ class Image:
     metadata: Optional[Metadata] = None
     
     # File information
-    file_path: Optional[Path] = None
+    file_path: Optional[FilePath] = None
     
     # Image properties
     width: Optional[int] = None
