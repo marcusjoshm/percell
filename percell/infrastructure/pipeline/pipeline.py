@@ -270,6 +270,11 @@ class Pipeline:
             'threshold_grouped_cells', 'measure_roi_area', 'analysis', 'cleanup'
         }
         
+        # Special handling for complete_workflow - expand it into component stages
+        if 'complete_workflow' in self.stages_to_run:
+            # For complete workflow, we can use hexagonal execution
+            return True
+        
         for stage in self.stages_to_run:
             if stage not in hexagonal_stages:
                 self.logger.debug(f"Stage '{stage}' not supported by hexagonal service, using legacy execution")
@@ -302,7 +307,23 @@ class Pipeline:
             for stage in self.stages_to_run:
                 self.logger.info(f"Executing stage '{stage}' with hexagonal service")
                 
-                if stage == 'data_selection':
+                if stage == 'complete_workflow':
+                    # Expand complete_workflow into its component stages
+                    self.logger.info("Expanding complete_workflow into component stages")
+                    component_stages = [
+                        'data_selection', 'segmentation', 'process_single_cell',
+                        'threshold_grouped_cells', 'measure_roi_area', 'analysis', 'cleanup'
+                    ]
+                    
+                    for component_stage in component_stages:
+                        self.logger.info(f"Executing component stage '{component_stage}'")
+                        if not self._execute_component_stage(component_stage, pipeline_args):
+                            return False
+                    
+                    self.logger.info("Complete workflow finished successfully")
+                    return True
+                    
+                elif stage == 'data_selection':
                     # Data selection is already done by the pipeline setup
                     self.logger.info("Data selection stage completed (handled by pipeline setup)")
                     continue
@@ -373,6 +394,96 @@ class Pipeline:
             
         except Exception as e:
             self.logger.error(f"Error in hexagonal execution: {e}")
+            return False
+
+    def _execute_component_stage(self, stage: str, pipeline_args: Dict[str, Any]) -> bool:
+        """
+        Execute a single component stage using the hexagonal workflow service.
+        
+        Args:
+            stage: Stage name to execute
+            pipeline_args: Pipeline arguments
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            output_dir = pipeline_args['output_dir']
+            conditions = pipeline_args.get('conditions', [])
+            regions = pipeline_args.get('regions', [])
+            timepoints = pipeline_args.get('timepoints', [])
+            analysis_channels = pipeline_args.get('analysis_channels', [])
+            segmentation_channel = pipeline_args.get('segmentation_channel', 'ch01')
+            
+            if stage == 'data_selection':
+                # Data selection is already done by the pipeline setup
+                self.logger.info("Data selection stage completed (handled by pipeline setup)")
+                return True
+                
+            elif stage == 'segmentation':
+                result = self.hexagonal_workflow_service.bin_images(
+                    output_dir=output_dir,
+                    conditions=conditions,
+                    regions=regions,
+                    timepoints=timepoints,
+                    channels=[segmentation_channel]
+                )
+                if result != 0:
+                    self.logger.error(f"Segmentation stage failed with code: {result}")
+                    return False
+                    
+            elif stage == 'process_single_cell':
+                # This includes resize_rois, duplicate_rois, and extract_cells
+                result = self.hexagonal_workflow_service.resize_rois(output_dir)
+                if result != 0:
+                    self.logger.error(f"Resize ROIs stage failed with code: {result}")
+                    return False
+                    
+                result = self.hexagonal_workflow_service.duplicate_rois_for_channels(
+                    output_dir, conditions, regions, timepoints, segmentation_channel, analysis_channels
+                )
+                if result != 0:
+                    self.logger.error(f"Duplicate ROIs stage failed with code: {result}")
+                    return False
+                    
+                result = self.hexagonal_workflow_service.extract_cells(
+                    output_dir, conditions, regions, timepoints, analysis_channels
+                )
+                if result != 0:
+                    self.logger.error(f"Extract cells stage failed with code: {result}")
+                    return False
+                    
+            elif stage == 'threshold_grouped_cells':
+                result = self.hexagonal_workflow_service.threshold_grouped_cells(
+                    output_dir, conditions, regions, timepoints, analysis_channels
+                )
+                if result != 0:
+                    self.logger.error(f"Threshold grouped cells stage failed with code: {result}")
+                    return False
+                    
+            elif stage == 'measure_roi_area':
+                result = self.hexagonal_workflow_service.measure_roi_area(output_dir)
+                if result != 0:
+                    self.logger.error(f"Measure ROI area stage failed with code: {result}")
+                    return False
+                    
+            elif stage == 'analysis':
+                result = self.hexagonal_workflow_service.analyze_cell_masks(output_dir)
+                if result != 0:
+                    self.logger.error(f"Analysis stage failed with code: {result}")
+                    return False
+                    
+            elif stage == 'cleanup':
+                result = self.hexagonal_workflow_service.cleanup_directories(output_dir)
+                if result != 0:
+                    self.logger.error(f"Cleanup stage failed with code: {result}")
+                    return False
+            
+            self.logger.info(f"Component stage '{stage}' completed successfully")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error executing component stage '{stage}': {e}")
             return False
 
 
