@@ -704,9 +704,15 @@ class ComprehensiveWorkflowService:
         """Execute resize ROIs step."""
         try:
             if self.resize_rois_service:
+                # Get ImageJ path from configuration or use default
+                imagej_path = kwargs.get('imagej_path', '/Applications/ImageJ.app/Contents/MacOS/ImageJ')
+                segmentation_channel = kwargs.get('segmentation_channel', 'ch01')  # Default to ch01
+                
                 success = self.resize_rois_service.resize_rois(
-                    input_dir=f"{kwargs.get('output_dir')}/tracked_rois",
-                    output_dir=f"{kwargs.get('output_dir')}/resized_rois"
+                    input_directory=f"{kwargs.get('output_dir')}/preprocessed",  # Use preprocessed directory where ROIs are saved
+                    output_directory=f"{kwargs.get('output_dir')}/ROIs",  # Use ROIs directory as per original workflow
+                    imagej_path=imagej_path,
+                    channel=segmentation_channel
                 )
                 
                 if success:
@@ -734,9 +740,12 @@ class ComprehensiveWorkflowService:
         """Execute duplicate ROIs step."""
         try:
             if self.duplicate_rois_service:
-                success = self.duplicate_rois_service.duplicate_rois(
-                    input_dir=f"{kwargs.get('output_dir')}/resized_rois",
-                    output_dir=f"{kwargs.get('output_dir')}/duplicated_rois",
+                success = self.duplicate_rois_service.duplicate_rois_for_channels(
+                    roi_dir=f"{kwargs.get('output_dir')}/ROIs",  # Use ROIs directory where resize_rois saved the ROIs
+                    conditions=kwargs.get('conditions', []),
+                    regions=kwargs.get('regions', []),
+                    timepoints=kwargs.get('timepoints', []),
+                    segmentation_channel=kwargs.get('segmentation_channel', 'ch01'),
                     channels=kwargs.get('analysis_channels', [])
                 )
                 
@@ -765,9 +774,21 @@ class ComprehensiveWorkflowService:
         """Execute extract cells step."""
         try:
             if self.extract_cells_service:
+                imagej_path = kwargs.get('imagej_path', '/Applications/ImageJ.app/Contents/MacOS/ImageJ')
+                analysis_channels = kwargs.get('analysis_channels', [])
+                conditions = kwargs.get('conditions', [])
+                regions = kwargs.get('regions', [])
+                timepoints = kwargs.get('timepoints', [])
+                
                 success = self.extract_cells_service.extract_cells(
-                    input_dir=f"{kwargs.get('output_dir')}/duplicated_rois",
-                    output_dir=f"{kwargs.get('output_dir')}/extracted_cells"
+                    roi_directory=f"{kwargs.get('output_dir')}/ROIs",  # Use ROIs directory where duplicate_rois saved the ROIs
+                    raw_data_directory=f"{kwargs.get('output_dir')}/raw_data",
+                    output_directory=f"{kwargs.get('output_dir')}/cells",
+                    imagej_path=imagej_path,
+                    regions=regions,
+                    timepoints=timepoints,
+                    conditions=conditions,
+                    channels=analysis_channels
                 )
                 
                 if success:
