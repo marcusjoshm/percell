@@ -20,6 +20,8 @@ from percell.domain.services.image_binning_service import ImageBinningService
 from percell.domain.services.roi_tracking_service import RoiTrackingService
 from percell.domain.services.cell_grouping_service import CellGroupingService
 from percell.domain.services.roi_processor import ROIProcessor
+from percell.domain.services.cell_analyzer import CellAnalyzer
+from percell.domain.services.threshold_calculator import ThresholdCalculator
 from percell.domain.value_objects.file_path import FilePath
 
 
@@ -89,5 +91,11 @@ class Container:
             storage=self.storage_adapter,
             metadata_service=self.metadata_service(),
         )
+
+    def cell_analyzer(self) -> CellAnalyzer:
+        return CellAnalyzer()
+
+    def threshold_calculator(self) -> ThresholdCalculator:
+        return ThresholdCalculator()
 
 

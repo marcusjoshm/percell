@@ -6,6 +6,8 @@ from .image_binning_service import ImageBinningService
 from .roi_tracking_service import RoiTrackingService
 from .cell_grouping_service import CellGroupingService, GroupingConfig
 from .roi_processor import ROIProcessor
+from .cell_analyzer import CellAnalyzer
+from .threshold_calculator import ThresholdCalculator
 
 __all__ = [
     "MetadataService",
@@ -15,4 +17,6 @@ __all__ = [
     "CellGroupingService",
     "GroupingConfig",
     "ROIProcessor",
+    "CellAnalyzer",
+    "ThresholdCalculator",
 ]
