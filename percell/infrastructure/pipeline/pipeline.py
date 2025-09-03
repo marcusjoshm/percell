@@ -423,10 +423,15 @@ class Pipeline:
                     data_selection_service = composition_root.get_service('data_selection_service')
                     
                     if data_selection_service:
+                        # Extract input_dir from pipeline_args to avoid duplicate parameter
+                        input_dir = pipeline_args.get('input_dir', '')
+                        # Remove input_dir from kwargs to avoid duplicate parameter
+                        kwargs = {k: v for k, v in pipeline_args.items() if k != 'input_dir'}
+                        
                         result = data_selection_service.execute_data_selection(
-                            input_dir=pipeline_args.get('input_dir', ''),
+                            input_dir=input_dir,
                             output_dir=output_dir,
-                            **pipeline_args
+                            **kwargs
                         )
                         
                         if result.get('success'):
