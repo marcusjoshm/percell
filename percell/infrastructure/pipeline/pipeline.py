@@ -325,64 +325,40 @@ class Pipeline:
                     return True
                     
                 elif stage == 'data_selection':
-                    # Delegate to DataSelectionService via composition root
-                    try:
-                        from percell.main.composition_root import get_composition_root
-                        composition_root = get_composition_root()
-                        data_selection_service = composition_root.get_service('data_selection_service')
-                        if data_selection_service:
-                            input_dir = pipeline_args.get('input_dir', '')
-                            kwargs = {k: v for k, v in pipeline_args.items() if k not in ['input_dir', 'output_dir']}
-                            result = data_selection_service.execute_data_selection(
-                                input_dir=input_dir,
-                                output_dir=output_dir,
-                                **kwargs
-                            )
-                            if result.get('success'):
-                                self.logger.info("Data selection stage completed successfully")
-                                pipeline_args['data_selection_results'] = result
-                            else:
-                                self.logger.error(f"Data selection failed: {result.get('error', 'Unknown error')}")
-                                return False
-                        else:
-                            self.logger.error("Data selection service not available")
-                            return False
-                    except Exception as e:
-                        self.logger.error(f"Error in data selection: {e}")
+                    # Use legacy StageExecutor for interactive data selection prompts
+                    self.logger.info("Executing data selection with StageExecutor for interactive prompts")
+                    success_stage = self.executor.execute_stage(
+                        'data_selection',
+                        input_dir=pipeline_args.get('input_dir'),
+                        output_dir=output_dir
+                    )
+                    if not success_stage:
+                        self.logger.error("Data selection stage failed")
                         return False
                     continue
                     
                 elif stage == 'segmentation':
-                    result = self.hexagonal_workflow_service.bin_images(
-                        output_dir=output_dir,
-                        conditions=conditions,
-                        regions=regions,
-                        timepoints=timepoints,
-                        channels=[segmentation_channel]
+                    # Use StageExecutor to run full segmentation (binning + interactive tools)
+                    self.logger.info("Executing segmentation with StageExecutor for binning and interactive tools")
+                    success_stage = self.executor.execute_stage(
+                        'segmentation',
+                        input_dir=pipeline_args.get('input_dir'),
+                        output_dir=output_dir
                     )
-                    if result != 0:
-                        self.logger.error(f"Segmentation stage failed with code: {result}")
+                    if not success_stage:
+                        self.logger.error("Segmentation stage failed")
                         return False
                         
                 elif stage == 'process_single_cell':
-                    # This includes resize_rois, duplicate_rois, and extract_cells
-                    result = self.hexagonal_workflow_service.resize_rois(output_dir)
-                    if result != 0:
-                        self.logger.error(f"Resize ROIs stage failed with code: {result}")
-                        return False
-                        
-                    result = self.hexagonal_workflow_service.duplicate_rois_for_channels(
-                        output_dir, conditions, regions, timepoints, segmentation_channel, analysis_channels
+                    # Use StageExecutor to run full processing (track, resize, duplicate, extract, group)
+                    self.logger.info("Executing process_single_cell with StageExecutor for ROI processing")
+                    success_stage = self.executor.execute_stage(
+                        'process_single_cell',
+                        input_dir=pipeline_args.get('input_dir'),
+                        output_dir=output_dir
                     )
-                    if result != 0:
-                        self.logger.error(f"Duplicate ROIs stage failed with code: {result}")
-                        return False
-                        
-                    result = self.hexagonal_workflow_service.extract_cells(
-                        output_dir, conditions, regions, timepoints, analysis_channels
-                    )
-                    if result != 0:
-                        self.logger.error(f"Extract cells stage failed with code: {result}")
+                    if not success_stage:
+                        self.logger.error("Process single-cell stage failed")
                         return False
                         
                 elif stage == 'threshold_grouped_cells':
@@ -440,71 +416,34 @@ class Pipeline:
             segmentation_channel = pipeline_args.get('segmentation_channel') or 'ch01'
             
             if stage == 'data_selection':
-                # Use the data selection service to actually perform data selection
-                try:
-                    from percell.main.composition_root import get_composition_root
-                    composition_root = get_composition_root()
-                    data_selection_service = composition_root.get_service('data_selection_service')
-                    
-                    if data_selection_service:
-                        # Extract input_dir and output_dir from pipeline_args to avoid duplicate parameters
-                        input_dir = pipeline_args.get('input_dir', '')
-                        # Remove input_dir and output_dir from kwargs to avoid duplicate parameters
-                        kwargs = {k: v for k, v in pipeline_args.items() if k not in ['input_dir', 'output_dir']}
-                        
-                        result = data_selection_service.execute_data_selection(
-                            input_dir=input_dir,
-                            output_dir=output_dir,
-                            **kwargs
-                        )
-                        
-                        if result.get('success'):
-                            self.logger.info("Data selection stage completed successfully")
-                            # Store the results for use by other stages
-                            pipeline_args['data_selection_results'] = result
-                            return True
-                        else:
-                            self.logger.error(f"Data selection failed: {result.get('error', 'Unknown error')}")
-                            return False
-                    else:
-                        self.logger.error("Data selection service not available")
-                        return False
-                        
-                except Exception as e:
-                    self.logger.error(f"Error in data selection: {e}")
-                    return False
+                # Execute using StageExecutor to enable interactive prompts
+                success_stage = self.executor.execute_stage(
+                    'data_selection',
+                    input_dir=pipeline_args.get('input_dir'),
+                    output_dir=output_dir
+                )
+                return bool(success_stage)
                 
             elif stage == 'segmentation':
-                result = self.hexagonal_workflow_service.bin_images(
-                    output_dir=output_dir,
-                    conditions=conditions,
-                    regions=regions,
-                    timepoints=timepoints,
-                    channels=[segmentation_channel]
+                # Execute using StageExecutor to include interactive segmentation tools
+                success_stage = self.executor.execute_stage(
+                    'segmentation',
+                    input_dir=pipeline_args.get('input_dir'),
+                    output_dir=output_dir
                 )
-                if result != 0:
-                    self.logger.error(f"Segmentation stage failed with code: {result}")
+                if not success_stage:
+                    self.logger.error("Segmentation stage failed")
                     return False
                     
             elif stage == 'process_single_cell':
-                # This includes resize_rois, duplicate_rois, and extract_cells
-                result = self.hexagonal_workflow_service.resize_rois(output_dir)
-                if result != 0:
-                    self.logger.error(f"Resize ROIs stage failed with code: {result}")
-                    return False
-                    
-                result = self.hexagonal_workflow_service.duplicate_rois_for_channels(
-                    output_dir, conditions, regions, timepoints, segmentation_channel, analysis_channels
+                # Execute using StageExecutor to include full ROI processing flow
+                success_stage = self.executor.execute_stage(
+                    'process_single_cell',
+                    input_dir=pipeline_args.get('input_dir'),
+                    output_dir=output_dir
                 )
-                if result != 0:
-                    self.logger.error(f"Duplicate ROIs stage failed with code: {result}")
-                    return False
-                    
-                result = self.hexagonal_workflow_service.extract_cells(
-                    output_dir, conditions, regions, timepoints, analysis_channels
-                )
-                if result != 0:
-                    self.logger.error(f"Extract cells stage failed with code: {result}")
+                if not success_stage:
+                    self.logger.error("Process single-cell stage failed")
                     return False
                     
             elif stage == 'threshold_grouped_cells':

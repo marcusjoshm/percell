@@ -1031,21 +1031,21 @@ class ProcessSingleCellDataStage(StageBase):
                 "--macro", get_path_str("resize_rois_macro"),
                 "--auto-close"
             ]
-            used_service = False
-            if self.imagej_service is not None:
-                try:
-                    macro_path = get_path_str("resize_rois_macro")
-                    ij_args = [
-                        "--input", f"{output_dir}/preprocessed",
-                        "--output", f"{output_dir}/ROIs",
-                        "--channel", data_selection.get('segmentation_channel', ''),
-                    ]
-                    rc = self.imagej_service.run_macro(macro_path, ij_args)
-                    if rc == 0:
-                        used_service = True
-                        self.logger.info("ImageJService resized ROIs successfully")
-                except Exception as e:
-                    self.logger.debug(f"ImageJService resize ROIs failed, fallback to script: {e}")
+            used_service = False  # Force script path; ImageJService invocation not reliable for this macro
+            # if self.imagej_service is not None:
+            #     try:
+            #         macro_path = get_path_str("resize_rois_macro")
+            #         ij_args = [
+            #             "--input", f"{output_dir}/preprocessed",
+            #             "--output", f"{output_dir}/ROIs",
+            #             "--channel", data_selection.get('segmentation_channel', ''),
+            #         ]
+            #         rc = self.imagej_service.run_macro(macro_path, ij_args)
+            #         if rc == 0:
+            #             used_service = True
+            #             self.logger.info("ImageJService resized ROIs successfully")
+            #     except Exception as e:
+            #         self.logger.debug(f"ImageJService resize ROIs failed, fallback to script: {e}")
             if not used_service:
                 result = subprocess.run([sys.executable, str(resize_script)] + resize_args, capture_output=True, text=True)
                 if result.returncode != 0:
@@ -1104,23 +1104,23 @@ class ProcessSingleCellDataStage(StageBase):
                 "--auto-close",
                 "--channels"
             ] + (ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', []))
-            used_service = False
-            if self.imagej_service is not None:
-                try:
-                    macro_path = get_path_str("extract_cells_macro")
-                    ij_args = [
-                        "--roi-dir", f"{output_dir}/ROIs",
-                        "--raw-data-dir", f"{output_dir}/raw_data",
-                        "--output-dir", f"{output_dir}/cells",
-                    ]
-                    # Append channels at the end
-                    ij_args.extend(["--channels"] + data_selection.get('analysis_channels', []))
-                    rc = self.imagej_service.run_macro(macro_path, ij_args)
-                    if rc == 0:
-                        used_service = True
-                        self.logger.info("ImageJService extracted cells successfully")
-                except Exception as e:
-                    self.logger.debug(f"ImageJService extract cells failed, fallback to script: {e}")
+            used_service = False  # Force script path; ImageJService invocation not reliable for this macro
+            # if self.imagej_service is not None:
+            #     try:
+            #         macro_path = get_path_str("extract_cells_macro")
+            #         ij_args = [
+            #             "--roi-dir", f"{output_dir}/ROIs",
+            #             "--raw-data-dir", f"{output_dir}/raw_data",
+            #             "--output-dir", f"{output_dir}/cells",
+            #         ]
+            #         # Append channels at the end
+            #         ij_args.extend(["--channels"] + data_selection.get('analysis_channels', []))
+            #         rc = self.imagej_service.run_macro(macro_path, ij_args)
+            #         if rc == 0:
+            #             used_service = True
+            #             self.logger.info("ImageJService extracted cells successfully")
+            #     except Exception as e:
+            #         self.logger.debug(f"ImageJService extract cells failed, fallback to script: {e}")
             if not used_service:
                 result = subprocess.run([sys.executable, str(extract_script)] + extract_args, capture_output=True, text=True)
                 if result.returncode != 0:
@@ -1132,12 +1132,19 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 5: Group cells
             self.logger.info("Grouping cells...")
+            grouped_ok = False
             if hasattr(self, 'workflow_service') and self.workflow_service is not None:
-                rc = self.workflow_service.group_cells(output_dir, int(kwargs.get('bins', 5)), (ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', [])))
-                if rc != 0:
-                    self.logger.error("Failed to group cells")
-                    return False
-            else:
+                rc = self.workflow_service.group_cells(
+                    output_dir,
+                    int(kwargs.get('bins', 5)),
+                    (ds_filters.get('analysis_channels') or data_selection.get('analysis_channels', []))
+                )
+                if rc == 0:
+                    grouped_ok = True
+                else:
+                    self.logger.error("Workflow service grouping failed; falling back to script")
+
+            if not grouped_ok:
                 from percell.infrastructure.filesystem.paths import get_path
                 group_script = get_path("group_cells_module")
                 group_args = [

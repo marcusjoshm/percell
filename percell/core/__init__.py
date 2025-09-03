@@ -13,7 +13,7 @@ This package contains the core functionality for the microscopy analysis pipelin
 from percell.cli.app import PipelineCLI, parse_arguments, create_cli, CLIError
 from percell.infrastructure.configuration.config import Config, ConfigError, create_default_config, validate_software_paths, detect_software_paths
 from percell.infrastructure.logging.logger import PipelineLogger, ModuleLogger, create_logger
-from percell.infrastructure.pipeline.pipeline import Pipeline, create_pipeline
+from percell.core.pipeline import Pipeline, create_pipeline
 from percell.infrastructure.stages.stages import (
     StageBase, 
     FileProcessingStage, 

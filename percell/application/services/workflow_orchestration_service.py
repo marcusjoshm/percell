@@ -43,7 +43,8 @@ class WorkflowOrchestrationService:
         measure_roi_area_service=None,
         cleanup_directories_service=None,
         directory_management_service=None,
-        data_selection_service=None
+        data_selection_service=None,
+        interactive_data_selection_service=None
     ):
         """
         Initialize the Workflow Orchestration Service.
@@ -87,6 +88,7 @@ class WorkflowOrchestrationService:
         self.cleanup_directories_service = cleanup_directories_service
         self.directory_management_service = directory_management_service
         self.data_selection_service = data_selection_service
+        self.interactive_data_selection_service = interactive_data_selection_service
         
         # Workflow execution tracking
         self.execution_history = []
@@ -469,18 +471,26 @@ class WorkflowOrchestrationService:
             }
     
     def _handle_data_selection(self, input_dir: str, output_dir: str, **kwargs) -> Dict[str, Any]:
-        """Handle data selection step by delegating to DataSelectionService."""
+        """Handle data selection. Prefer interactive service; fallback to non-interactive service."""
         try:
-            if self.data_selection_service is None:
+            # Prefer interactive service to display prompts
+            if self.interactive_data_selection_service is not None:
+                result = self.interactive_data_selection_service.execute(
+                    input_dir=input_dir,
+                    output_dir=output_dir,
+                    **kwargs
+                )
+            elif self.data_selection_service is not None:
+                result = self.data_selection_service.execute_data_selection(
+                    input_dir=input_dir,
+                    output_dir=output_dir,
+                    **kwargs
+                )
+            else:
                 return {
                     'success': False,
                     'error': 'Data selection service not available'
                 }
-            result = self.data_selection_service.execute_data_selection(
-                input_dir=input_dir,
-                output_dir=output_dir,
-                **kwargs
-            )
             if result.get('success'):
                 return {
                     'success': True,

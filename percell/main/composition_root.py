@@ -50,6 +50,7 @@ from percell.application.services.workflow_execution_service import WorkflowExec
 from percell.application.services.hexagonal_workflow_service import HexagonalWorkflowService
 from percell.application.services.comprehensive_workflow_service import ComprehensiveWorkflowService
 from percell.application.services.data_selection_service import DataSelectionService
+from percell.application.services.interactive_data_selection_service import InteractiveDataSelectionService
 
 # Configuration and logging (moved to infrastructure layer)
 from percell.infrastructure.configuration.config import Config, create_default_config
@@ -233,11 +234,17 @@ class CompositionRoot:
             configuration_port=self._wired_services['configuration_port']
         )
 
-        # Create data selection service
+        # Create data selection services (legacy non-interactive and new interactive)
         data_selection_service = DataSelectionService(
             filesystem_port=self._wired_services['filesystem_port'],
             logging_port=self._wired_services['logging_port'],
             subprocess_port=self._wired_services['subprocess_port']
+        )
+        interactive_data_selection_service = InteractiveDataSelectionService(
+            filesystem_port=self._wired_services['filesystem_port'],
+            logging_port=self._wired_services['logging_port'],
+            subprocess_port=self._wired_services['subprocess_port'],
+            configuration_port=self._wired_services['configuration_port']
         )
         
         # Create workflow orchestration service
@@ -320,6 +327,7 @@ class CompositionRoot:
         self._wired_services['track_rois_service'] = track_rois_service
         self._wired_services['directory_management_service'] = directory_management_service
         self._wired_services['data_selection_service'] = data_selection_service
+        self._wired_services['interactive_data_selection_service'] = interactive_data_selection_service
         self._wired_services['workflow_orchestration_service'] = workflow_orchestration_service
         self._wired_services['workflow_definition_service'] = workflow_definition_service
         self._wired_services['workflow_execution_service'] = workflow_execution_service
