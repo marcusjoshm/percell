@@ -19,6 +19,7 @@ from percell.domain.services.metadata_service import MetadataService
 from percell.domain.services.image_binning_service import ImageBinningService
 from percell.domain.services.roi_tracking_service import RoiTrackingService
 from percell.domain.services.cell_grouping_service import CellGroupingService
+from percell.domain.services.roi_processor import ROIProcessor
 from percell.domain.value_objects.file_path import FilePath
 
 
@@ -79,6 +80,12 @@ class Container:
 
     def cell_grouping_service(self) -> CellGroupingService:
         return CellGroupingService(
+            storage=self.storage_adapter,
+            metadata_service=self.metadata_service(),
+        )
+
+    def roi_processor(self) -> ROIProcessor:
+        return ROIProcessor(
             storage=self.storage_adapter,
             metadata_service=self.metadata_service(),
         )

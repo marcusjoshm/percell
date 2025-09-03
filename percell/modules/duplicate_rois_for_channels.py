@@ -65,101 +65,16 @@ def duplicate_rois_for_channels(roi_dir, channels, verbose=False):
         channels (list): List of channel names to duplicate ROIs for
         verbose (bool): Enable verbose logging
     """
-    roi_dir = Path(roi_dir)
-    if not roi_dir.exists():
-        logger.error(f"ROI directory not found: {roi_dir}")
+    # Delegate to domain ROIProcessor
+    from percell.infrastructure.dependencies.container import Container as DIContainer, AppConfig as DIAppConfig
+    from percell.domain.value_objects.file_path import FilePath as VOFilePath
+    di = DIContainer(DIAppConfig())
+    processor = di.roi_processor()
+    count = processor.duplicate_rois_for_channels(VOFilePath.from_string(str(roi_dir)), channels)
+    # Maintain legacy return convention: 0 on success, 1 on failure
+    if count <= 0:
         return 1
-    
-    logger.info(f"Duplicating ROI files for analysis channels: {channels}")
-    
-    # Find all ROI files
-    roi_files = list(roi_dir.glob("**/*.zip"))
-    if not roi_files:
-        logger.error(f"No ROI files found in {roi_dir}")
-        return 1
-    
-    logger.info(f"Found {len(roi_files)} ROI files to process")
-    successful_copies = 0
-    channels_already_exist = set()
-    channels_processed = set()
-    
-    for roi_file in roi_files:
-        if verbose:
-            logger.debug(f"Processing ROI file: {roi_file}")
-        
-        # Extract channel from filename, prefer MetadataService if ROI naming deviates
-        try:
-            channel = extract_channel_from_filename(roi_file.name)
-            if not channel:
-                # Attempt to infer channel with MetadataService by matching a raw image filename found in the ROI name
-                try:
-                    from percell.infrastructure.dependencies.container import Container as DIContainer, AppConfig as DIAppConfig
-                    from percell.domain.value_objects.file_path import FilePath as VOFilePath
-                    di = DIContainer(DIAppConfig())
-                    metadata_service = di.metadata_service()
-                    # Create a loose reference metadata from ROI name tokens
-                    stem = roi_file.stem.replace('ROIs_', '').replace('_rois', '')
-                    # Scan condition directory under ROI dir
-                    condition_dir = roi_file.parent
-                    md_list = metadata_service.scan_directory_for_metadata(VOFilePath.from_string(str(condition_dir)), recursive=True)
-                    match = next((m for m in md_list if getattr(m, 'file_path', None) and stem in str(m.file_path)), None)
-                    if match and getattr(match, 'channel', None):
-                        channel = match.channel
-                except Exception:
-                    pass
-            if not channel:
-                logger.warning(f"Could not determine channel for ROI: {roi_file.name}")
-                continue
-        except Exception as e:
-            logger.warning(f"Error extracting channel: {e}")
-            continue
-        
-        # Track which channels already have ROI files
-        if channel in channels:
-            channels_already_exist.add(channel)
-        
-        # Create a copy for each target channel
-        for target_channel in channels:
-            # Skip if it's the same channel
-            if target_channel == channel:
-                if verbose:
-                    logger.debug(f"Skipping {target_channel} - already exists")
-                continue
-            
-            # Create new filename with target channel
-            # Replace the channel part while preserving the rest of the filename
-            new_name = re.sub(r'_ch\d+_', f'_{target_channel}_', roi_file.name)
-            new_path = roi_file.parent / new_name
-            
-            if verbose:
-                logger.debug(f"Created ROI file for {target_channel}: {new_name}")
-            
-            try:
-                shutil.copy2(roi_file, new_path)
-                if verbose:
-                    logger.debug(f"Copied {roi_file} -> {new_path}")
-                successful_copies += 1
-                channels_processed.add(target_channel)
-            except Exception as e:
-                logger.error(f"Failed to copy ROI file: {e}")
-                continue
-    
-    # Check if all requested channels are now available (either existed or were created)
-    all_channels_available = channels_already_exist.union(channels_processed)
-    missing_channels = set(channels) - all_channels_available
-    
-    logger.info(f"Successfully copied {successful_copies} ROI files")
-    logger.info(f"Channels that already existed: {sorted(list(channels_already_exist))}")
-    logger.info(f"Channels created by copying: {sorted(list(channels_processed))}")
-    
-    if missing_channels:
-        logger.error(f"Failed to provide ROI files for channels: {sorted(list(missing_channels))}")
-        return 1
-    elif successful_copies == 0 and len(channels_already_exist) > 0:
-        logger.info("All requested channels already have ROI files - no copying needed")
-    
-    logger.info(f"All requested channels now have ROI files: {channels}")
-    
+    logger.info(f"Successfully created {count} ROI copies for channels {channels}")
     return 0
 
 def main():
