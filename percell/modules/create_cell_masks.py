@@ -91,29 +91,52 @@ def find_matching_mask_for_roi(roi_file, mask_dir):
     
     logger.info(f"Extracted components - Region: {region}, Channel: {channel}, Timepoint: {timepoint}")
     
-    # Look for channel-specific mask files in the condition directory
+    # Prefer MetadataService to locate the mask by metadata
+    try:
+        from percell.infrastructure.dependencies.container import Container as DIContainer, AppConfig as DIAppConfig
+        from percell.domain.value_objects.file_path import FilePath as VOFilePath
+        di = DIContainer(DIAppConfig())
+        metadata_service = di.metadata_service()
+        md_list = metadata_service.scan_directory_for_metadata(VOFilePath.from_string(str(condition_mask_dir)), recursive=False)
+        # Normalize region comparison (mask files often have 'MASK_' prefix)
+        target_regions = {region, f"MASK_{region}"}
+        candidates = [
+            m for m in md_list
+            if getattr(m, 'channel', None) == channel and getattr(m, 'timepoint', None) == timepoint and (
+                getattr(m, 'region', '') in target_regions or any(r in (getattr(m, 'region', '') or '') for r in target_regions)
+            )
+        ]
+        if candidates:
+            # Pick the first candidate with a file path
+            for m in candidates:
+                if getattr(m, 'file_path', None):
+                    logger.info(f"Found matching mask via MetadataService: {m.file_path}")
+                    return Path(m.file_path)
+    except Exception as e:
+        logger.debug(f"MetadataService search failed ({e}); falling back to glob patterns.")
+
+    # Fallback: Look for channel-specific mask files in the condition directory
     # Pattern: MASK_{region}_{channel}_{timepoint}.tif
     mask_pattern = f"MASK_{region}_{channel}_{timepoint}.tif"
     logger.info(f"Looking for mask file matching pattern: {mask_pattern}")
-    
     mask_files = list(condition_mask_dir.glob(mask_pattern))
     if mask_files:
         logger.info(f"Found matching mask file: {mask_files[0]}")
         return mask_files[0]
-    
+
     # Try with .tiff extension
     mask_pattern = f"MASK_{region}_{channel}_{timepoint}.tiff"
     mask_files = list(condition_mask_dir.glob(mask_pattern))
     if mask_files:
         logger.info(f"Found matching mask file: {mask_files[0]}")
         return mask_files[0]
-    
+
     # Try more flexible search for this channel
     mask_files = list(condition_mask_dir.glob(f"MASK_{region}_{channel}_*.tif"))
     if mask_files:
         logger.info(f"Found matching mask file: {mask_files[0]}")
         return mask_files[0]
-    
+
     # Try even more flexible search for this specific channel
     mask_files = list(condition_mask_dir.glob(f"MASK_*{channel}*.tif"))
     if mask_files:

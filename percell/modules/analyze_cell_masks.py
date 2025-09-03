@@ -126,54 +126,42 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
         logger.info(f"Running ImageJ command: {' '.join(cmd)}")
         logger.info(f"ImageJ will {'auto-close' if auto_close else 'remain open'} after execution")
         
-        # Run ImageJ in headless mode with the macro
-        # Show spinner while batch macro runs; still stream logs
-        process = subprocess.Popen(
+        from percell.core import run_subprocess_with_spinner
+        result = run_subprocess_with_spinner(
             cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
+            title="ImageJ: Analyze Cell Masks",
+            capture_output=True,
+            text=True,
+            check=False,
         )
-        from percell.core import spinner as progress_spinner
-        spin_ctx = progress_spinner("ImageJ: Analyze Cell Masks")
-        spin = spin_ctx.__enter__()
         
-        # Variables for processing output
+        # Log outputs
+        if result.stdout:
+            logger.info("ImageJ output:")
+            for line in result.stdout.splitlines():
+                logger.info(f"  {line}")
+        if result.stderr:
+            logger.warning("ImageJ errors:")
+            for line in result.stderr.splitlines():
+                logger.warning(f"  {line}")
+        
+        # Count analysis completions from stdout markers if present
         results_count = 0
-        
-        # Monitor and log the output in real-time
-        while True:
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break
-            if output:
-                line = output.strip()
-                logger.info(f"ImageJ: {line}")
-                
-                # Count how many files were analyzed
-                if line.startswith("ANALYSIS_END:"):
+        if result.stdout:
+            for line in result.stdout.splitlines():
+                if line.strip().startswith("ANALYSIS_END:"):
                     results_count += 1
         
-        # Get any remaining output
-        # Close spinner
-        try:
-            spin_ctx.__exit__(None, None, None)
-        except Exception:
-            pass
-        stdout, stderr = process.communicate()
-        if stdout:
-            logger.info(f"ImageJ additional output: {stdout.strip()}")
-        if stderr:
-            logger.warning(f"ImageJ errors: {stderr.strip()}")
+        if result.returncode != 0 and results_count == 0:
+            logger.error(f"ImageJ returned non-zero exit code: {result.returncode}")
+            return False
         
-        # Check if the command executed successfully
-        if process.returncode != 0:
-            logger.error(f"ImageJ returned non-zero exit code: {process.returncode}")
-            if results_count == 0:
-                return False
+        if results_count > 0:
+            logger.info(f"Successfully processed {results_count} mask files")
+            return True
         
-        logger.info(f"Successfully processed {results_count} mask files")
-        return results_count > 0
+        # If no explicit markers, treat non-error completion as success
+        return result.returncode == 0
         
     except Exception as e:
         logger.error(f"Error running ImageJ: {e}")
@@ -270,81 +258,70 @@ def find_mask_files(input_dir, max_files=50, regions=None, timepoints=None):
     logger.info(f"Filtering by regions: {target_regions}")
     logger.info(f"Filtering by timepoints: {target_timepoints}")
     
-    # Search for .tif and .tiff files
-    for extension in ["tif", "tiff"]:
-        pattern = os.path.join(input_dir, "**", f"MASK_CELL*.{extension}")
-        logger.info(f"Searching with pattern: {pattern}")
-        
-        for mask_path in glob.glob(pattern, recursive=True):
-            # Get the parent directory (usually contains the condition/region info)
-            parent_dir = os.path.dirname(mask_path)
-            
-            # Extract region and timepoint from the directory name
-            dir_name = os.path.basename(parent_dir)
-            logger.info(f"Processing directory: {dir_name}")
-            
-            # Try several patterns to match directories
-            region = None
-            timepoint = None
-            
-            # First try the standard R_X_tXX pattern
-            standard_match = re.match(r"(R_\d+)_(t\d+)", dir_name)
-            if standard_match:
-                region = standard_match.group(1)
-                timepoint = standard_match.group(2)
-                logger.info(f"  Matched standard pattern - region: {region}, timepoint: {timepoint}")
-            
-            # If that doesn't match, try the custom pattern with region_timepoint
-            elif '_' in dir_name:
-                # Try to match a pattern like "50min_Washout_t00" or "region_t00"
-                custom_match = re.match(r"(.+?)_(t\d+)$", dir_name)
-                if custom_match:
-                    region = custom_match.group(1)
-                    timepoint = custom_match.group(2)
-                    logger.info(f"  Matched custom pattern - region: {region}, timepoint: {timepoint}")
-            
-            # If we still don't have a match, try to extract as much info as possible
-            if region is None or timepoint is None:
-                # Look for any timepoint pattern
-                tp_match = re.search(r"(t\d+)", dir_name)
-                if tp_match:
-                    timepoint = tp_match.group(1)
-                    # Use the rest as the region
-                    parts = dir_name.split(timepoint)
-                    potential_region = parts[0].strip('_')
-                    if potential_region:
-                        region = potential_region
-                    logger.info(f"  Extracted from parts - region: {region}, timepoint: {timepoint}")
-            
-            # Skip if we couldn't extract both region and timepoint
-            if region is None or timepoint is None:
-                logger.info(f"  Could not extract region/timepoint from directory: {dir_name}")
-                continue
-            
-            # Filter by regions if specified - with more flexible matching
+    # Prefer MetadataService to locate masks and derive regions/timepoints from metadata
+    try:
+        from percell.infrastructure.dependencies.container import Container as DIContainer, AppConfig as DIAppConfig
+        from percell.domain.value_objects.file_path import FilePath as VOFilePath
+        di = DIContainer(DIAppConfig())
+        metadata_service = di.metadata_service()
+        md_list = metadata_service.scan_directory_for_metadata(VOFilePath.from_string(str(Path(input_dir))), recursive=True)
+        # Filter by timepoints/regions if provided
+        def _matches(md):
+            ok = True
             if target_regions:
-                region_match = False
-                for target_region in target_regions:
-                    # Check if the directory region is a subset of a target region
-                    if region in target_region or target_region in region:
-                        region_match = True
-                        logger.info(f"  Region {region} matched with target region {target_region}")
-                        break
-                
-                if not region_match:
-                    logger.info(f"  Skipping {dir_name} due to region filter (no match found between {region} and {target_regions})")
-                    continue
-                
-            # Filter by timepoints if specified
-            if target_timepoints and timepoint not in target_timepoints:
-                logger.info(f"  Skipping {dir_name} due to timepoint filter ({timepoint} not in {target_timepoints})")
+                ok = ok and any((r in (md.region or '') or (md.region or '') in r) for r in target_regions)
+            if target_timepoints:
+                ok = ok and (md.timepoint in target_timepoints)
+            return ok
+        for md in md_list:
+            if not getattr(md, 'file_path', None):
                 continue
-            
-            # Add the file to the appropriate directory group
-            if parent_dir not in mask_files_by_dir:
-                mask_files_by_dir[parent_dir] = []
-            mask_files_by_dir[parent_dir].append(mask_path)
-            logger.info(f"  Added mask file: {os.path.basename(mask_path)}")
+            fp = str(md.file_path)
+            # only mask files
+            if not (fp.endswith('.tif') or fp.endswith('.tiff')):
+                continue
+            if 'MASK_CELL' not in os.path.basename(fp):
+                continue
+            if not _matches(md):
+                continue
+            parent_dir = os.path.dirname(fp)
+            mask_files_by_dir.setdefault(parent_dir, []).append(fp)
+    except Exception as e:
+        logger.warning(f"MetadataService unavailable or failed ({e}); falling back to glob patterns.")
+        # Fallback: original glob-based logic
+        for extension in ["tif", "tiff"]:
+            pattern = os.path.join(input_dir, "**", f"MASK_CELL*.{extension}")
+            logger.info(f"Searching with pattern: {pattern}")
+            for mask_path in glob.glob(pattern, recursive=True):
+                parent_dir = os.path.dirname(mask_path)
+                dir_name = os.path.basename(parent_dir)
+                region = None
+                timepoint = None
+                standard_match = re.match(r"(R_\d+)_(t\d+)", dir_name)
+                if standard_match:
+                    region = standard_match.group(1)
+                    timepoint = standard_match.group(2)
+                elif '_' in dir_name:
+                    custom_match = re.match(r"(.+?)_(t\d+)$", dir_name)
+                    if custom_match:
+                        region = custom_match.group(1)
+                        timepoint = custom_match.group(2)
+                if region is None or timepoint is None:
+                    tp_match = re.search(r"(t\d+)", dir_name)
+                    if tp_match:
+                        timepoint = tp_match.group(1)
+                        parts = dir_name.split(timepoint)
+                        potential_region = parts[0].strip('_')
+                        if potential_region:
+                            region = potential_region
+                if region is None or timepoint is None:
+                    continue
+                if target_regions:
+                    if not any((region in tr or tr in region) for tr in target_regions):
+                        continue
+                if target_timepoints and timepoint not in target_timepoints:
+                    continue
+                mask_files_by_dir.setdefault(parent_dir, []).append(mask_path)
     
     # Log the results
     total_files = sum(len(files) for files in mask_files_by_dir.values())

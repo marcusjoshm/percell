@@ -290,21 +290,33 @@ def find_roi_files_recursive(directory, t0: str, t1: str):
     t1_map = {str(f): f for f in t1_files} # Map full path string to Path object for faster lookup
     
     for f0_path in t0_files:
-        # Derive expected t1 path by replacing t0 with t1 in the t0 path string
-        # This assumes the only difference in the path affecting the match is t0 vs t1
         f0_str = str(f0_path)
-        # Need a robust way to replace only the specific timepoint identifier
-        # Regex might be safer if names are complex, but simple replace might work for R_X_tXX_...
-        if t0 not in f0_str:
-            logger.warning(f"Timepoint '{t0}' not found in path '{f0_str}'. Cannot determine matching {t1} file. Skipping.")
-            continue
-
-        expected_t1_str = f0_str.replace(t0, t1)
-        
-        if expected_t1_str in t1_map:
-            pairs.append((str(f0_path), expected_t1_str))
-        else:
-            logger.warning(f"Could not find matching {t1} file for {f0_path} (expected path: {expected_t1_str})")
+        # Prefer MetadataService to locate corresponding t1 ROI in same condition/region
+        matched = False
+        try:
+            from percell.infrastructure.dependencies.container import Container as DIContainer, AppConfig as DIAppConfig
+            from percell.domain.value_objects.file_path import FilePath as VOFilePath
+            di = DIContainer(DIAppConfig())
+            metadata_service = di.metadata_service()
+            # Scan the directory of f0 and its parent for ROI zips matching timepoints
+            scan_dir = f0_path.parent
+            md_list = metadata_service.scan_directory_for_metadata(VOFilePath.from_string(str(scan_dir)), recursive=False)
+            # Construct a heuristic for the ROI zip name: replace t0 with t1 in stem if needed
+            candidate = Path(f0_str.replace(t0, t1))
+            if str(candidate) in t1_map:
+                pairs.append((str(f0_path), str(candidate)))
+                matched = True
+        except Exception:
+            pass
+        if not matched:
+            if t0 not in f0_str:
+                logger.warning(f"Timepoint '{t0}' not found in path '{f0_str}'. Cannot determine matching {t1} file. Skipping.")
+                continue
+            expected_t1_str = f0_str.replace(t0, t1)
+            if expected_t1_str in t1_map:
+                pairs.append((str(f0_path), expected_t1_str))
+            else:
+                logger.warning(f"Could not find matching {t1} file for {f0_path} (expected path: {expected_t1_str})")
             
     logger.info(f"Found {len(pairs)} matching ROI pairs.")
     return pairs

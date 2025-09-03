@@ -40,7 +40,7 @@ def bin_image(image, bin_factor=4):
 
 
 def process_images(input_dir, output_dir, bin_factor=4,
-                   target_conditions=None, target_regions=None, 
+                   target_conditions=None, target_regions=None,
                    target_timepoints=None, target_channels=None):
     """
     Process images in input directory and save to output directory, filtering by selections.
@@ -69,8 +69,18 @@ def process_images(input_dir, output_dir, bin_factor=4,
     # Create output directory if it doesn't exist
     output_path.mkdir(parents=True, exist_ok=True)
     
-    # Find all .tif files recursively
-    all_files = list(input_path.glob("**/*.tif"))
+    # Use MetadataService to enumerate files and metadata
+    try:
+        from percell.infrastructure.dependencies.container import Container as DIContainer, AppConfig as DIAppConfig
+        from percell.domain.value_objects.file_path import FilePath as VOFilePath
+        di = DIContainer(DIAppConfig())
+        metadata_service = di.metadata_service()
+        md_list = metadata_service.scan_directory_for_metadata(VOFilePath.from_string(str(input_path)), recursive=True)
+        # Build list of actual file paths from metadata
+        all_files = [Path(m.file_path) for m in md_list if getattr(m, 'file_path', None)]
+    except Exception as e:
+        logger.warning(f"MetadataService unavailable or failed ({e}); falling back to glob.")
+        all_files = list(input_path.glob("**/*.tif"))
     logger.info(f"Found {len(all_files)} total .tif files in {input_path}.")
 
     # Convert selection lists to sets for efficient lookup, if they exist
@@ -121,43 +131,38 @@ def process_images(input_dir, output_dir, bin_factor=4,
             if selected_conditions and current_condition not in selected_conditions:
                 continue
                 
-            # Extract region, timepoint, channel from filename
-            filename = file_path.name
-            
-            # Match region from filename based on actual naming convention in the dataset
-            # Pattern for filenames like: 60min_washout_P_10_RAW_ch01_t00.tif
-            region_pattern = r'(.+?)_(ch\d+)_(t\d+)'
-            
-            region_match = re.search(region_pattern, filename)
-            if region_match:
-                current_region = region_match.group(1)  # This will capture '60min_washout_P_10_RAW'
-            else:
-                # Fallback for other potential naming patterns
-                # Try to extract everything before the channel and timepoint
-                parts = filename.split('_')
-                ch_index = -1
-                t_index = -1
-                for i, part in enumerate(parts):
-                    if part.startswith('ch'):
-                        ch_index = i
-                    if part.startswith('t'):
-                        t_index = i
-                
-                if ch_index > 0:  # If we found a channel marker
-                    current_region = '_'.join(parts[:ch_index])
+            # Prefer metadata from service if available
+            current_region = None
+            current_timepoint = None
+            current_channel = None
+            try:
+                # Find corresponding metadata for this file
+                md = next((m for m in md_list if getattr(m, 'file_path', None) and Path(m.file_path) == file_path), None)
+                if md:
+                    current_region = md.region
+                    current_timepoint = md.timepoint
+                    current_channel = md.channel
+            except Exception:
+                pass
+            # Fallback to filename parsing if needed
+            if not (current_region and current_timepoint and current_channel):
+                filename = file_path.name
+                region_pattern = r'(.+?)_(ch\d+)_(t\d+)'
+                region_match = re.search(region_pattern, filename)
+                if region_match:
+                    current_region = current_region or region_match.group(1)
                 else:
-                    current_region = None
-                    
-                logger.debug(f"Fallback region extraction: {current_region} from {filename}")
-                
-            logger.debug(f"Extracted region '{current_region}' from filename {filename}")
-            
-            # Match timepoint and channel patterns (t00, ch01 format)
-            timepoint_match = re.search(r'(t\d+)', filename)
-            channel_match = re.search(r'(ch\d+)', filename)
-            
-            current_timepoint = timepoint_match.group(1) if timepoint_match else None
-            current_channel = channel_match.group(1) if channel_match else None
+                    parts = filename.split('_')
+                    ch_index = -1
+                    for i, part in enumerate(parts):
+                        if part.startswith('ch'):
+                            ch_index = i
+                    if ch_index > 0:
+                        current_region = current_region or '_'.join(parts[:ch_index])
+                timepoint_match = re.search(r'(t\d+)', filename)
+                channel_match = re.search(r'(ch\d+)', filename)
+                current_timepoint = current_timepoint or (timepoint_match.group(1) if timepoint_match else None)
+                current_channel = current_channel or (channel_match.group(1) if channel_match else None)
 
             logger.debug(f"Parsed metadata - Condition: {current_condition}, Region: {current_region}, Timepoint: {current_timepoint}, Channel: {current_channel}")
 

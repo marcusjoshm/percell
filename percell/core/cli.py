@@ -168,6 +168,11 @@ Examples:
             action='store_true',
             help='Run advanced workflow builder (custom sequence of steps)'
         )
+        parser.add_argument(
+            '--ports-adapters-demo',
+            action='store_true',
+            help='Run small Ports & Adapters DI demo on the input dataset (uses config imagej/cellpose paths; prints image stats, segmentation ROI count, and simple metrics)'
+        )
         
         # Data selection arguments
         parser.add_argument(

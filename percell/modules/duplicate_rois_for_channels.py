@@ -87,14 +87,31 @@ def duplicate_rois_for_channels(roi_dir, channels, verbose=False):
         if verbose:
             logger.debug(f"Processing ROI file: {roi_file}")
         
-        # Extract channel from filename
+        # Extract channel from filename, prefer MetadataService if ROI naming deviates
         try:
             channel = extract_channel_from_filename(roi_file.name)
             if not channel:
-                logger.warning(f"Could not extract channel from filename: {roi_file.name}")
+                # Attempt to infer channel with MetadataService by matching a raw image filename found in the ROI name
+                try:
+                    from percell.infrastructure.dependencies.container import Container as DIContainer, AppConfig as DIAppConfig
+                    from percell.domain.value_objects.file_path import FilePath as VOFilePath
+                    di = DIContainer(DIAppConfig())
+                    metadata_service = di.metadata_service()
+                    # Create a loose reference metadata from ROI name tokens
+                    stem = roi_file.stem.replace('ROIs_', '').replace('_rois', '')
+                    # Scan condition directory under ROI dir
+                    condition_dir = roi_file.parent
+                    md_list = metadata_service.scan_directory_for_metadata(VOFilePath.from_string(str(condition_dir)), recursive=True)
+                    match = next((m for m in md_list if getattr(m, 'file_path', None) and stem in str(m.file_path)), None)
+                    if match and getattr(match, 'channel', None):
+                        channel = match.channel
+                except Exception:
+                    pass
+            if not channel:
+                logger.warning(f"Could not determine channel for ROI: {roi_file.name}")
                 continue
         except Exception as e:
-            logger.warning(f"Error extracting channel from filename: {e}")
+            logger.warning(f"Error extracting channel: {e}")
             continue
         
         # Track which channels already have ROI files

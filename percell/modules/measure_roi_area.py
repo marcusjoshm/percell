@@ -268,51 +268,63 @@ def find_roi_image_pairs(input_dir, output_dir):
             # Search for corresponding image files in input directory
             found_match = False
             
-            # Search recursively in input directory for matching image files
-            for img_ext in ['.tif', '.tiff', '.png', '.jpg']:
-                # Try different matching patterns
-                search_patterns = [
-                    f"**/{base_name}{img_ext}",  # Exact match
-                    f"**/*{base_name}*{img_ext}",  # Contains base name
-                    f"**/*{base_name.split('_')[0]}*{base_name.split('_')[1]}*{base_name.split('_')[2]}*{img_ext}",  # Match region, channel, timepoint
-                ]
-                
-                for pattern in search_patterns:
-                    matching_images = list(input_path.glob(pattern))
-                    
-                    for potential_image in matching_images:
-                        # Create output CSV file path with condition and "cell_area" in the filename
-                        # Extract condition from ROI file path, same as analyze_cell_masks.py
-                        # ROI path structure: output_dir/ROIs/condition/ROI_file.zip
-                        roi_path = Path(roi_file)
-                        condition_name = roi_path.parent.name  # Get the condition directory name (parent of ROI file)
-                        
-                        # Extract the ROI directory name from the ROI filename (like mask directory name)
-                        roi_name = roi_file.stem  # Get filename without extension
-                        # Remove "ROIs_" prefix and "_rois" suffix to get the directory name
-                        if roi_name.startswith("ROIs_"):
-                            roi_dir_name = roi_name[5:]  # Remove "ROIs_" prefix
-                        else:
-                            roi_dir_name = roi_name
-                        
-                        if roi_dir_name.endswith("_rois"):
-                            roi_dir_name = roi_dir_name[:-5]  # Remove "_rois" suffix
-                        
-                        # Create filename with condition and ROI directory name
-                        csv_filename = f"{condition_name}_{roi_dir_name}_cell_area.csv"
-                        csv_file = output_path / "analysis" / csv_filename
-                        csv_file.parent.mkdir(parents=True, exist_ok=True)
-                        
-                        pairs.append((str(roi_file), str(potential_image), str(csv_file)))
-                        logger.info(f"Found pair: ROI={roi_file.name}, Image={potential_image.name}")
-                        found_match = True
-                        break
-                    
-                    if found_match:
-                        break
-                
-                if found_match:
-                    break
+            # Use MetadataService to locate corresponding raw image for this ROI
+            try:
+                from percell.infrastructure.dependencies.container import Container as DIContainer, AppConfig as DIAppConfig
+                from percell.domain.value_objects.file_path import FilePath as VOFilePath
+                di = DIContainer(DIAppConfig())
+                metadata_service = di.metadata_service()
+                # Extract condition from ROI path
+                roi_path = Path(roi_file)
+                condition_name = roi_path.parent.name
+                condition_input_dir = input_path / condition_name
+                md_list = metadata_service.scan_directory_for_metadata(VOFilePath.from_string(str(condition_input_dir)), recursive=True)
+                # Parse region/channel/timepoint from base_name
+                region = base_name
+                channel = None
+                timepoint = None
+                import re as _re
+                m_ch = _re.search(r"_(ch\d+)_", base_name)
+                m_tp = _re.search(r"_(t\d+)(?:_|$)", base_name)
+                if m_ch:
+                    channel = m_ch.group(1)
+                    region = region.replace(f"_{channel}", "")
+                if m_tp:
+                    timepoint = m_tp.group(1)
+                    region = region.replace(f"_{timepoint}", "")
+                region = region.rstrip('_')
+                match = next((m for m in md_list if (getattr(m, 'channel', None) == channel and getattr(m, 'timepoint', None) == timepoint and (region in (m.region or '') or (m.region or '') in region))), None)
+                if match and getattr(match, 'file_path', None):
+                    potential_image = Path(match.file_path)
+                    # Create CSV filename
+                    csv_filename = f"{condition_name}_{base_name}_cell_area.csv"
+                    csv_file = output_path / "analysis" / csv_filename
+                    csv_file.parent.mkdir(parents=True, exist_ok=True)
+                    pairs.append((str(roi_file), str(potential_image), str(csv_file)))
+                    logger.info(f"Found pair via MetadataService: ROI={roi_file.name}, Image={potential_image.name}")
+                    found_match = True
+            except Exception as e:
+                logger.debug(f"MetadataService unavailable ({e}); falling back to pattern search.")
+                # Fall back to the previous glob-based search if MetadataService fails
+                for img_ext in ['.tif', '.tiff', '.png', '.jpg']:
+                    search_patterns = [
+                        f"**/{base_name}{img_ext}",
+                        f"**/*{base_name}*{img_ext}",
+                        f"**/*{base_name.split('_')[0]}*{base_name.split('_')[1]}*{base_name.split('_')[2]}*{img_ext}",
+                    ]
+                    for pattern in search_patterns:
+                        matching_images = list(input_path.glob(pattern))
+                        for potential_image in matching_images:
+                            condition_name = Path(roi_file).parent.name
+                            csv_filename = f"{condition_name}_{base_name}_cell_area.csv"
+                            csv_file = output_path / "analysis" / csv_filename
+                            csv_file.parent.mkdir(parents=True, exist_ok=True)
+                            pairs.append((str(roi_file), str(potential_image), str(csv_file)))
+                            logger.info(f"Found pair: ROI={roi_file.name}, Image={potential_image.name}")
+                            found_match = True
+                            break
+                        if found_match:
+                            break
             
             if not found_match:
                 logger.warning(f"No matching image found for ROI file: {roi_name}")

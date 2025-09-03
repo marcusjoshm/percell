@@ -265,7 +265,7 @@ def combine_masks(mask_dir, output_dir, channels=None):
         logger.error(traceback.format_exc())
         return False
 
-def process_all_masks(input_dir, output_dir):
+def process_all_masks(input_dir, output_dir, channels=None):
     """
     Process all mask directories in the input directory.
     
@@ -287,6 +287,25 @@ def process_all_masks(input_dir, output_dir):
             for region_dir in condition_dir.glob("*"):
                 if region_dir.is_dir():
                     mask_dirs.append(region_dir)
+
+    # If channels specified, prefer MetadataService to keep only dirs containing those channels
+    if channels:
+        try:
+            from percell.infrastructure.dependencies.container import Container as DIContainer, AppConfig as DIAppConfig
+            from percell.domain.value_objects.file_path import FilePath as VOFilePath
+            di = DIContainer(DIAppConfig())
+            metadata_service = di.metadata_service()
+            filtered = []
+            for md_dir in mask_dirs:
+                md_list = metadata_service.scan_directory_for_metadata(VOFilePath.from_string(str(md_dir)), recursive=True)
+                chan_set = {m.channel for m in md_list if getattr(m, 'channel', None)}
+                if any(ch in chan_set for ch in channels):
+                    filtered.append(md_dir)
+            mask_dirs = filtered
+            logger.info(f"After channel filtering {channels}, {len(mask_dirs)} mask directories remain")
+        except Exception as e:
+            logger.warning(f"MetadataService unavailable for channel filter ({e}); falling back to directory name filtering")
+            mask_dirs = [d for d in mask_dirs if any(ch in d.name for ch in channels)]
     
     logger.info(f"Found {len(mask_dirs)} mask directories to process")
     
@@ -300,7 +319,7 @@ def process_all_masks(input_dir, output_dir):
         logger.info(f"Processing {condition} - {region_timepoint}")
         
         # Process masks in this directory
-        if not combine_masks(mask_dir, output_dir):
+        if not combine_masks(mask_dir, output_dir, channels=channels):
             logger.error(f"Failed to process masks in {mask_dir}")
             all_successful = False
     
@@ -323,7 +342,7 @@ def main():
     output_dir = Path(args.output_dir)
     
     # Process all mask directories
-    if process_all_masks(input_dir, output_dir):
+    if process_all_masks(input_dir, output_dir, channels=args.channels):
         logger.info("Successfully combined all masks")
         return 0
     else:

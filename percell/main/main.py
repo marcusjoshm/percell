@@ -15,6 +15,8 @@ from percell.core.config import Config, ConfigError, create_default_config
 from percell.core.logger import PipelineLogger
 from percell.core.cli import parse_arguments, CLIError, show_header, create_cli
 from percell.core.pipeline import Pipeline
+from percell.infrastructure.dependencies.container import Container, AppConfig
+from percell.application.use_cases.run_complete_workflow import RunCompleteWorkflow
 
 
 def main():
@@ -97,9 +99,79 @@ def main():
                 log_level = "DEBUG" if args.verbose else "INFO"
                 logger = PipelineLogger(args.output, log_level=log_level)
                 
-                # Create and run pipeline
+                # Create and run pipeline (legacy path)
                 pipeline = Pipeline(config, logger, args)
                 success = pipeline.run()
+
+                # Additionally demonstrate ports/adapters flow on request
+                if getattr(args, 'advanced_workflow', False):
+                    container = Container(
+                        AppConfig(
+                            storage_base_path=None,
+                            cellpose_path=None,
+                            imagej_path=None,
+                        )
+                    )
+                    use_case = RunCompleteWorkflow(container.workflow_orchestrator())
+                    try:
+                        _summary = use_case.execute(workflow_id="standard_analysis")
+                        # Not printed to avoid cluttering legacy output
+                    except Exception:
+                        # Ignore demonstration failures for now
+                        pass
+
+                # Ports & Adapters DI demo: lightweight, non-invasive
+                if getattr(args, 'ports_adapters_demo', False):
+                    try:
+                        from pathlib import Path
+                        from percell.infrastructure.dependencies.container import Container as DIContainer, AppConfig as DIAppConfig
+                        from percell.domain.entities.image import Image as DomainImage
+                        from percell.domain.value_objects.file_path import FilePath as VOFilePath
+
+                        imagej_path = config.get('imagej_path')
+                        cellpose_py = config.get('directories.cellpose_path') or config.get('cellpose_path')
+                        di = DIContainer(DIAppConfig(
+                            storage_base_path=args.input,
+                            cellpose_path=cellpose_py,
+                            imagej_path=imagej_path,
+                        ))
+                        storage = di.storage_adapter
+                        # find first tif
+                        base = Path(args.input)
+                        img_path = None
+                        for ext in ('*.tif', '*.tiff'):
+                            found = list(base.rglob(ext))
+                            if found:
+                                img_path = found[0]
+                                break
+                        if img_path is None:
+                            print("[DI demo] No .tif images found in input")
+                        else:
+                            np_img = storage.read_image(VOFilePath(img_path))
+                            demo_image = DomainImage(image_id=img_path.stem, data=np_img, file_path=img_path)
+                            print(f"[DI demo] Image stats: {demo_image.get_statistics()}")
+                            rois = di.cellpose_adapter.segment_cells(demo_image, {"model": "cyto"})
+                            print(f"[DI demo] ROIs returned: {len(rois)}")
+                            if rois:
+                                roi = rois[0]
+                                if roi.bounding_box is None and roi.coordinates:
+                                    roi.calculate_bounding_box()
+                                if roi.bounding_box is not None and not roi.coordinates:
+                                    x, y, w, h = roi.bounding_box
+                                    roi.coordinates = [
+                                        (x, y), (x + max(0, w - 1), y),
+                                        (x + max(0, w - 1), y + max(0, h - 1)), (x, y + max(0, h - 1))
+                                    ]
+                                try:
+                                    ip = di.imagej_adapter
+                                    stats = ip.measure_roi_intensity(demo_image, roi)
+                                    print(f"[DI demo] ROI intensity stats: {stats}")
+                                    thr = ip.threshold_image(demo_image, method="otsu")
+                                    print(f"[DI demo] Thresholded image shape: {None if thr.data is None else thr.data.shape}")
+                                except Exception as e:
+                                    print(f"[DI demo] Extra metrics error: {e}")
+                    except Exception as e:
+                        print(f"[DI demo] Error: {e}")
                 
                 if success:
                     print("\n" + "="*80)

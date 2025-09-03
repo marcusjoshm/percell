@@ -865,13 +865,36 @@ def main():
     
     # Process each cell directory
     for cell_dir in cell_dirs:
-        # Check if directory matches any of the specified channels
+        # Check if directory matches any of the specified channels (prefer MetadataService)
         if channels:
-            dir_channels = [ch for ch in channels if ch in str(cell_dir)]
-            if not dir_channels:
+            proceed = False
+            try:
+                from percell.infrastructure.dependencies.container import Container as DIContainer, AppConfig as DIAppConfig
+                from percell.domain.value_objects.file_path import FilePath as VOFilePath
+                di = DIContainer(DIAppConfig())
+                metadata_service = di.metadata_service()
+                md_list = metadata_service.scan_directory_for_metadata(VOFilePath.from_string(str(cell_dir)), recursive=True)
+                chan_set = {m.channel for m in md_list if getattr(m, 'channel', None)}
+                if any(ch in chan_set for ch in channels):
+                    logger.info(f"Processing directory {cell_dir} for channels overlap {chan_set & set(channels)}")
+                    proceed = True
+            except Exception:
+                pass
+            if not proceed:
+                # Fallback: infer channel from directory name (e.g., TS1_..._ch01_t00)
+                import re as _re
+                m = _re.search(r"(ch\d+)", cell_dir.name)
+                if m and m.group(1) in channels:
+                    logger.info(f"Processing {cell_dir} based on directory channel {m.group(1)}")
+                    proceed = True
+                else:
+                    dir_channels = [ch for ch in channels if ch in str(cell_dir)]
+                    if dir_channels:
+                        logger.info(f"Processing channels {dir_channels} for {cell_dir}")
+                        proceed = True
+            if not proceed:
                 logger.info(f"Skipping {cell_dir} - no matching channels")
                 continue
-            logger.info(f"Processing channels {dir_channels} for {cell_dir}")
         
         # Use group_and_sum_cells to create merged bin images instead of individual cell files
         if group_and_sum_cells(cell_dir, output_dir, args.bins, method='gmm', force_clusters=args.force_clusters, verbose=False):

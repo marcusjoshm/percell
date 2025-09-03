@@ -231,35 +231,41 @@ def find_image_for_roi(roi_file, raw_data_dir):
     
     logger.info(f"Extracted components - Region: {region}, Channel: {channel}, Timepoint: {timepoint}")
     
-    # Use the extracted components to find the image file
-    # Look in all subdirectories of the condition directory
+    # Prefer MetadataService to locate the image file
+    try:
+        from percell.infrastructure.dependencies.container import Container as DIContainer, AppConfig as DIAppConfig
+        from percell.domain.value_objects.file_path import FilePath as VOFilePath
+        di = DIContainer(DIAppConfig())
+        metadata_service = di.metadata_service()
+        md_list = metadata_service.scan_directory_for_metadata(VOFilePath.from_string(str(condition_dir)), recursive=True)
+        for m in md_list:
+            if not getattr(m, 'file_path', None):
+                continue
+            ok_region = (region in (m.region or '')) or ((m.region or '') in region)
+            ok_channel = (not channel) or (m.channel == channel)
+            ok_time = (not timepoint) or (m.timepoint == timepoint)
+            if ok_region and ok_channel and ok_time:
+                logger.info(f"Found matching image via MetadataService: {m.file_path}")
+                return Path(m.file_path)
+    except Exception as e:
+        logger.debug(f"MetadataService search failed ({e}); falling back to glob patterns.")
+
+    # Use the extracted components to find the image file (fallback)
     image_pattern = f"{region}_{channel}_{timepoint}.tif"
     logger.info(f"Looking for image file matching pattern: {image_pattern}")
-    
-    # Use recursive glob to find the file
     possible_files = list(condition_dir.glob(f"**/{image_pattern}"))
-    
     if possible_files:
         logger.info(f"Found matching image file: {possible_files[0]}")
         return possible_files[0]
-    
-    # If not found with the pattern, search more broadly
     logger.warning(f"No exact match found, trying more flexible search")
-    
-    # Try partial matches based on region, channel, and timepoint
     for subdir in condition_dir.glob("**"):
         if subdir.is_dir():
             logger.debug(f"Searching in subdirectory: {subdir}")
-            
-            # Look for files matching parts of the pattern
             for file in subdir.glob("*.tif"):
                 filename = file.name
-                
-                # Check if the filename contains all the extracted components
                 matches_region = region in filename
                 matches_channel = channel in filename if channel else True
                 matches_timepoint = timepoint in filename if timepoint else True
-                
                 if matches_region and matches_channel and matches_timepoint:
                     logger.info(f"Found partial match: {file}")
                     return file

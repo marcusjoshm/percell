@@ -325,137 +325,61 @@ class DataSelectionStage(StageBase):
         return bool(re.search(r'ch[0-9]+', filename))
     
     def _extract_experiment_metadata(self, input_dir: str) -> bool:
-        """Extract experiment metadata from the directory structure."""
+        """Extract experiment metadata from the directory structure via MetadataService."""
         try:
             input_path = Path(input_dir)
-            metadata = {
-                'conditions': [],
-                'regions': set(),
-                'timepoints': set(),
-                'channels': set(),
-                'region_to_channels': {},
-                'datatype_inferred': 'multi_timepoint',
-                'directory_timepoints': set()  # Track directory-based timepoints separately
-            }
-            
             self.logger.info(f"Scanning input directory: {input_path}")
             if not input_path.exists():
                 self.logger.error(f"Input directory does not exist: {input_path}")
                 return False
-                
-            # List all items in the input directory
-            input_items = list(input_path.glob("*"))
-            self.logger.info(f"Found {len(input_items)} items in input directory")
-            
-            # Count directories to help with debugging
-            input_dirs = [item for item in input_items if item.is_dir() and not item.name.startswith('.')]
-            self.logger.info(f"Found {len(input_dirs)} directories in input directory: {[d.name for d in input_dirs]}")
-            
-            if not input_dirs:
-                self.logger.warning("No subdirectories found in input directory. Expected at least one condition directory.")
-                return False
-            
-            # Find all directories in the input directory as potential conditions
-            for item in input_dirs:
-                condition_name = item.name
-                metadata['conditions'].append(condition_name)
-                
-                self.logger.info(f"Processing condition: {condition_name}")
-                
-                # Use a more efficient approach to find TIF files
-                # First, try to find TIF files directly in the condition directory
-                tif_files = []
-                
-                # Check if there are TIF files directly in the condition directory
-                direct_tifs = list(item.glob("*.tif"))
-                if direct_tifs:
-                    self.logger.info(f"Found {len(direct_tifs)} TIF files directly in condition '{condition_name}'")
-                    tif_files.extend(direct_tifs)
-                
-                # If no direct TIF files, check one level down for timepoint directories
-                if not direct_tifs:
-                    timepoint_dirs = [d for d in item.iterdir() if d.is_dir()]
-                    self.logger.info(f"Found {len(timepoint_dirs)} subdirectories in condition '{condition_name}': {[d.name for d in timepoint_dirs]}")
-                    
-                    for timepoint_dir in timepoint_dirs:
-                        timepoint_name = timepoint_dir.name
-                        timepoint_tifs = list(timepoint_dir.glob("*.tif"))
-                        if timepoint_tifs:
-                            self.logger.info(f"Found {len(timepoint_tifs)} TIF files in {timepoint_name}")
-                            tif_files.extend(timepoint_tifs)
-                            
-                            # Track directory-based timepoints separately (for file copying)
-                            # Check if it's a timepoint directory (timepoint_1, timepoint_2, etc.)
-                            if timepoint_name.startswith('timepoint_'):
-                                metadata['directory_timepoints'].add(timepoint_name)
-                            # Also check for other timepoint patterns
-                            elif re.match(r't[0-9]+', timepoint_name):
-                                metadata['directory_timepoints'].add(timepoint_name)
-                
-                # If still no TIF files, do a limited recursive search (max depth 3)
-                if not tif_files:
-                    self.logger.info(f"No TIF files found in immediate subdirectories, doing limited recursive search...")
-                    for depth in range(1, 4):  # Limit to 3 levels deep
-                        pattern = "*/" * depth + "*.tif"
-                        found_tifs = list(item.glob(pattern))
-                        if found_tifs:
-                            self.logger.info(f"Found {len(found_tifs)} TIF files at depth {depth}")
-                            tif_files.extend(found_tifs)
-                            break  # Stop at first depth with files
-                
-                self.logger.info(f"Total TIF files found in condition '{condition_name}': {len(tif_files)}")
-                
-                if not tif_files:
-                    self.logger.warning(f"No TIF files found in condition '{condition_name}'")
-                    continue
-                
-                # Extract metadata from filenames (limit to first 100 files to avoid excessive processing)
-                files_to_process = tif_files[:100] if len(tif_files) > 100 else tif_files
-                if len(tif_files) > 100:
-                    self.logger.info(f"Processing first 100 files out of {len(tif_files)} total files for metadata extraction")
-                
-                for tif_file in files_to_process:
-                    filename = tif_file.name
-                    
-                    # Extract timepoint from filename (for selection interface)
-                    timepoint_match = re.search(r't([0-9]+)', filename)
-                    if timepoint_match:
-                        timepoint = f"t{timepoint_match.group(1)}"
-                        metadata['timepoints'].add(timepoint)
-                    
-                    # Extract channel
-                    channel_match = re.search(r'ch([0-9]+)', filename)
-                    if channel_match:
-                        channel = f"ch{channel_match.group(1)}"
-                        metadata['channels'].add(channel)
-                    
-                    # Extract region by looking at what's not a channel or timepoint
-                    # Remove channel and timepoint parts from filename
-                    temp_name = re.sub(r'(ch\d+|t\d+)', '', filename)
-                    # Remove file extension
-                    temp_name = os.path.splitext(temp_name)[0]
-                    # Remove any trailing or duplicate underscores from the result and clean it up
-                    region_name = re.sub(r'_+', '_', temp_name).strip('_')
-                    if region_name:  # Only add if not empty
-                        metadata['regions'].add(region_name)
-            
-            # Convert sets to sorted lists
-            metadata['regions'] = sorted(list(metadata['regions']))
-            metadata['timepoints'] = sorted(list(metadata['timepoints']))
-            metadata['channels'] = sorted(list(metadata['channels']))
-            metadata['directory_timepoints'] = sorted(list(metadata['directory_timepoints']))
-            
-            # Infer datatype based on timepoints
-            if len(metadata['timepoints']) <= 1:
-                metadata['datatype_inferred'] = 'single_timepoint'
-            else:
-                metadata['datatype_inferred'] = 'multi_timepoint'
-            
-            self.experiment_metadata = metadata
-            self.logger.info(f"Extracted metadata: {metadata}")
-            self.logger.info(f"Directory timepoints (for file copying): {metadata['directory_timepoints']}")
+
+            # Use DI container to resolve MetadataService
+            from percell.infrastructure.dependencies.container import (
+                Container as DIContainer,
+                AppConfig as DIAppConfig,
+            )
+            from percell.domain.value_objects.file_path import FilePath as VOFilePath
+
+            di = DIContainer(DIAppConfig())
+            metadata_service = di.metadata_service()
+
+            # Summarize experiment dimensions
+            summary = metadata_service.extract_experiment_metadata(
+                VOFilePath.from_string(str(input_path))
+            )
+
+            # Compute directory-based timepoints for copying logic
+            directory_timepoints: Set[str] = set()
+            for condition in summary.get('conditions', []):
+                condition_dir = input_path / condition
+                if condition_dir.exists():
+                    for d in condition_dir.iterdir():
+                        if d.is_dir():
+                            name = d.name
+                            if name.startswith('timepoint_') or re.match(r't[0-9]+', name):
+                                directory_timepoints.add(name)
+
+            # Infer datatype based on number of timepoints
+            datatype_inferred = (
+                'single_timepoint' if len(summary.get('timepoints', [])) <= 1 else 'multi_timepoint'
+            )
+
+            self.experiment_metadata = {
+                'conditions': summary.get('conditions', []),
+                'regions': summary.get('regions', []),
+                'timepoints': summary.get('timepoints', []),
+                'channels': summary.get('channels', []),
+                'region_to_channels': {},
+                'datatype_inferred': datatype_inferred,
+                'directory_timepoints': sorted(list(directory_timepoints)),
+            }
+
+            self.logger.info(f"Extracted metadata: {self.experiment_metadata}")
+            self.logger.info(
+                f"Directory timepoints (for file copying): {self.experiment_metadata['directory_timepoints']}"
+            )
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Error extracting experiment metadata: {e}")
             return False
