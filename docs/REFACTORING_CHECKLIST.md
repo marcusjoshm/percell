@@ -13,7 +13,25 @@ Completed
 - [x] Workflow orchestrator (skeleton): `percell/domain/services/workflow_orchestrator.py`
 
 Remaining
-- [ ] Move more business logic from `percell/modules/*` into domain services (beyond orchestrator skeleton)
+- [ ] Move more business logic from `percell/modules/*` into domain services (beyond orchestrator skeleton):
+  - [ ] `percell/modules/analyze_cell_masks.py`
+  - [ ] `percell/modules/bin_images.py`
+  - [ ] `percell/modules/combine_masks.py`
+  - [ ] `percell/modules/create_cell_masks.py`
+  - [ ] `percell/modules/extract_cells.py`
+  - [ ] `percell/modules/group_cells.py`
+  - [ ] `percell/modules/measure_roi_area.py`
+  - [ ] `percell/modules/track_rois.py`
+  - [ ] `percell/modules/duplicate_rois_for_channels.py`
+  - [ ] `percell/modules/advanced_workflow.py`
+  - [ ] `percell/modules/include_group_metadata.py`
+  - [ ] `percell/modules/cleanup_directories.py`
+  - [ ] `percell/modules/directory_setup.py`
+  - [ ] `percell/modules/set_directories.py`
+  - [ ] `percell/modules/stage_classes.py`
+  - [ ] `percell/modules/stage_registry.py`
+  - [ ] `percell/modules/otsu_threshold_grouped_cells.py` (if any non‑macro logic remains)
+  - [ ] `percell/modules/resize_rois.py` (if any non‑macro logic remains)
 
 ### Phase 3: Implement Adapters
 Completed

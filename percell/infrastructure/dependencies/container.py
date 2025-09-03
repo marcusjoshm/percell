@@ -16,6 +16,7 @@ from percell.adapters.outbound.image_processing.imagej_adapter import ImageJAdap
 from percell.adapters.outbound.metadata.metadata_adapter import FileNameMetadataAdapter
 from percell.domain.services.workflow_orchestrator import WorkflowOrchestrator
 from percell.domain.services.metadata_service import MetadataService
+from percell.domain.services.image_binning_service import ImageBinningService
 from percell.domain.value_objects.file_path import FilePath
 
 
@@ -60,6 +61,12 @@ class Container:
         return MetadataService(
             storage=self.storage_adapter,
             metadata_port=self.metadata_adapter,
+        )
+
+    def image_binning_service(self) -> ImageBinningService:
+        return ImageBinningService(
+            storage=self.storage_adapter,
+            metadata_service=self.metadata_service(),
         )
 
 
