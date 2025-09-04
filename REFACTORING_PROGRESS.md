@@ -11,6 +11,7 @@ Status
 - [x] Extract ROI tracking domain service
 - [x] Extract cell grouping domain service
 - [x] Implement TifffileImageAdapter (read/write + metadata) with tests
+- [x] Implement ImageJMacroAdapter with mocked subprocess tests
 
 Notes
 - Created branch `refactor/ports-and-adapters` and initialized the migration.
@@ -18,5 +19,5 @@ Notes
 - All existing tests pass (1 passed).
 
 Next
-- Implement ImageJMacroAdapter (mock subprocess) and tests (Commit 7).
+- Implement PandasMetadataAdapter and tests (Commit 8).
 
