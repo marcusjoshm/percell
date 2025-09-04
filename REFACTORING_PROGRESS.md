@@ -27,6 +27,7 @@ Status
 - [x] Add application use case tests (GroupCells, TrackROIs, Segmentation)
 - [x] Add integration tests for main workflows (GroupCells, SegmentCells)
 - [x] Add migration shims for legacy modules (group_cells) with tests
+- [x] Performance optimizations: concurrent image reads; TIFF compression options
 
 Notes
 - Branch `refactor/ports-and-adapters` active for migration tasks.
@@ -34,5 +35,5 @@ Notes
 - All tests green (47 passed).
 
 Next
-- Update documentation for shims and CLI compatibility (Commit 23).
+- Final cleanup and deprecation removal (Commit 25).
 

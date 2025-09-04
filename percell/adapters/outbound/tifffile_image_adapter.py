@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+import os
 
 import numpy as np
 import tifffile
@@ -46,9 +47,27 @@ class TifffileImageAdapter(ImageReaderPort, ImageWriterPort):
         return image, metadata
 
     def write(self, path: Path, image: np.ndarray, metadata: Optional[Dict[str, Any]] = None) -> None:
+        # Optional performance tuning via env vars
+        # PERCELL_TIFF_COMPRESSION: e.g., 'zlib', 'lzw', 'zstd', 'none'
+        # PERCELL_TIFF_BIGTIFF: '1' to force BigTIFF
+        # PERCELL_TIFF_PREDICTOR: 'horizontal' for better compression on images with gradients
+        compression = os.environ.get("PERCELL_TIFF_COMPRESSION", None)
+        if compression == "none":
+            compression = None
+        bigtiff_flag = os.environ.get("PERCELL_TIFF_BIGTIFF", "0") == "1"
+        predictor = os.environ.get("PERCELL_TIFF_PREDICTOR", None)
+
+        kwargs: Dict[str, Any] = {}
+        if compression is not None:
+            kwargs["compression"] = compression
+        if bigtiff_flag:
+            kwargs["bigtiff"] = True
+        if predictor in {"horizontal", "float"}:
+            kwargs["predictor"] = predictor
+
         if metadata is not None:
-            tifffile.imwrite(str(path), image, metadata=metadata)
-        else:
-            tifffile.imwrite(str(path), image)
+            kwargs["metadata"] = metadata
+
+        tifffile.imwrite(str(path), image, **kwargs)
 
 

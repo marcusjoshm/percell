@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List
 
@@ -50,8 +52,18 @@ class GroupCellsUseCase:
 
         # 1) Discover cell images
         cell_files: List[Path] = sorted(self.filesystem.glob("*.tif", root=cell_dir))
-        # 2) Load cell images
-        cell_images = [self.image_reader.read(p) for p in cell_files]
+        # 2) Load cell images (optionally with I/O concurrency)
+        # Default to sequential for determinism; enable concurrency via env var
+        workers_env = os.environ.get("PERCELL_IO_WORKERS")
+        if workers_env and workers_env.isdigit() and int(workers_env) > 1:
+            max_workers = int(workers_env)
+            cell_images: List[np.ndarray] = []
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_path = {executor.submit(self.image_reader.read, p): p for p in cell_files}
+                for future in as_completed(future_to_path):
+                    cell_images.append(future.result())
+        else:
+            cell_images = [self.image_reader.read(p) for p in cell_files]
 
         # 3) Compute intensities via domain service (flatten image to 1D profile)
         intensities: List[float] = [
