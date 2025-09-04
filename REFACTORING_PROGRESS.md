@@ -12,6 +12,7 @@ Status
 - [x] Extract cell grouping domain service
 - [x] Implement TifffileImageAdapter (read/write + metadata) with tests
 - [x] Implement ImageJMacroAdapter with mocked subprocess tests
+- [x] Implement PandasMetadataAdapter and tests
 
 Notes
 - Created branch `refactor/ports-and-adapters` and initialized the migration.
@@ -19,5 +20,5 @@ Notes
 - All existing tests pass (1 passed).
 
 Next
-- Implement PandasMetadataAdapter and tests (Commit 8).
+- Implement PathlibFilesystemAdapter with temp-dir tests (Commit 9).
 
