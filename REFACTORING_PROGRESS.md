@@ -25,6 +25,7 @@ Status
 - [x] Migrate configuration to infrastructure (JSON configuration adapter)
 - [x] Add comprehensive domain tests
 - [x] Add application use case tests (GroupCells, TrackROIs, Segmentation)
+- [x] Add integration tests for main workflows (GroupCells, SegmentCells)
 
 Notes
 - Branch `refactor/ports-and-adapters` active for migration tasks.
@@ -32,5 +33,5 @@ Notes
 - All tests green (47 passed).
 
 Next
-- Add integration tests (Commit 21).
+- Add migration shims and verify backward compatibility (Commit 22).
 
