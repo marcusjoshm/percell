@@ -15,6 +15,7 @@ Status
 - [x] Implement PandasMetadataAdapter and tests
 - [x] Implement PathlibFilesystemAdapter with temp-dir tests
 - [x] Add adapter factory for DI selection
+- [x] Implement GroupCellsUseCase
 
 Notes
 - Created branch `refactor/ports-and-adapters` and initialized the migration.
@@ -22,5 +23,5 @@ Notes
 - All existing tests pass (1 passed).
 
 Next
-- Implement GroupCellsUseCase (Commit 11).
+- Implement TrackROIsUseCase (Commit 12).
 
