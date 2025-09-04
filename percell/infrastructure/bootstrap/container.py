@@ -96,4 +96,13 @@ class Container:
             repo=repo,
         )
 
+_GLOBAL_CONTAINER: Container | None = None
+
+
+def get_container(config: Optional[AppConfig] = None, segmenter: Optional[SegmenterPort] = None) -> Container:
+    global _GLOBAL_CONTAINER
+    if _GLOBAL_CONTAINER is None:
+        _GLOBAL_CONTAINER = Container(config=config, segmenter=segmenter)
+    return _GLOBAL_CONTAINER
+
 

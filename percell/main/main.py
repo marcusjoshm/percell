@@ -15,6 +15,7 @@ from percell.core.config import Config, ConfigError, create_default_config
 from percell.core.logger import PipelineLogger
 from percell.core.cli import parse_arguments, CLIError, show_header, create_cli
 from percell.core.pipeline import Pipeline
+from percell.infrastructure.bootstrap.container import get_container, AppConfig
 
 
 def main():
@@ -97,6 +98,17 @@ def main():
                 log_level = "DEBUG" if args.verbose else "INFO"
                 logger = PipelineLogger(args.output, log_level=log_level)
                 
+                # Optionally enable new use cases via container
+                try:
+                    if args.use_new_arch:
+                        cfg = AppConfig()
+                        container = get_container(cfg)
+                        # Toggle in config so stages choose use cases where supported
+                        config.set('usecases_enabled', True)
+                        config.save()
+                except AttributeError:
+                    pass
+
                 # Create and run pipeline
                 pipeline = Pipeline(config, logger, args)
                 success = pipeline.run()
