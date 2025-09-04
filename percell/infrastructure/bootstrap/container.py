@@ -16,6 +16,7 @@ from percell.application.use_cases.track_rois import TrackROIsUseCase
 from percell.domain.services.cell_grouping_service import CellGroupingService
 from percell.domain.services.roi_tracking_service import ROITrackingService
 from percell.ports.outbound.segmenter_port import SegmenterPort
+from percell.infrastructure.config.json_configuration_adapter import JSONConfigurationAdapter
 
 
 @dataclass(frozen=True)
@@ -64,6 +65,12 @@ class Container:
 
     def filesystem(self) -> PathlibFilesystemAdapter:
         return self._factory.build_filesystem()  # type: ignore[return-value]
+
+    # --- Configuration ---
+    def configuration(self, path: Path) -> JSONConfigurationAdapter:
+        cfg = JSONConfigurationAdapter(path)
+        cfg.load()
+        return cfg
 
     # --- Domain Services ---
     def cell_grouping_service(self) -> CellGroupingService:
