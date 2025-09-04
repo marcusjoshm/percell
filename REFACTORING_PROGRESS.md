@@ -22,6 +22,7 @@ Status
 - [x] Add command objects for GroupCells, TrackROIs, SegmentCells
 - [x] Add DI container wiring adapters, services, and use cases
 - [x] Integrate DI container with main application
+- [x] Migrate configuration to infrastructure (JSON configuration adapter)
 
 Notes
 - Created branch `refactor/ports-and-adapters` and initialized the migration.
@@ -29,5 +30,5 @@ Notes
 - All existing tests pass (1 passed).
 
 Next
-- Migrate configuration to infrastructure layer (Commit 18).
+- Add comprehensive domain tests (Commit 19).
 
