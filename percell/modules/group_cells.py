@@ -17,12 +17,16 @@ import glob
 import csv
 from pathlib import Path
 import numpy as np
-import cv2
+try:
+    import cv2  # type: ignore
+    HAVE_OPENCV = True
+except Exception:
+    HAVE_OPENCV = False
 try:
     # Try to import skimage for better TIFF reading
     from skimage import io as skio
     HAVE_SKIMAGE = True
-except ImportError:
+except Exception:
     HAVE_SKIMAGE = False
 try:
     # Import tifffile for preserving metadata when writing TIFF files
@@ -30,9 +34,6 @@ try:
     HAVE_TIFFFILE = True
 except ImportError:
     HAVE_TIFFFILE = False
-from sklearn.mixture import GaussianMixture
-from sklearn.cluster import KMeans
-import matplotlib.pyplot as plt
 from scipy import stats
 import re
 import shutil
@@ -376,6 +377,8 @@ def group_and_sum_cells(cell_dir, output_dir, num_bins, method='gmm', force_clus
             
     # Otherwise, proceed with the selected clustering method
     elif method.lower() == 'gmm':
+        # Deferred import to avoid heavy deps at module import time
+        from sklearn.mixture import GaussianMixture  # type: ignore
         # Gaussian Mixture Model with improved parameters
         gmm = GaussianMixture(
             n_components=actual_num_bins, 
@@ -419,6 +422,8 @@ def group_and_sum_cells(cell_dir, output_dir, num_bins, method='gmm', force_clus
     
     # Default: Use K-means clustering (either as primary method or as fallback from GMM)
     if method.lower() == 'kmeans':
+        # Deferred import to avoid heavy deps at module import time
+        from sklearn.cluster import KMeans  # type: ignore
         # Use K-means clustering with multiple initializations and iterations for robustness
         kmeans = KMeans(
             n_clusters=actual_num_bins, 
@@ -755,6 +760,9 @@ def process_cell_directory(cell_dir, output_dir, bins=5, force_clusters=False, c
     
     for cell_file in cell_files:
         try:
+            if not HAVE_OPENCV:
+                logger.error("OpenCV is required for legacy path but is not available. Install opencv-python.")
+                return False
             img = cv2.imread(str(cell_file), cv2.IMREAD_GRAYSCALE)
             if img is None:
                 logger.warning(f"Could not read image: {cell_file}")
@@ -833,6 +841,7 @@ def main():
     parser.add_argument('--bins', type=int, default=5, help='Number of intensity bins')
     parser.add_argument('--force-clusters', action='store_true', help='Force clustering even if few cells')
     parser.add_argument('--channels', required=True, help='Channels to process (space-separated)')
+    parser.add_argument('--use-new-arch', action='store_true', help='Use ports-and-adapters implementation (shim)')
     
     args = parser.parse_args()
     
@@ -861,29 +870,54 @@ def main():
         return 1
     
     logger.info(f"Found {len(cell_dirs)} cell directories to process")
+
+    # Shim path: delegate to ports-and-adapters implementation when requested
+    if os.environ.get("PERCELL_USE_NEW_ARCH") == "1" or getattr(args, "use_new_arch", False):
+        try:
+            from percell.infrastructure.bootstrap.container import get_container
+            from percell.domain.value_objects.processing import BinningParameters
+        except Exception as e:
+            logger.error(f"Failed to load new architecture components: {e}")
+            return 1
+
+        container = get_container()
+        use_case = container.group_cells_use_case()
+        # Use uniform strategy to avoid optional deps (scikit-learn) in shim path
+        params = BinningParameters(num_bins=args.bins, strategy='uniform')
+
+        successful = 0
+        for cell_dir in cell_dirs:
+            if channels:
+                dir_channels = [ch for ch in channels if ch in str(cell_dir)]
+                if not dir_channels:
+                    logger.info(f"Skipping {cell_dir} - no matching channels")
+                    continue
+                logger.info(f"Processing channels {dir_channels} for {cell_dir}")
+
+            # Maintain legacy output layout: <output>/<parent>/<leaf>
+            output_subdir = output_dir / cell_dir.parent.name / cell_dir.name
+            result = use_case.execute(cell_dir, output_subdir, params)
+            if result.num_groups > 0:
+                successful += 1
+
+        logger.info(f"(Shim) Successfully processed {successful} out of {len(cell_dirs)} cell directories")
+        return 0 if successful > 0 else 1
+
+    # Legacy path (default)
     successful = 0
-    
-    # Process each cell directory
     for cell_dir in cell_dirs:
-        # Check if directory matches any of the specified channels
         if channels:
             dir_channels = [ch for ch in channels if ch in str(cell_dir)]
             if not dir_channels:
                 logger.info(f"Skipping {cell_dir} - no matching channels")
                 continue
             logger.info(f"Processing channels {dir_channels} for {cell_dir}")
-        
-        # Use group_and_sum_cells to create merged bin images instead of individual cell files
+
         if group_and_sum_cells(cell_dir, output_dir, args.bins, method='gmm', force_clusters=args.force_clusters, verbose=False):
             successful += 1
-    
+
     logger.info(f"Successfully processed {successful} out of {len(cell_dirs)} cell directories")
-    
-    if successful == 0:
-        logger.error("No cell directories were successfully processed")
-        return 1
-    
-    return 0
+    return 0 if successful > 0 else 1
 
 if __name__ == '__main__':
     sys.exit(main())

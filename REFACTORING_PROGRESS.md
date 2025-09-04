@@ -26,6 +26,7 @@ Status
 - [x] Add comprehensive domain tests
 - [x] Add application use case tests (GroupCells, TrackROIs, Segmentation)
 - [x] Add integration tests for main workflows (GroupCells, SegmentCells)
+- [x] Add migration shims for legacy modules (group_cells) with tests
 
 Notes
 - Branch `refactor/ports-and-adapters` active for migration tasks.
@@ -33,5 +34,5 @@ Notes
 - All tests green (47 passed).
 
 Next
-- Add migration shims and verify backward compatibility (Commit 22).
+- Update documentation for shims and CLI compatibility (Commit 23).
 
