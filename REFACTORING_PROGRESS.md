@@ -18,6 +18,7 @@ Status
 - [x] Implement GroupCellsUseCase
 - [x] Implement TrackROIsUseCase
 - [x] Implement SegmentationUseCase
+- [x] Update stage classes to use application services (grouping)
 
 Notes
 - Created branch `refactor/ports-and-adapters` and initialized the migration.
@@ -25,5 +26,5 @@ Notes
 - All existing tests pass (1 passed).
 
 Next
-- Refactor stage classes to use application services (Commit 14).
+- Create command objects for use cases (Commit 15).
 
