@@ -16,6 +16,7 @@ Status
 - [x] Implement PathlibFilesystemAdapter with temp-dir tests
 - [x] Add adapter factory for DI selection
 - [x] Implement GroupCellsUseCase
+- [x] Implement TrackROIsUseCase
 
 Notes
 - Created branch `refactor/ports-and-adapters` and initialized the migration.
@@ -23,5 +24,5 @@ Notes
 - All existing tests pass (1 passed).
 
 Next
-- Implement TrackROIsUseCase (Commit 12).
+- Implement SegmentationUseCase (Commit 13).
 
