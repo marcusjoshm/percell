@@ -159,6 +159,30 @@ python main.py --input /path/to/data --output /path/to/output --complete
 4. **Progress tracking**: Real-time progress updates
 5. **Interactive mode**: User-friendly interactive interface
 
+### Migration Shims and CLI Compatibility
+
+To ensure a smooth transition, legacy modules include shims that delegate to the new Ports & Adapters implementation when enabled. This allows you to keep using legacy entry points while benefiting from the refactored architecture.
+
+- **Environment toggle**: set `PERCELL_USE_NEW_ARCH=1` to activate shims
+- **CLI flag**: pass `--use-new-arch` to legacy commands that support it
+
+Example (legacy `group_cells.py`):
+
+```bash
+# Use legacy script but run via new architecture
+PERCELL_USE_NEW_ARCH=1 python -m percell.modules.group_cells \
+  --cells-dir /path/to/cells \
+  --output-dir /path/to/out \
+  --bins 3 \
+  --channels ch01 \
+  --use-new-arch
+```
+
+Notes:
+- The shim preserves the legacy output directory structure.
+- The shim uses a dependency-injected image/metadata/filesystem stack via the DI container.
+- For portability in minimal environments, the shim may default to simpler strategies that avoid optional heavy dependencies.
+
 ## Development
 
 ### Adding New Stages

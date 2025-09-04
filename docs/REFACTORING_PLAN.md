@@ -100,6 +100,29 @@ class DataSelectionStage:
 4. **Implement Factory Pattern**: For creating analysis stages/plugins dynamically
 5. **Add Integration Tests**: To ensure refactoring doesn't break existing functionality
 
+## Migration Shims (Backward Compatibility)
+
+As layers are introduced, add shims to legacy modules to delegate to the new application services via the DI container.
+
+Guidelines:
+- Gate shims with `PERCELL_USE_NEW_ARCH=1` or a `--use-new-arch` CLI flag.
+- Preserve legacy CLI arguments and output folder structure.
+- Avoid importing heavy optional dependencies at module import time; defer imports to function scope.
+- Prefer dependency-injected adapters (tifffile, pandas, pathlib) for reliability in CI environments.
+
+Current shims:
+- `percell/modules/group_cells.py` → delegates to `GroupCellsUseCase` when enabled.
+
+Usage example:
+```bash
+PERCELL_USE_NEW_ARCH=1 python -m percell.modules.group_cells \
+  --cells-dir /data/cells \
+  --output-dir /data/out \
+  --bins 3 \
+  --channels ch01 \
+  --use-new-arch
+```
+
 ## Long-term Benefits
 
 This refactoring will:
