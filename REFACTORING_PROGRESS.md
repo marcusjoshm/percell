@@ -14,6 +14,7 @@ Status
 - [x] Implement ImageJMacroAdapter with mocked subprocess tests
 - [x] Implement PandasMetadataAdapter and tests
 - [x] Implement PathlibFilesystemAdapter with temp-dir tests
+- [x] Add adapter factory for DI selection
 
 Notes
 - Created branch `refactor/ports-and-adapters` and initialized the migration.
@@ -21,5 +22,5 @@ Notes
 - All existing tests pass (1 passed).
 
 Next
-- Add adapter factory for DI selection (Commit 10).
+- Implement GroupCellsUseCase (Commit 11).
 
