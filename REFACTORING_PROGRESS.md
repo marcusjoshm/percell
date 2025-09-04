@@ -20,6 +20,7 @@ Status
 - [x] Implement SegmentationUseCase
 - [x] Update stage classes to use application services (grouping)
 - [x] Add command objects for GroupCells, TrackROIs, SegmentCells
+- [x] Add DI container wiring adapters, services, and use cases
 
 Notes
 - Created branch `refactor/ports-and-adapters` and initialized the migration.
@@ -27,5 +28,5 @@ Notes
 - All existing tests pass (1 passed).
 
 Next
-- Set up DI container (Commit 16).
+- Integrate container with main application (Commit 17).
 
