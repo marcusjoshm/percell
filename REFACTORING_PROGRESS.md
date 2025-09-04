@@ -19,6 +19,7 @@ Status
 - [x] Implement TrackROIsUseCase
 - [x] Implement SegmentationUseCase
 - [x] Update stage classes to use application services (grouping)
+- [x] Add command objects for GroupCells, TrackROIs, SegmentCells
 
 Notes
 - Created branch `refactor/ports-and-adapters` and initialized the migration.
@@ -26,5 +27,5 @@ Notes
 - All existing tests pass (1 passed).
 
 Next
-- Create command objects for use cases (Commit 15).
+- Set up DI container (Commit 16).
 
