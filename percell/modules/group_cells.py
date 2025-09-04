@@ -859,6 +859,12 @@ def main():
     # Create output directory if it doesn't exist
     output_dir.mkdir(parents=True, exist_ok=True)
     
+    # Deprecation notice for legacy command
+    logger.warning(
+        "[DEPRECATION] percell.modules.group_cells is legacy. Use the container-backed GroupCellsUseCase via new CLI. "
+        "Set PERCELL_USE_NEW_ARCH=1 or pass --use-new-arch to delegate to the new implementation."
+    )
+
     # Find all cell directories (directories that contain CELL*.tif files)
     cell_dirs = []
     for item in cells_dir.rglob("*"):

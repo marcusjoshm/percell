@@ -28,6 +28,7 @@ Status
 - [x] Add integration tests for main workflows (GroupCells, SegmentCells)
 - [x] Add migration shims for legacy modules (group_cells) with tests
 - [x] Performance optimizations: concurrent image reads; TIFF compression options
+- [x] Final cleanup: legacy group_cells deprecation notice; tests green
 
 Notes
 - Branch `refactor/ports-and-adapters` active for migration tasks.
@@ -35,5 +36,5 @@ Notes
 - All tests green (47 passed).
 
 Next
-- Final cleanup and deprecation removal (Commit 25).
+- All refactoring milestones complete. Monitor for follow-ups and doc polish.
 
