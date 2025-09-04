@@ -967,20 +967,56 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 5: Group cells
             self.logger.info("Grouping cells...")
-            group_script = get_path("group_cells_module")
-            group_args = [
-                "--cells-dir", f"{output_dir}/cells",
-                "--output-dir", f"{output_dir}/grouped_cells",
-                "--bins", str(kwargs.get('bins', 5)),
-                "--force-clusters",
-                "--channels"
-            ] + data_selection.get('analysis_channels', [])
-            
-            result = run_subprocess_with_spinner([sys.executable, str(group_script)] + group_args, title="Grouping cells")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to group cells: {result.stderr}")
-                return False
-            self.logger.info("Cells grouped successfully")
+            use_usecases = False
+            try:
+                use_usecases = bool(self.config.get('usecases_enabled'))
+            except Exception:
+                use_usecases = False
+
+            if use_usecases:
+                try:
+                    from percell.application.use_cases.group_cells import GroupCellsUseCase
+                    from percell.domain.services.cell_grouping_service import CellGroupingService
+                    from percell.domain.value_objects.processing import BinningParameters
+                    from percell.adapters.outbound.tifffile_image_adapter import TifffileImageAdapter
+                    from percell.adapters.outbound.pandas_metadata_adapter import PandasMetadataAdapter
+                    from percell.adapters.outbound.pathlib_filesystem_adapter import PathlibFilesystemAdapter
+
+                    cells_dir = Path(output_dir) / "cells"
+                    grouped_dir = Path(output_dir) / "grouped_cells"
+                    bins = int(kwargs.get('bins', 5))
+                    strategy = str(kwargs.get('bin_strategy', 'uniform'))
+
+                    use_case = GroupCellsUseCase(
+                        grouping_service=CellGroupingService(),
+                        image_reader=TifffileImageAdapter(),
+                        image_writer=TifffileImageAdapter(),
+                        metadata_store=PandasMetadataAdapter(),
+                        filesystem=PathlibFilesystemAdapter(),
+                    )
+                    params = BinningParameters(num_bins=bins, strategy=strategy)
+                    result_gc = use_case.execute(cells_dir, grouped_dir, params)
+                    self.logger.info(f"Grouped {result_gc.num_input_cells} cells into {result_gc.num_groups} groups using new use case")
+                except Exception as e:
+                    self.logger.error(f"New grouping use case failed: {e}. Falling back to legacy module.")
+                    use_usecases = False
+
+            if not use_usecases:
+                from percell.core.paths import get_path
+                group_script = get_path("group_cells_module")
+                group_args = [
+                    "--cells-dir", f"{output_dir}/cells",
+                    "--output-dir", f"{output_dir}/grouped_cells",
+                    "--bins", str(kwargs.get('bins', 5)),
+                    "--force-clusters",
+                    "--channels"
+                ] + data_selection.get('analysis_channels', [])
+
+                result = run_subprocess_with_spinner([sys.executable, str(group_script)] + group_args, title="Grouping cells")
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to group cells: {result.stderr}")
+                    return False
+                self.logger.info("Cells grouped successfully (legacy)")
             
             return True
             
