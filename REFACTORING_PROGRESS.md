@@ -7,7 +7,7 @@ Status
 - [x] Create ports-and-adapters directory structure with __init__.py files
 - [x] Run tests after commit (pytest green)
 - [x] Extract value objects (experiment.py, processing.py, imaging.py)
-- [ ] Define core port interfaces (ImageReaderPort, ImageWriterPort, MacroRunnerPort)
+- [x] Define core port interfaces (ImageReaderPort, ImageWriterPort, MacroRunnerPort)
 - [ ] Extract ROI tracking domain service
 - [ ] Extract cell grouping domain service
 
@@ -17,5 +17,5 @@ Notes
 - All existing tests pass (1 passed).
 
 Next
-- Define outbound port interfaces (ImageReader/Writer, MacroRunner) and tests.
+- Extract ROI tracking domain service and add pure unit tests.
 
