@@ -8,7 +8,7 @@ Status
 - [x] Run tests after commit (pytest green)
 - [x] Extract value objects (experiment.py, processing.py, imaging.py)
 - [x] Define core port interfaces (ImageReaderPort, ImageWriterPort, MacroRunnerPort)
-- [ ] Extract ROI tracking domain service
+- [x] Extract ROI tracking domain service
 - [ ] Extract cell grouping domain service
 
 Notes
