@@ -162,7 +162,7 @@ def iter_with_progress(
 
 
 @contextmanager
-def spinner() -> Iterator[None]:
+def spinner(title: Optional[str] = None) -> Iterator[None]:
     """
     A simple spinner when total is unknown.
     
@@ -174,8 +174,13 @@ def spinner() -> Iterator[None]:
             do_work()
     """
     if alive_bar is None:
+        if title:
+            print(f"{title}")
         yield
         return
+    # Print title separately above the spinner for compact display
+    if title:
+        print(f"{title}")
     with alive_bar(None, force_tty=True):
         yield
 
