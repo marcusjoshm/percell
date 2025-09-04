@@ -1,0 +1,76 @@
+ REFACTORING_PROGRESS.md                            |  40 ++
+ docs/README_REFACTORED.md                          |  24 +
+ docs/REFACTORING_PLAN.md                           |  23 +
+ docs/refactoring/inventory_report.md               | 478 ++++++++++++++++
+ docs/refactoring/layer_assignments.md              | 301 +++++++++++
+ docs/refactoring/refactoring_guide.md              | 601 +++++++++++++++++++++
+ percell/adapters/__init__.py                       |   0
+ percell/adapters/factory.py                        |  68 +++
+ percell/adapters/inbound/__init__.py               |   0
+ percell/adapters/outbound/__init__.py              |   0
+ percell/adapters/outbound/imagej_macro_adapter.py  |  60 ++
+ .../adapters/outbound/pandas_metadata_adapter.py   |  37 ++
+ .../outbound/pathlib_filesystem_adapter.py         |  49 ++
+ .../adapters/outbound/tifffile_image_adapter.py    |  73 +++
+ percell/application/__init__.py                    |   0
+ percell/application/commands/__init__.py           |   0
+ .../application/commands/group_cells_command.py    |  21 +
+ .../application/commands/segment_cells_command.py  |  21 +
+ percell/application/commands/track_rois_command.py |  22 +
+ percell/application/use_cases/__init__.py          |   0
+ percell/application/use_cases/group_cells.py       | 103 ++++
+ percell/application/use_cases/segment_cells.py     |  48 ++
+ percell/application/use_cases/track_rois.py        |  44 ++
+ percell/domain/__init__.py                         |   0
+ percell/domain/entities/__init__.py                |   0
+ percell/domain/services/__init__.py                |   0
+ percell/domain/services/cell_grouping_service.py   |  95 ++++
+ percell/domain/services/roi_tracking_service.py    | 121 +++++
+ percell/domain/value_objects/__init__.py           |   0
+ percell/domain/value_objects/experiment.py         |  60 ++
+ percell/domain/value_objects/imaging.py            |  23 +
+ percell/domain/value_objects/processing.py         |  23 +
+ percell/infrastructure/__init__.py                 |   0
+ percell/infrastructure/bootstrap/__init__.py       |   0
+ percell/infrastructure/bootstrap/container.py      | 115 ++++
+ percell/infrastructure/config/__init__.py          |   0
+ .../config/json_configuration_adapter.py           |  52 ++
+ percell/infrastructure/utils/__init__.py           |   0
+ percell/main/main.py                               |  12 +
+ percell/modules/group_cells.py                     |  74 ++-
+ percell/modules/stage_classes.py                   |  64 ++-
+ percell/ports/__init__.py                          |   0
+ percell/ports/inbound/__init__.py                  |   0
+ percell/ports/inbound/configuration_port.py        |  30 +
+ percell/ports/outbound/__init__.py                 |   0
+ percell/ports/outbound/filesystem_port.py          |  39 ++
+ percell/ports/outbound/image_port.py               |  36 ++
+ percell/ports/outbound/macro_runner_port.py        |  28 +
+ percell/ports/outbound/metadata_port.py            |  32 ++
+ percell/ports/outbound/roi_repository_port.py      |  27 +
+ percell/ports/outbound/segmenter_port.py           |  18 +
+ review_package.md                                  | 497 +++++++++++++++++
+ .../adapters/outbound/test_imagej_macro_adapter.py |  51 ++
+ .../outbound/test_pandas_metadata_adapter.py       |  28 +
+ .../outbound/test_pathlib_filesystem_adapter.py    |  33 ++
+ .../outbound/test_tifffile_image_adapter.py        |  27 +
+ tests/adapters/test_adapter_factory.py             |  41 ++
+ tests/application/commands/test_commands.py        |  41 ++
+ .../use_cases/test_group_cells_use_case.py         |  65 +++
+ .../use_cases/test_segment_cells_use_case.py       |  31 ++
+ .../use_cases/test_track_rois_use_case.py          |  44 ++
+ .../domain/services/test_cell_grouping_service.py  |  50 ++
+ .../services/test_cell_grouping_service_extra.py   |  31 ++
+ tests/domain/services/test_roi_tracking_service.py |  54 ++
+ .../services/test_roi_tracking_service_extra.py    |  26 +
+ tests/domain/value_objects/test_experiment_vo.py   |  38 ++
+ tests/domain/value_objects/test_imaging_vo.py      |  14 +
+ tests/domain/value_objects/test_processing_vo.py   |  23 +
+ tests/infrastructure/test_container.py             |  18 +
+ .../test_json_configuration_adapter.py             |  23 +
+ tests/integration/test_group_cells_integration.py  |  37 ++
+ tests/integration/test_group_cells_shim.py         |  74 +++
+ .../integration/test_segment_cells_integration.py  |  32 ++
+ tests/ports/outbound/test_image_port_contract.py   |  27 +
+ .../outbound/test_macro_runner_port_contract.py    |  19 +
+ 75 files changed, 4155 insertions(+), 31 deletions(-)

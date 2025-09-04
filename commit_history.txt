@@ -1,0 +1,194 @@
+8ecd398 docs: add refactoring review_package.md with architecture, examples, and notes
+ review_package.md | 497 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 497 insertions(+)
+9be27a0 refactor: add deprecation notice to legacy group_cells; docs: mark Commit 25 complete
+ REFACTORING_PROGRESS.md        | 3 ++-
+ percell/modules/group_cells.py | 6 ++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+0611978 perf: add env-tuned concurrent image reading and TIFF write options (Commit 24); docs: update progress
+ REFACTORING_PROGRESS.md                            |  3 ++-
+ .../adapters/outbound/tifffile_image_adapter.py    | 25 +++++++++++++++++++---
+ percell/application/use_cases/group_cells.py       | 16 ++++++++++++--
+ 3 files changed, 38 insertions(+), 6 deletions(-)
+d505cc5 docs: document migration shims and CLI compatibility (Commit 23)
+ docs/README_REFACTORED.md | 24 ++++++++++++++++++++++++
+ docs/REFACTORING_PLAN.md  | 23 +++++++++++++++++++++++
+ 2 files changed, 47 insertions(+)
+01aad2c refactor: add legacy group_cells shim delegating to new use case; test: shim integration; docs: mark Commit 22 complete
+ REFACTORING_PROGRESS.md                    |  3 +-
+ percell/modules/group_cells.py             | 68 ++++++++++++++++++++-------
+ tests/integration/test_group_cells_shim.py | 74 ++++++++++++++++++++++++++++++
+ 3 files changed, 127 insertions(+), 18 deletions(-)
+e91279c test: add integration tests for group and segmentation use cases (Commit 21); docs: update progress
+ REFACTORING_PROGRESS.md                            |  3 +-
+ tests/integration/test_group_cells_integration.py  | 37 ++++++++++++++++++++++
+ .../integration/test_segment_cells_integration.py  | 32 +++++++++++++++++++
+ 3 files changed, 71 insertions(+), 1 deletion(-)
+8bdf141 docs: mark Commit 20 complete; advance to integration tests (Commit 21)
+ REFACTORING_PROGRESS.md | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+80951e8 docs: update progress after comprehensive domain tests; advance to app tests (Commit 19)
+ REFACTORING_PROGRESS.md | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+abab70d test: add comprehensive domain edge-case tests (Commit 19)
+ .../services/test_cell_grouping_service_extra.py   | 31 ++++++++++++++++++++++
+ .../services/test_roi_tracking_service_extra.py    | 26 ++++++++++++++++++
+ 2 files changed, 57 insertions(+)
+5ec693c docs: update progress after configuration migration (Commit 18)
+ REFACTORING_PROGRESS.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+47def6a refactor: migrate configuration to infrastructure layer with JSON adapter (Commit 18)
+ percell/infrastructure/bootstrap/container.py      |  7 +++
+ .../config/json_configuration_adapter.py           | 52 ++++++++++++++++++++++
+ percell/ports/inbound/configuration_port.py        | 30 +++++++++++++
+ .../test_json_configuration_adapter.py             | 23 ++++++++++
+ 4 files changed, 112 insertions(+)
+557f13d docs: update progress after integrating container with main (Commit 17)
+ REFACTORING_PROGRESS.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+333c4b6 refactor: integrate DI container with main; toggle usecases via config (Commit 17)
+ percell/infrastructure/bootstrap/container.py |  9 +++++++++
+ percell/main/main.py                          | 12 ++++++++++++
+ 2 files changed, 21 insertions(+)
+3482fe4 docs: update progress after DI container (Commit 16)
+ REFACTORING_PROGRESS.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+f4a9303 refactor: add DI container wiring adapters, services, use cases (Commit 16)
+ percell/infrastructure/bootstrap/container.py | 99 +++++++++++++++++++++++++++
+ tests/infrastructure/test_container.py        | 18 +++++
+ 2 files changed, 117 insertions(+)
+dbe11dd docs: update progress after adding command objects (Commit 15)
+ REFACTORING_PROGRESS.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+a77322c refactor: add command objects for use cases with tests (Commit 15)
+ .../application/commands/group_cells_command.py    | 21 +++++++++++
+ .../application/commands/segment_cells_command.py  | 21 +++++++++++
+ percell/application/commands/track_rois_command.py | 22 ++++++++++++
+ tests/application/commands/test_commands.py        | 41 ++++++++++++++++++++++
+ 4 files changed, 105 insertions(+)
+660b06d docs: record stage refactor using use cases and set next to commands (Commit 14)
+ REFACTORING_PROGRESS.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+760aa49 refactor: stage classes use GroupCellsUseCase with legacy fallback (Commit 14)
+ percell/modules/stage_classes.py | 64 +++++++++++++++++++++++++++++++---------
+ 1 file changed, 50 insertions(+), 14 deletions(-)
+7e8d4ea docs: update progress after SegmentationUseCase (Commit 13)
+ REFACTORING_PROGRESS.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+7c513f6 refactor: implement SegmentationUseCase with SegmenterPort and tests (Commit 13)
+ percell/application/use_cases/segment_cells.py     | 48 ++++++++++++++++++++++
+ percell/ports/outbound/segmenter_port.py           | 18 ++++++++
+ .../use_cases/test_segment_cells_use_case.py       | 31 ++++++++++++++
+ 3 files changed, 97 insertions(+)
+4124760 docs: update progress after TrackROIsUseCase (Commit 12)
+ REFACTORING_PROGRESS.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+93ac005 refactor: implement TrackROIsUseCase with ROIRepositoryPort and tests (Commit 12)
+ percell/application/use_cases/track_rois.py        | 44 ++++++++++++++++++++++
+ percell/ports/outbound/roi_repository_port.py      | 27 +++++++++++++
+ .../use_cases/test_track_rois_use_case.py          | 44 ++++++++++++++++++++++
+ 3 files changed, 115 insertions(+)
+3d148d5 docs: update progress after GroupCellsUseCase (Commit 11)
+ REFACTORING_PROGRESS.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+9de6788 refactor: implement GroupCellsUseCase with mocked-port tests (Commit 11)
+ percell/application/use_cases/group_cells.py       | 91 ++++++++++++++++++++++
+ .../use_cases/test_group_cells_use_case.py         | 65 ++++++++++++++++
+ 2 files changed, 156 insertions(+)
+343f1ab docs: record adapter factory completion and point to Commit 11
+ REFACTORING_PROGRESS.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+e5cf6c6 refactor: add adapter factory with config-based selection and tests (Commit 10)
+ percell/adapters/factory.py            | 68 ++++++++++++++++++++++++++++++++++
+ tests/adapters/test_adapter_factory.py | 41 ++++++++++++++++++++
+ 2 files changed, 109 insertions(+)
+c3c82e7 docs: update progress after filesystem adapter (Commit 9)
+ REFACTORING_PROGRESS.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+5f04bf7 refactor: implement pathlib filesystem adapter and port with temp-dir tests (Commit 9)
+ .../outbound/pathlib_filesystem_adapter.py         | 49 ++++++++++++++++++++++
+ percell/ports/outbound/filesystem_port.py          | 39 +++++++++++++++++
+ .../outbound/test_pathlib_filesystem_adapter.py    | 33 +++++++++++++++
+ 3 files changed, 121 insertions(+)
+9e01dbf docs: update progress after pandas metadata adapter (Commit 8)
+ REFACTORING_PROGRESS.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+cc2d5f7 refactor: implement pandas metadata adapter and port with tests (Commit 8)
+ .../adapters/outbound/pandas_metadata_adapter.py   | 37 ++++++++++++++++++++++
+ percell/ports/outbound/metadata_port.py            | 32 +++++++++++++++++++
+ .../outbound/test_pandas_metadata_adapter.py       | 28 ++++++++++++++++
+ 3 files changed, 97 insertions(+)
+f901ef5 docs: update progress after ImageJ macro adapter (Commit 7)
+ REFACTORING_PROGRESS.md | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+c9f6866 refactor: implement ImageJ macro adapter with mocked subprocess tests (Commit 7)
+ percell/adapters/outbound/imagej_macro_adapter.py  | 60 ++++++++++++++++++++++
+ .../adapters/outbound/test_imagej_macro_adapter.py | 51 ++++++++++++++++++
+ 2 files changed, 111 insertions(+)
+e871d36 docs: advance to Phase 2 and record tifffile adapter completion (Commit 6)
+ REFACTORING_PROGRESS.md | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+fa1199a refactor: implement tifffile image adapter with integration tests (Commit 6)
+ .../adapters/outbound/tifffile_image_adapter.py    | 54 ++++++++++++++++++++++
+ .../outbound/test_tifffile_image_adapter.py        | 27 +++++++++++
+ 2 files changed, 81 insertions(+)
+55e414d docs: update progress after extracting cell grouping domain service (Commit 5)
+ REFACTORING_PROGRESS.md | 1 +
+ 1 file changed, 1 insertion(+)
+5761a71 refactor: extract cell grouping domain service with numpy-only unit tests
+ percell/domain/services/cell_grouping_service.py   | 95 ++++++++++++++++++++++
+ .../domain/services/test_cell_grouping_service.py  | 50 ++++++++++++
+ 2 files changed, 145 insertions(+)
+fdf65bb docs: update progress after extracting ROI tracking domain service (Commit 4)
+ REFACTORING_PROGRESS.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+77eda07 refactor: extract ROI tracking domain service with pure unit tests
+ percell/domain/services/roi_tracking_service.py    | 121 +++++++++++++++++++++
+ tests/domain/services/test_roi_tracking_service.py |  54 +++++++++
+ 2 files changed, 175 insertions(+)
+19fcb75 docs: update refactoring progress after defining core port interfaces (Commit 3)
+ REFACTORING_PROGRESS.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+e30d95c refactor: define core port interfaces (ImageReader, ImageWriter, MacroRunner) with contract tests
+ percell/ports/outbound/image_port.py               | 36 ++++++++++++++++++++++
+ percell/ports/outbound/macro_runner_port.py        | 28 +++++++++++++++++
+ tests/ports/outbound/test_image_port_contract.py   | 27 ++++++++++++++++
+ .../outbound/test_macro_runner_port_contract.py    | 19 ++++++++++++
+ 4 files changed, 110 insertions(+)
+bd65a17 docs: update refactoring progress after adding domain value objects (Commit 2)
+ REFACTORING_PROGRESS.md | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+1fd4b43 refactor: add domain value objects for experiment, processing, and imaging with tests
+ percell/domain/value_objects/experiment.py       | 60 ++++++++++++++++++++++++
+ percell/domain/value_objects/imaging.py          | 23 +++++++++
+ percell/domain/value_objects/processing.py       | 23 +++++++++
+ tests/domain/value_objects/test_experiment_vo.py | 38 +++++++++++++++
+ tests/domain/value_objects/test_imaging_vo.py    | 14 ++++++
+ tests/domain/value_objects/test_processing_vo.py | 23 +++++++++
+ 6 files changed, 181 insertions(+)
+15203ed docs: add refactoring progress tracker after Phase 1 Commit 1
+ REFACTORING_PROGRESS.md | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+cda9ca2 refactor: create ports and adapters directory structure
+ docs/refactoring/inventory_report.md         | 478 +++++++++++++++++++++
+ docs/refactoring/layer_assignments.md        | 301 ++++++++++++++
+ docs/refactoring/refactoring_guide.md        | 601 +++++++++++++++++++++++++++
+ percell/adapters/__init__.py                 |   0
+ percell/adapters/inbound/__init__.py         |   0
+ percell/adapters/outbound/__init__.py        |   0
+ percell/application/__init__.py              |   0
+ percell/application/commands/__init__.py     |   0
+ percell/application/use_cases/__init__.py    |   0
+ percell/domain/__init__.py                   |   0
+ percell/domain/entities/__init__.py          |   0
+ percell/domain/services/__init__.py          |   0
+ percell/domain/value_objects/__init__.py     |   0
+ percell/infrastructure/__init__.py           |   0
+ percell/infrastructure/bootstrap/__init__.py |   0
+ percell/infrastructure/config/__init__.py    |   0
+ percell/infrastructure/utils/__init__.py     |   0
+ percell/ports/__init__.py                    |   0
+ percell/ports/inbound/__init__.py            |   0
+ percell/ports/outbound/__init__.py           |   0
+ 20 files changed, 1380 insertions(+)
+ef7d1bb refactor: initialize ports and adapters architecture migration

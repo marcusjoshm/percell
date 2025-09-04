@@ -1,0 +1,1446 @@
+diff --git a/percell/adapters/__init__.py b/percell/adapters/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/adapters/factory.py b/percell/adapters/factory.py
+new file mode 100644
+index 0000000..c19e962
+--- /dev/null
++++ b/percell/adapters/factory.py
+@@ -0,0 +1,68 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Literal
++
++from percell.adapters.outbound.tifffile_image_adapter import TifffileImageAdapter
++from percell.adapters.outbound.imagej_macro_adapter import ImageJMacroAdapter
++from percell.adapters.outbound.pandas_metadata_adapter import PandasMetadataAdapter
++from percell.adapters.outbound.pathlib_filesystem_adapter import PathlibFilesystemAdapter
++from percell.ports.outbound.image_port import ImageReaderPort, ImageWriterPort
++from percell.ports.outbound.macro_runner_port import MacroRunnerPort
++from percell.ports.outbound.metadata_port import MetadataStorePort
++from percell.ports.outbound.filesystem_port import FilesystemPort
++
++
++ImageAdapterKind = Literal["tifffile"]
++MacroRunnerKind = Literal["imagej"]
++MetadataStoreKind = Literal["pandas"]
++FilesystemKind = Literal["pathlib"]
++
++
++@dataclass(frozen=True)
++class AdapterFactoryConfig:
++    image_adapter: ImageAdapterKind = "tifffile"
++    macro_runner: MacroRunnerKind = "imagej"
++    metadata_store: MetadataStoreKind = "pandas"
++    filesystem: FilesystemKind = "pathlib"
++
++    # Required when macro_runner == "imagej"
++    imagej_path: Path | None = None
++    macro_dir: Path | None = None
++
++
++class AdapterFactory:
++    """Factory that builds adapter implementations based on configuration."""
++
++    def __init__(self, config: AdapterFactoryConfig):
++        self.config = config
++
++    def build_image_reader(self) -> ImageReaderPort:
++        if self.config.image_adapter == "tifffile":
++            return TifffileImageAdapter()
++        raise ValueError(f"Unsupported image adapter: {self.config.image_adapter}")
++
++    def build_image_writer(self) -> ImageWriterPort:
++        if self.config.image_adapter == "tifffile":
++            return TifffileImageAdapter()
++        raise ValueError(f"Unsupported image adapter: {self.config.image_adapter}")
++
++    def build_macro_runner(self) -> MacroRunnerPort:
++        if self.config.macro_runner == "imagej":
++            if self.config.imagej_path is None or self.config.macro_dir is None:
++                raise ValueError("imagej_path and macro_dir are required for ImageJMacroAdapter")
++            return ImageJMacroAdapter(self.config.imagej_path, self.config.macro_dir)
++        raise ValueError(f"Unsupported macro runner: {self.config.macro_runner}")
++
++    def build_metadata_store(self) -> MetadataStorePort:
++        if self.config.metadata_store == "pandas":
++            return PandasMetadataAdapter()
++        raise ValueError(f"Unsupported metadata store: {self.config.metadata_store}")
++
++    def build_filesystem(self) -> FilesystemPort:
++        if self.config.filesystem == "pathlib":
++            return PathlibFilesystemAdapter()
++        raise ValueError(f"Unsupported filesystem: {self.config.filesystem}")
++
++
+diff --git a/percell/adapters/inbound/__init__.py b/percell/adapters/inbound/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/adapters/outbound/__init__.py b/percell/adapters/outbound/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/adapters/outbound/imagej_macro_adapter.py b/percell/adapters/outbound/imagej_macro_adapter.py
+new file mode 100644
+index 0000000..5d4d46d
+--- /dev/null
++++ b/percell/adapters/outbound/imagej_macro_adapter.py
+@@ -0,0 +1,60 @@
++from __future__ import annotations
++
++from pathlib import Path
++from typing import Any, Dict
++from types import SimpleNamespace
++import tempfile
++
++from percell.ports.outbound.macro_runner_port import MacroRunnerPort, MacroResult
++from percell.core.progress import run_subprocess_with_spinner
++
++
++class ImageJMacroAdapter(MacroRunnerPort):
++    """Adapter that runs ImageJ/Fiji macros using a subprocess wrapper.
++
++    Parameters are embedded as comments at the top of a temporary macro file
++    to keep the adapter simple and pure. Real parameter injection/parsing can
++    be extended later if needed.
++    """
++
++    def __init__(self, imagej_path: Path, macro_dir: Path):
++        self.imagej_path = Path(imagej_path)
++        self.macro_dir = Path(macro_dir)
++
++    def run_macro(self, macro_name: str, parameters: Dict[str, Any]) -> MacroResult:
++        if not self.validate_macro(macro_name):
++            return MacroResult(success=False, stderr=f"Macro not found: {macro_name}")
++
++        base_macro_path = self.macro_dir / macro_name
++        base_content = base_macro_path.read_text(encoding="utf-8")
++
++        header_lines = ["// Percell Auto-generated wrapper macro", "// Parameters:"]
++        for key, value in parameters.items():
++            header_lines.append(f"// {key} = {value}")
++        header = "\n".join(header_lines) + "\n\n"
++
++        with tempfile.NamedTemporaryFile(suffix=".ijm", mode="w", delete=False, encoding="utf-8") as f:
++            f.write(header)
++            f.write(base_content)
++            temp_macro_path = Path(f.name)
++
++        try:
++            cmd = [str(self.imagej_path), "--headless", "--run", str(temp_macro_path)]
++            result = run_subprocess_with_spinner(cmd, f"Running {macro_name}", capture_output=True)
++            # result is expected to expose returncode/stdout/stderr
++            return MacroResult(
++                success=getattr(result, "returncode", 1) == 0,
++                stdout=getattr(result, "stdout", None),
++                stderr=getattr(result, "stderr", None),
++            )
++        finally:
++            try:
++                temp_macro_path.unlink(missing_ok=True)
++            except Exception:
++                # Best-effort cleanup
++                pass
++
++    def validate_macro(self, macro_name: str) -> bool:
++        return (self.macro_dir / macro_name).is_file()
++
++
+diff --git a/percell/adapters/outbound/pandas_metadata_adapter.py b/percell/adapters/outbound/pandas_metadata_adapter.py
+new file mode 100644
+index 0000000..99c6a2b
+--- /dev/null
++++ b/percell/adapters/outbound/pandas_metadata_adapter.py
+@@ -0,0 +1,37 @@
++from __future__ import annotations
++
++from pathlib import Path
++from typing import Optional
++
++import pandas as pd
++
++from percell.ports.outbound.metadata_port import MetadataStorePort
++
++
++class PandasMetadataAdapter(MetadataStorePort):
++    """Pandas-based implementation of metadata storage operations."""
++
++    def read_csv(self, path: Path) -> pd.DataFrame:
++        return pd.read_csv(path)
++
++    def write_csv(self, path: Path, df: pd.DataFrame, index: bool = False) -> None:
++        path.parent.mkdir(parents=True, exist_ok=True)
++        df.to_csv(path, index=index)
++
++    def merge_csv(
++        self,
++        left_path: Path,
++        right_path: Path,
++        on: str,
++        how: str,
++        output_path: Optional[Path] = None,
++    ) -> pd.DataFrame:
++        left = pd.read_csv(left_path)
++        right = pd.read_csv(right_path)
++        merged = left.merge(right, on=on, how=how)
++        if output_path is not None:
++            output_path.parent.mkdir(parents=True, exist_ok=True)
++            merged.to_csv(output_path, index=False)
++        return merged
++
++
+diff --git a/percell/adapters/outbound/pathlib_filesystem_adapter.py b/percell/adapters/outbound/pathlib_filesystem_adapter.py
+new file mode 100644
+index 0000000..51fd9d9
+--- /dev/null
++++ b/percell/adapters/outbound/pathlib_filesystem_adapter.py
+@@ -0,0 +1,49 @@
++from __future__ import annotations
++
++import shutil
++from pathlib import Path
++from typing import List, Optional
++
++from percell.ports.outbound.filesystem_port import FilesystemPort
++
++
++class PathlibFilesystemAdapter(FilesystemPort):
++    """Filesystem adapter backed by pathlib and shutil."""
++
++    def exists(self, path: Path) -> bool:
++        return Path(path).exists()
++
++    def ensure_dir(self, path: Path) -> None:
++        Path(path).mkdir(parents=True, exist_ok=True)
++
++    def list_files(self, directory: Path, pattern: str = "*") -> List[Path]:
++        d = Path(directory)
++        return [p for p in d.glob(pattern) if p.is_file()]
++
++    def list_dirs(self, directory: Path) -> List[Path]:
++        d = Path(directory)
++        return [p for p in d.iterdir() if p.is_dir()]
++
++    def glob(self, pattern: str, root: Optional[Path] = None) -> List[Path]:
++        base = Path(root) if root is not None else Path.cwd()
++        return list(base.glob(pattern))
++
++    def remove_file(self, path: Path) -> None:
++        try:
++            Path(path).unlink(missing_ok=True)
++        except TypeError:
++            # Python < 3.8 fallback
++            p = Path(path)
++            if p.exists():
++                p.unlink()
++
++    def remove_dir(self, path: Path, recursive: bool = False) -> None:
++        p = Path(path)
++        if not p.exists():
++            return
++        if recursive:
++            shutil.rmtree(p)
++        else:
++            p.rmdir()
++
++
+diff --git a/percell/adapters/outbound/tifffile_image_adapter.py b/percell/adapters/outbound/tifffile_image_adapter.py
+new file mode 100644
+index 0000000..f3dc39e
+--- /dev/null
++++ b/percell/adapters/outbound/tifffile_image_adapter.py
+@@ -0,0 +1,73 @@
++from __future__ import annotations
++
++from pathlib import Path
++from typing import Any, Dict, Optional, Tuple
++import os
++
++import numpy as np
++import tifffile
++
++from percell.ports.outbound.image_port import ImageReaderPort, ImageWriterPort
++
++
++class TifffileImageAdapter(ImageReaderPort, ImageWriterPort):
++    """Tifffile-based implementation of image reader/writer ports."""
++
++    def read(self, path: Path) -> np.ndarray:
++        return tifffile.imread(str(path))
++
++    def read_with_metadata(self, path: Path) -> Tuple[np.ndarray, Dict[str, Any]]:
++        with tifffile.TiffFile(str(path)) as tif:
++            image = tif.asarray()
++            metadata: Dict[str, Any] = {
++                "imagej_metadata": tif.imagej_metadata,
++                "num_pages": len(tif.pages),
++            }
++            # Attempt to read common resolution tags if present
++            try:
++                page0 = tif.pages[0]
++                xres = page0.tags.get("XResolution")
++                yres = page0.tags.get("YResolution")
++                if xres is not None and yres is not None:
++                    # values can be (num, den)
++                    def _to_float(v):
++                        try:
++                            n, d = v.value
++                            return float(n) / float(d) if d else float(n)
++                        except Exception:
++                            return None
++
++                    metadata["resolution"] = {
++                        "x": _to_float(xres),
++                        "y": _to_float(yres),
++                    }
++            except Exception:
++                # Keep metadata best-effort; do not raise
++                pass
++        return image, metadata
++
++    def write(self, path: Path, image: np.ndarray, metadata: Optional[Dict[str, Any]] = None) -> None:
++        # Optional performance tuning via env vars
++        # PERCELL_TIFF_COMPRESSION: e.g., 'zlib', 'lzw', 'zstd', 'none'
++        # PERCELL_TIFF_BIGTIFF: '1' to force BigTIFF
++        # PERCELL_TIFF_PREDICTOR: 'horizontal' for better compression on images with gradients
++        compression = os.environ.get("PERCELL_TIFF_COMPRESSION", None)
++        if compression == "none":
++            compression = None
++        bigtiff_flag = os.environ.get("PERCELL_TIFF_BIGTIFF", "0") == "1"
++        predictor = os.environ.get("PERCELL_TIFF_PREDICTOR", None)
++
++        kwargs: Dict[str, Any] = {}
++        if compression is not None:
++            kwargs["compression"] = compression
++        if bigtiff_flag:
++            kwargs["bigtiff"] = True
++        if predictor in {"horizontal", "float"}:
++            kwargs["predictor"] = predictor
++
++        if metadata is not None:
++            kwargs["metadata"] = metadata
++
++        tifffile.imwrite(str(path), image, **kwargs)
++
++
+diff --git a/percell/application/__init__.py b/percell/application/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/application/commands/__init__.py b/percell/application/commands/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/application/commands/group_cells_command.py b/percell/application/commands/group_cells_command.py
+new file mode 100644
+index 0000000..2da16d3
+--- /dev/null
++++ b/percell/application/commands/group_cells_command.py
+@@ -0,0 +1,21 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++
++from percell.application.use_cases.group_cells import GroupCellsUseCase
++from percell.domain.value_objects.processing import BinningParameters
++
++
++@dataclass(frozen=True)
++class GroupCellsCommand:
++    """Command encapsulating parameters to group cells in a directory."""
++
++    cell_dir: Path
++    output_dir: Path
++    parameters: BinningParameters
++
++    def execute(self, use_case: GroupCellsUseCase):
++        return use_case.execute(self.cell_dir, self.output_dir, self.parameters)
++
++
+diff --git a/percell/application/commands/segment_cells_command.py b/percell/application/commands/segment_cells_command.py
+new file mode 100644
+index 0000000..4dc5385
+--- /dev/null
++++ b/percell/application/commands/segment_cells_command.py
+@@ -0,0 +1,21 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++
++from percell.application.use_cases.segment_cells import SegmentCellsUseCase
++from percell.domain.value_objects.processing import SegmentationParameters
++
++
++@dataclass(frozen=True)
++class SegmentCellsCommand:
++    """Command encapsulating parameters to segment all images in a directory."""
++
++    input_dir: Path
++    output_dir: Path
++    parameters: SegmentationParameters
++
++    def execute(self, use_case: SegmentCellsUseCase):
++        return use_case.execute(self.input_dir, self.output_dir, self.parameters)
++
++
+diff --git a/percell/application/commands/track_rois_command.py b/percell/application/commands/track_rois_command.py
+new file mode 100644
+index 0000000..a4fd2cc
+--- /dev/null
++++ b/percell/application/commands/track_rois_command.py
+@@ -0,0 +1,22 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Optional
++
++from percell.application.use_cases.track_rois import TrackROIsUseCase
++
++
++@dataclass(frozen=True)
++class TrackROIsCommand:
++    """Command encapsulating parameters to track ROIs between two archives."""
++
++    zip_t0: Path
++    zip_t1: Path
++    output_zip: Path
++    max_distance: Optional[float] = None
++
++    def execute(self, use_case: TrackROIsUseCase):
++        return use_case.execute(self.zip_t0, self.zip_t1, self.output_zip, self.max_distance)
++
++
+diff --git a/percell/application/use_cases/__init__.py b/percell/application/use_cases/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/application/use_cases/group_cells.py b/percell/application/use_cases/group_cells.py
+new file mode 100644
+index 0000000..4dc01b5
+--- /dev/null
++++ b/percell/application/use_cases/group_cells.py
+@@ -0,0 +1,103 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++import os
++from concurrent.futures import ThreadPoolExecutor, as_completed
++from pathlib import Path
++from typing import List
++
++import numpy as np
++
++from percell.domain.services.cell_grouping_service import (
++    CellGroupingService,
++    GroupingParameters,
++)
++from percell.domain.value_objects.processing import BinningParameters
++from percell.ports.outbound.image_port import ImageReaderPort, ImageWriterPort
++from percell.ports.outbound.metadata_port import MetadataStorePort
++from percell.ports.outbound.filesystem_port import FilesystemPort
++
++
++@dataclass(frozen=True)
++class GroupCellsResult:
++    output_dir: Path
++    num_input_cells: int
++    num_groups: int
++
++
++class GroupCellsUseCase:
++    """Orchestrates grouping of cell images into bins and saving outputs."""
++
++    def __init__(
++        self,
++        grouping_service: CellGroupingService,
++        image_reader: ImageReaderPort,
++        image_writer: ImageWriterPort,
++        metadata_store: MetadataStorePort,
++        filesystem: FilesystemPort,
++    ) -> None:
++        self.grouping_service = grouping_service
++        self.image_reader = image_reader
++        self.image_writer = image_writer
++        self.metadata_store = metadata_store
++        self.filesystem = filesystem
++
++    def execute(
++        self,
++        cell_dir: Path,
++        output_dir: Path,
++        parameters: BinningParameters,
++    ) -> GroupCellsResult:
++        self.filesystem.ensure_dir(output_dir)
++
++        # 1) Discover cell images
++        cell_files: List[Path] = sorted(self.filesystem.glob("*.tif", root=cell_dir))
++        # 2) Load cell images (optionally with I/O concurrency)
++        # Default to sequential for determinism; enable concurrency via env var
++        workers_env = os.environ.get("PERCELL_IO_WORKERS")
++        if workers_env and workers_env.isdigit() and int(workers_env) > 1:
++            max_workers = int(workers_env)
++            cell_images: List[np.ndarray] = []
++            with ThreadPoolExecutor(max_workers=max_workers) as executor:
++                future_to_path = {executor.submit(self.image_reader.read, p): p for p in cell_files}
++                for future in as_completed(future_to_path):
++                    cell_images.append(future.result())
++        else:
++            cell_images = [self.image_reader.read(p) for p in cell_files]
++
++        # 3) Compute intensities via domain service (flatten image to 1D profile)
++        intensities: List[float] = [
++            self.grouping_service.compute_auc(np.ravel(img)) for img in cell_images
++        ]
++
++        # 4) Group cells
++        grouping_params = GroupingParameters(
++            num_bins=parameters.num_bins, strategy=parameters.strategy
++        )
++        assignments = self.grouping_service.group_by_intensity(
++            intensities, grouping_params
++        )
++
++        # 5) Aggregate by group and write outputs
++        aggregated = self.grouping_service.aggregate_by_group(cell_images, assignments)
++        for group_id, group_image in aggregated.items():
++            out_path = output_dir / f"group_{int(group_id)}.tif"
++            self.image_writer.write(out_path, group_image)
++
++        # 6) Save metadata CSV
++        import pandas as pd
++
++        metadata_rows = [
++            {"file": str(p), "intensity": float(i), "group": int(g)}
++            for p, i, g in zip(cell_files, intensities, assignments)
++        ]
++        df = pd.DataFrame(metadata_rows)
++        self.metadata_store.write_csv(output_dir / "grouping_metadata.csv", df, index=False)
++
++        return GroupCellsResult(
++            output_dir=output_dir,
++            num_input_cells=len(cell_files),
++            num_groups=len(aggregated),
++        )
++
++
+diff --git a/percell/application/use_cases/segment_cells.py b/percell/application/use_cases/segment_cells.py
+new file mode 100644
+index 0000000..a07c40e
+--- /dev/null
++++ b/percell/application/use_cases/segment_cells.py
+@@ -0,0 +1,48 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++from typing import List
++
++import numpy as np
++
++from percell.ports.outbound.image_port import ImageReaderPort, ImageWriterPort
++from percell.ports.outbound.segmenter_port import SegmenterPort
++from percell.domain.value_objects.processing import SegmentationParameters
++from percell.ports.outbound.filesystem_port import FilesystemPort
++
++
++@dataclass(frozen=True)
++class SegmentationResult:
++    output_paths: List[Path]
++    processed_count: int
++
++
++class SegmentCellsUseCase:
++    """Use case to execute cell segmentation over images in a directory."""
++
++    def __init__(
++        self,
++        image_reader: ImageReaderPort,
++        image_writer: ImageWriterPort,
++        segmenter: SegmenterPort,
++        filesystem: FilesystemPort,
++    ) -> None:
++        self.image_reader = image_reader
++        self.image_writer = image_writer
++        self.segmenter = segmenter
++        self.filesystem = filesystem
++
++    def execute(self, input_dir: Path, output_dir: Path, parameters: SegmentationParameters) -> SegmentationResult:
++        self.filesystem.ensure_dir(output_dir)
++        image_paths: List[Path] = sorted(self.filesystem.glob("*.tif", root=input_dir))
++        outputs: List[Path] = []
++        for ip in image_paths:
++            img = self.image_reader.read(ip)
++            mask = self.segmenter.segment(img, parameters)
++            out = output_dir / f"{ip.stem}_masks.tif"
++            self.image_writer.write(out, mask)
++            outputs.append(out)
++        return SegmentationResult(output_paths=outputs, processed_count=len(outputs))
++
++
+diff --git a/percell/application/use_cases/track_rois.py b/percell/application/use_cases/track_rois.py
+new file mode 100644
+index 0000000..4cb32c0
+--- /dev/null
++++ b/percell/application/use_cases/track_rois.py
+@@ -0,0 +1,44 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++from typing import List
++
++from percell.domain.services.roi_tracking_service import ROITrackingService, ROI
++from percell.ports.outbound.roi_repository_port import ROIRepositoryPort
++
++
++@dataclass(frozen=True)
++class TrackROIsResult:
++    output_zip_path: Path
++    matched_count: int
++
++
++class TrackROIsUseCase:
++    """Use case that loads two ROI archives, computes matching, and writes reordered output."""
++
++    def __init__(self, tracker: ROITrackingService, repo: ROIRepositoryPort) -> None:
++        self.tracker = tracker
++        self.repo = repo
++
++    def execute(self, zip_t0: Path, zip_t1: Path, output_zip: Path, max_distance: float | None = None) -> TrackROIsResult:
++        rois0, names0, _ = self.repo.load_rois(zip_t0)
++        rois1, names1, bytes_map1 = self.repo.load_rois(zip_t1)
++
++        # Build id -> index mapping for rois1 since ROI ids are preserved from repository
++        id_to_index = {roi.id: idx for idx, roi in enumerate(rois1)}
++
++        mapping = self.tracker.match_rois(rois0, rois1, max_distance=max_distance)
++        # mapping: source_id -> target_id
++        reordered_names: List[str] = []
++        for roi0 in rois0:
++            target_id = mapping.get(roi0.id)
++            if target_id is None:
++                continue
++            idx = id_to_index[target_id]
++            reordered_names.append(names1[idx])
++
++        self.repo.save_reordered(output_zip, reordered_names, bytes_map1)
++        return TrackROIsResult(output_zip_path=output_zip, matched_count=len(reordered_names))
++
++
+diff --git a/percell/domain/__init__.py b/percell/domain/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/domain/entities/__init__.py b/percell/domain/entities/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/domain/services/__init__.py b/percell/domain/services/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/domain/services/cell_grouping_service.py b/percell/domain/services/cell_grouping_service.py
+new file mode 100644
+index 0000000..c7ddbc3
+--- /dev/null
++++ b/percell/domain/services/cell_grouping_service.py
+@@ -0,0 +1,95 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from typing import Dict, Iterable, List, Sequence
++
++import numpy as np
++
++
++@dataclass(frozen=True)
++class GroupingParameters:
++    """Parameters controlling grouping behavior.
++
++    Mirrors `BinningParameters` but scoped to the service to avoid coupling.
++    """
++
++    num_bins: int
++    strategy: str  # "uniform" | "kmeans" | "gmm"
++
++
++class CellGroupingService:
++    """Pure domain service for cell grouping logic."""
++
++    def compute_auc(self, intensity_profile: np.ndarray) -> float:
++        """Compute area under the curve as a discrete sum.
++
++        This aligns with existing expectations in the project where the
++        intensity profile AUC is computed as the sum of samples.
++        """
++        if intensity_profile.ndim != 1:
++            raise ValueError("Intensity profile must be a 1D array")
++        return float(np.sum(intensity_profile.astype(float)))
++
++    def group_by_intensity(self, intensities: Sequence[float], params: GroupingParameters) -> List[int]:
++        """Assign each intensity to a group according to the chosen strategy."""
++        if params.num_bins <= 0:
++            raise ValueError("num_bins must be positive")
++        if params.strategy == "uniform":
++            return self._uniform_bins(intensities, params.num_bins)
++        elif params.strategy == "kmeans":
++            return self._kmeans_bins(intensities, params.num_bins)
++        elif params.strategy == "gmm":
++            return self._gmm_bins(intensities, params.num_bins)
++        else:
++            raise ValueError(f"Unknown strategy: {params.strategy}")
++
++    def aggregate_by_group(self, cell_images: Sequence[np.ndarray], assignments: Sequence[int]) -> Dict[int, np.ndarray]:
++        """Sum cell images within each assigned group (pure numpy)."""
++        if len(cell_images) != len(assignments):
++            raise ValueError("cell_images and assignments must have same length")
++        assignments = np.asarray(assignments)
++        unique_groups = np.unique(assignments)
++        aggregated: Dict[int, np.ndarray] = {}
++        for g in unique_groups:
++            mask = assignments == g
++            if not np.any(mask):
++                continue
++            selected = [img for img, m in zip(cell_images, mask) if m]
++            aggregated[int(g)] = np.sum(np.stack(selected, axis=0), axis=0)
++        return aggregated
++
++    # --- helpers ---
++
++    def _uniform_bins(self, intensities: Sequence[float], num_bins: int) -> List[int]:
++        vals = np.asarray(intensities, dtype=float)
++        if vals.size == 0:
++            return []
++        # Edge case: constant intensities
++        if np.all(vals == vals[0]):
++            return [0 for _ in vals]
++        edges = np.linspace(vals.min(), vals.max(), num_bins + 1)
++        # rightmost edge inclusive
++        indices = np.digitize(vals, edges[1:-1], right=True)
++        return indices.tolist()
++
++    def _kmeans_bins(self, intensities: Sequence[float], num_bins: int) -> List[int]:
++        try:
++            from sklearn.cluster import KMeans  # type: ignore
++        except Exception as exc:  # pragma: no cover - optional dep
++            raise RuntimeError("kmeans strategy requires scikit-learn") from exc
++        vals = np.asarray(intensities, dtype=float).reshape(-1, 1)
++        model = KMeans(n_clusters=num_bins, n_init=10, random_state=0)
++        labels = model.fit_predict(vals)
++        return labels.tolist()
++
++    def _gmm_bins(self, intensities: Sequence[float], num_bins: int) -> List[int]:
++        try:
++            from sklearn.mixture import GaussianMixture  # type: ignore
++        except Exception as exc:  # pragma: no cover - optional dep
++            raise RuntimeError("gmm strategy requires scikit-learn") from exc
++        vals = np.asarray(intensities, dtype=float).reshape(-1, 1)
++        model = GaussianMixture(n_components=num_bins, covariance_type="full", random_state=0)
++        labels = model.fit_predict(vals)
++        return labels.tolist()
++
++
+diff --git a/percell/domain/services/roi_tracking_service.py b/percell/domain/services/roi_tracking_service.py
+new file mode 100644
+index 0000000..5c2865a
+--- /dev/null
++++ b/percell/domain/services/roi_tracking_service.py
+@@ -0,0 +1,121 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from typing import Dict, Iterable, List, Sequence, Tuple
++
++import numpy as np
++from scipy.optimize import linear_sum_assignment
++
++
++@dataclass(frozen=True)
++class ROI:
++    """Minimal ROI value object used for matching.
++
++    This abstraction intentionally avoids I/O details. Geometry is represented
++    as either polygon vertices (x, y) or rectangle-like parameters.
++    """
++
++    id: int
++    x: Sequence[float] | None = None
++    y: Sequence[float] | None = None
++    left: float | None = None
++    top: float | None = None
++    width: float | None = None
++    height: float | None = None
++    right: float | None = None
++    bottom: float | None = None
++
++
++class ROITrackingService:
++    """Pure domain service for ROI tracking and matching logic."""
++
++    def match_rois(
++        self,
++        source_rois: Sequence[ROI],
++        target_rois: Sequence[ROI],
++        max_distance: float | None = None,
++    ) -> Dict[int, int]:
++        """Match ROIs from source to target using Hungarian algorithm.
++
++        Returns a mapping of source ROI id -> target ROI id. If max_distance
++        is provided, matches with distance greater than max_distance are
++        discarded from the result.
++        """
++
++        if not source_rois or not target_rois:
++            return {}
++
++        source_centers = [self._get_centroid(roi) for roi in source_rois]
++        target_centers = [self._get_centroid(roi) for roi in target_rois]
++
++        cost = self._build_cost_matrix(source_centers, target_centers)
++        row_idx, col_idx = linear_sum_assignment(cost)
++
++        matches: Dict[int, int] = {}
++        for i, j in zip(row_idx, col_idx):
++            if max_distance is not None and cost[i, j] > max_distance:
++                continue
++            matches[source_rois[i].id] = target_rois[j].id
++
++        return matches
++
++    def _get_centroid(self, roi: ROI) -> Tuple[float, float]:
++        """Calculate centroid for ROI as polygon or rectangle."""
++        if roi.x is not None and roi.y is not None:
++            x = list(roi.x)
++            y = list(roi.y)
++            if not x or not y or len(x) != len(y):
++                raise ValueError("Invalid polygon coordinates")
++            # Ensure closed polygon
++            if x[0] != x[-1] or y[0] != y[-1]:
++                x.append(x[0])
++                y.append(y[0])
++            return self._polygon_centroid(x, y)
++
++        rect_keys = (roi.left, roi.top, roi.width, roi.height)
++        if all(v is not None for v in rect_keys):
++            assert roi.left is not None and roi.top is not None
++            assert roi.width is not None and roi.height is not None
++            return (roi.left + roi.width / 2.0, roi.top + roi.height / 2.0)
++
++        alt_rect = (roi.left, roi.top, roi.right, roi.bottom)
++        if all(v is not None for v in alt_rect):
++            assert roi.left is not None and roi.top is not None
++            assert roi.right is not None and roi.bottom is not None
++            w = roi.right - roi.left
++            h = roi.bottom - roi.top
++            return (roi.left + w / 2.0, roi.top + h / 2.0)
++
++        raise ValueError("ROI lacks sufficient geometry for centroid computation")
++
++    def _polygon_centroid(self, x: Sequence[float], y: Sequence[float]) -> Tuple[float, float]:
++        """Compute centroid via shoelace formula with fallback for near-zero area."""
++        area_twice = 0.0
++        centroid_x_twelfth = 0.0
++        centroid_y_twelfth = 0.0
++        n = len(x) - 1
++        for i in range(n):
++            cross = x[i] * y[i + 1] - x[i + 1] * y[i]
++            area_twice += cross
++            centroid_x_twelfth += (x[i] + x[i + 1]) * cross
++            centroid_y_twelfth += (y[i] + y[i + 1]) * cross
++
++        area = area_twice * 0.5
++        if abs(area) < 1e-8:
++            return (float(sum(x[:-1]) / n), float(sum(y[:-1]) / n))
++
++        cx = centroid_x_twelfth / (6.0 * area)
++        cy = centroid_y_twelfth / (6.0 * area)
++        return (float(cx), float(cy))
++
++    def _build_cost_matrix(
++        self, source_centers: Sequence[Tuple[float, float]], target_centers: Sequence[Tuple[float, float]]
++    ) -> np.ndarray:
++        """Euclidean distance matrix between two point sets."""
++        s = np.asarray(source_centers, dtype=float)
++        t = np.asarray(target_centers, dtype=float)
++        # (S, 1, 2) - (1, T, 2) => (S, T, 2)
++        diff = s[:, None, :] - t[None, :, :]
++        return np.sqrt(np.sum(diff * diff, axis=2))
++
++
+diff --git a/percell/domain/value_objects/__init__.py b/percell/domain/value_objects/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/domain/value_objects/experiment.py b/percell/domain/value_objects/experiment.py
+new file mode 100644
+index 0000000..d1e1c61
+--- /dev/null
++++ b/percell/domain/value_objects/experiment.py
+@@ -0,0 +1,60 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from enum import Enum
++from pathlib import Path
++from typing import List
++
++
++class DataType(Enum):
++    """Type of dataset being processed."""
++
++    SINGLE_TIMEPOINT = "single"
++    MULTI_TIMEPOINT = "multi"
++
++
++@dataclass(frozen=True)
++class Channel:
++    """Represents an image channel and its roles in the workflow."""
++
++    name: str
++    is_segmentation: bool = False
++    is_analysis: bool = False
++
++
++@dataclass(frozen=True)
++class Timepoint:
++    """Represents a timepoint with a stable order index."""
++
++    id: str
++    order: int
++
++
++@dataclass(frozen=True)
++class Region:
++    """Represents a spatial region identifier within an experiment."""
++
++    id: str
++    name: str
++
++
++@dataclass(frozen=True)
++class Condition:
++    """Represents an experimental condition label."""
++
++    name: str
++
++
++@dataclass(frozen=True)
++class ExperimentSelection:
++    """Immutable selection of experiment context for a run."""
++
++    data_type: DataType
++    input_dir: Path
++    output_dir: Path
++    conditions: List[Condition]
++    channels: List[Channel]
++    timepoints: List[Timepoint]
++    regions: List[Region]
++
++
+diff --git a/percell/domain/value_objects/imaging.py b/percell/domain/value_objects/imaging.py
+new file mode 100644
+index 0000000..969e022
+--- /dev/null
++++ b/percell/domain/value_objects/imaging.py
+@@ -0,0 +1,23 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++
++
++@dataclass(frozen=True)
++class ImageDimensions:
++    """Immutable image geometry."""
++
++    width: int
++    height: int
++    channels: int = 1
++
++
++@dataclass(frozen=True)
++class Resolution:
++    """Physical pixel resolution."""
++
++    x: float
++    y: float
++    units: str = "pixel"  # e.g., "um"
++
++
+diff --git a/percell/domain/value_objects/processing.py b/percell/domain/value_objects/processing.py
+new file mode 100644
+index 0000000..3fce427
+--- /dev/null
++++ b/percell/domain/value_objects/processing.py
+@@ -0,0 +1,23 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++
++
++@dataclass(frozen=True)
++class BinningParameters:
++    """Parameters controlling cell intensity binning."""
++
++    num_bins: int
++    strategy: str  # "gmm", "kmeans", "uniform"
++
++
++@dataclass(frozen=True)
++class SegmentationParameters:
++    """Parameters controlling segmentation behavior."""
++
++    model: str
++    diameter: float
++    flow_threshold: float
++    cellprob_threshold: float
++
++
+diff --git a/percell/infrastructure/__init__.py b/percell/infrastructure/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/infrastructure/bootstrap/__init__.py b/percell/infrastructure/bootstrap/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/infrastructure/bootstrap/container.py b/percell/infrastructure/bootstrap/container.py
+new file mode 100644
+index 0000000..58c96d7
+--- /dev/null
++++ b/percell/infrastructure/bootstrap/container.py
+@@ -0,0 +1,115 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Optional
++
++import numpy as np
++
++from percell.adapters.factory import AdapterFactory, AdapterFactoryConfig
++from percell.adapters.outbound.tifffile_image_adapter import TifffileImageAdapter
++from percell.adapters.outbound.pandas_metadata_adapter import PandasMetadataAdapter
++from percell.adapters.outbound.pathlib_filesystem_adapter import PathlibFilesystemAdapter
++from percell.application.use_cases.group_cells import GroupCellsUseCase
++from percell.application.use_cases.segment_cells import SegmentCellsUseCase
++from percell.application.use_cases.track_rois import TrackROIsUseCase
++from percell.domain.services.cell_grouping_service import CellGroupingService
++from percell.domain.services.roi_tracking_service import ROITrackingService
++from percell.ports.outbound.segmenter_port import SegmenterPort
++from percell.infrastructure.config.json_configuration_adapter import JSONConfigurationAdapter
++
++
++@dataclass(frozen=True)
++class AppConfig:
++    imagej_path: Optional[Path] = None
++    macro_dir: Optional[Path] = None
++    image_adapter: str = "tifffile"
++    metadata_store: str = "pandas"
++    filesystem: str = "pathlib"
++    macro_runner: str = "imagej"
++
++
++class DummySegmenter(SegmenterPort):
++    """Minimal default segmenter used by the container if none is provided.
++
++    Produces a zero-valued mask of the same shape as the input image.
++    """
++
++    def segment(self, image: np.ndarray, parameters) -> np.ndarray:  # parameters unused for dummy
++        return np.zeros_like(image, dtype=np.uint16)
++
++
++class Container:
++    """Simple dependency injection container wiring adapters, services, and use cases."""
++
++    def __init__(self, config: Optional[AppConfig] = None, segmenter: Optional[SegmenterPort] = None) -> None:
++        self.config = config or AppConfig()
++        self._segmenter = segmenter or DummySegmenter()
++
++        factory_cfg = AdapterFactoryConfig(
++            image_adapter=self.config.image_adapter,  # type: ignore[arg-type]
++            macro_runner=self.config.macro_runner,  # type: ignore[arg-type]
++            metadata_store=self.config.metadata_store,  # type: ignore[arg-type]
++            filesystem=self.config.filesystem,  # type: ignore[arg-type]
++            imagej_path=self.config.imagej_path,
++            macro_dir=self.config.macro_dir,
++        )
++        self._factory = AdapterFactory(factory_cfg)
++
++    # --- Adapters ---
++    def image_adapter(self) -> TifffileImageAdapter:
++        return self._factory.build_image_reader()  # type: ignore[return-value]
++
++    def metadata_adapter(self) -> PandasMetadataAdapter:
++        return self._factory.build_metadata_store()  # type: ignore[return-value]
++
++    def filesystem(self) -> PathlibFilesystemAdapter:
++        return self._factory.build_filesystem()  # type: ignore[return-value]
++
++    # --- Configuration ---
++    def configuration(self, path: Path) -> JSONConfigurationAdapter:
++        cfg = JSONConfigurationAdapter(path)
++        cfg.load()
++        return cfg
++
++    # --- Domain Services ---
++    def cell_grouping_service(self) -> CellGroupingService:
++        return CellGroupingService()
++
++    def roi_tracking_service(self) -> ROITrackingService:
++        return ROITrackingService()
++
++    # --- Use Cases ---
++    def group_cells_use_case(self) -> GroupCellsUseCase:
++        return GroupCellsUseCase(
++            grouping_service=self.cell_grouping_service(),
++            image_reader=self.image_adapter(),
++            image_writer=self.image_adapter(),
++            metadata_store=self.metadata_adapter(),
++            filesystem=self.filesystem(),
++        )
++
++    def segment_cells_use_case(self) -> SegmentCellsUseCase:
++        return SegmentCellsUseCase(
++            image_reader=self.image_adapter(),
++            image_writer=self.image_adapter(),
++            segmenter=self._segmenter,
++            filesystem=self.filesystem(),
++        )
++
++    def track_rois_use_case(self, repo) -> TrackROIsUseCase:  # repo provided externally for flexibility
++        return TrackROIsUseCase(
++            tracker=self.roi_tracking_service(),
++            repo=repo,
++        )
++
++_GLOBAL_CONTAINER: Container | None = None
++
++
++def get_container(config: Optional[AppConfig] = None, segmenter: Optional[SegmenterPort] = None) -> Container:
++    global _GLOBAL_CONTAINER
++    if _GLOBAL_CONTAINER is None:
++        _GLOBAL_CONTAINER = Container(config=config, segmenter=segmenter)
++    return _GLOBAL_CONTAINER
++
++
+diff --git a/percell/infrastructure/config/__init__.py b/percell/infrastructure/config/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/infrastructure/config/json_configuration_adapter.py b/percell/infrastructure/config/json_configuration_adapter.py
+new file mode 100644
+index 0000000..50be7c1
+--- /dev/null
++++ b/percell/infrastructure/config/json_configuration_adapter.py
+@@ -0,0 +1,52 @@
++from __future__ import annotations
++
++import json
++from pathlib import Path
++from typing import Any, Dict, Optional
++
++from percell.ports.inbound.configuration_port import ConfigurationPort
++
++
++class JSONConfigurationAdapter(ConfigurationPort):
++    """JSON-backed configuration adapter compatible with the ConfigurationPort."""
++
++    def __init__(self, path: Path):
++        self._path = Path(path)
++        self._data: Dict[str, Any] = {}
++
++    def load(self) -> None:
++        if self._path.exists():
++            with self._path.open('r', encoding='utf-8') as f:
++                self._data = json.load(f)
++        else:
++            self._data = {}
++
++    def save(self) -> None:
++        self._path.parent.mkdir(parents=True, exist_ok=True)
++        with self._path.open('w', encoding='utf-8') as f:
++            json.dump(self._data, f, indent=2)
++
++    def get(self, key_path: str, default: Optional[Any] = None) -> Any:
++        parts = key_path.split('.') if key_path else []
++        node: Any = self._data
++        for p in parts:
++            if isinstance(node, dict) and p in node:
++                node = node[p]
++            else:
++                return default
++        return node
++
++    def set(self, key_path: str, value: Any) -> None:
++        parts = key_path.split('.') if key_path else []
++        node: Dict[str, Any] = self._data
++        for p in parts[:-1]:
++            if p not in node or not isinstance(node[p], dict):
++                node[p] = {}
++            node = node[p]  # type: ignore[assignment]
++        if parts:
++            node[parts[-1]] = value
++
++    def to_dict(self) -> Dict[str, Any]:
++        return dict(self._data)
++
++
+diff --git a/percell/infrastructure/utils/__init__.py b/percell/infrastructure/utils/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/ports/__init__.py b/percell/ports/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/ports/inbound/__init__.py b/percell/ports/inbound/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/ports/inbound/configuration_port.py b/percell/ports/inbound/configuration_port.py
+new file mode 100644
+index 0000000..b2097c9
+--- /dev/null
++++ b/percell/ports/inbound/configuration_port.py
+@@ -0,0 +1,30 @@
++from __future__ import annotations
++
++from abc import ABC, abstractmethod
++from typing import Any, Dict, Optional
++
++
++class ConfigurationPort(ABC):
++    """Driving port for application configuration management."""
++
++    @abstractmethod
++    def load(self) -> None:
++        """Load configuration from persistent storage."""
++
++    @abstractmethod
++    def save(self) -> None:
++        """Persist configuration to storage."""
++
++    @abstractmethod
++    def get(self, key_path: str, default: Optional[Any] = None) -> Any:
++        """Get a configuration value by dotted path, with optional default."""
++
++    @abstractmethod
++    def set(self, key_path: str, value: Any) -> None:
++        """Set a configuration value by dotted path."""
++
++    @abstractmethod
++    def to_dict(self) -> Dict[str, Any]:
++        """Get the entire configuration as a dictionary."""
++
++
+diff --git a/percell/ports/outbound/__init__.py b/percell/ports/outbound/__init__.py
+new file mode 100644
+index 0000000..e69de29
+diff --git a/percell/ports/outbound/filesystem_port.py b/percell/ports/outbound/filesystem_port.py
+new file mode 100644
+index 0000000..8ff33aa
+--- /dev/null
++++ b/percell/ports/outbound/filesystem_port.py
+@@ -0,0 +1,39 @@
++from __future__ import annotations
++
++from abc import ABC, abstractmethod
++from pathlib import Path
++from typing import List, Optional
++
++
++class FilesystemPort(ABC):
++    """Driven port abstracting basic filesystem operations for testability."""
++
++    @abstractmethod
++    def exists(self, path: Path) -> bool:
++        """Return True if the path exists."""
++
++    @abstractmethod
++    def ensure_dir(self, path: Path) -> None:
++        """Create directory (and parents) if missing."""
++
++    @abstractmethod
++    def list_files(self, directory: Path, pattern: str = "*") -> List[Path]:
++        """List files in a directory matching a glob pattern."""
++
++    @abstractmethod
++    def list_dirs(self, directory: Path) -> List[Path]:
++        """List immediate subdirectories in a directory."""
++
++    @abstractmethod
++    def glob(self, pattern: str, root: Optional[Path] = None) -> List[Path]:
++        """Glob for files/dirs from an optional root (defaults to cwd)."""
++
++    @abstractmethod
++    def remove_file(self, path: Path) -> None:
++        """Remove a file if it exists."""
++
++    @abstractmethod
++    def remove_dir(self, path: Path, recursive: bool = False) -> None:
++        """Remove a directory; if recursive, remove contents too."""
++
++
+diff --git a/percell/ports/outbound/image_port.py b/percell/ports/outbound/image_port.py
+new file mode 100644
+index 0000000..ef4632e
+--- /dev/null
++++ b/percell/ports/outbound/image_port.py
+@@ -0,0 +1,36 @@
++from __future__ import annotations
++
++from abc import ABC, abstractmethod
++from pathlib import Path
++from typing import Any, Dict, Optional, Tuple
++
++import numpy as np
++
++
++class ImageReaderPort(ABC):
++    """Driven port for reading images from storage.
++
++    Implementations should provide filesystem/library-specific reading logic
++    while keeping the interface stable for application/domain layers.
++    """
++
++    @abstractmethod
++    def read(self, path: Path) -> np.ndarray:
++        """Read an image from the given path and return a numpy array."""
++
++    @abstractmethod
++    def read_with_metadata(self, path: Path) -> Tuple[np.ndarray, Dict[str, Any]]:
++        """Read an image and return the array along with a metadata dictionary."""
++
++
++class ImageWriterPort(ABC):
++    """Driven port for writing images to storage.
++
++    Implementations should handle persistence details and optional metadata.
++    """
++
++    @abstractmethod
++    def write(self, path: Path, image: np.ndarray, metadata: Optional[Dict[str, Any]] = None) -> None:
++        """Write an image (and optional metadata) to the given path."""
++
++
+diff --git a/percell/ports/outbound/macro_runner_port.py b/percell/ports/outbound/macro_runner_port.py
+new file mode 100644
+index 0000000..0c46e8f
+--- /dev/null
++++ b/percell/ports/outbound/macro_runner_port.py
+@@ -0,0 +1,28 @@
++from __future__ import annotations
++
++from abc import ABC, abstractmethod
++from dataclasses import dataclass
++from typing import Any, Dict, Optional
++
++
++@dataclass(frozen=True)
++class MacroResult:
++    """Outcome of running an external macro."""
++
++    success: bool
++    stdout: Optional[str] = None
++    stderr: Optional[str] = None
++
++
++class MacroRunnerPort(ABC):
++    """Driven port for executing ImageJ/Fiji or similar macros."""
++
++    @abstractmethod
++    def run_macro(self, macro_name: str, parameters: Dict[str, Any]) -> MacroResult:
++        """Execute a macro with parameter mapping and return structured result."""
++
++    @abstractmethod
++    def validate_macro(self, macro_name: str) -> bool:
++        """Return True if a macro with the given name can be executed."""
++
++
+diff --git a/percell/ports/outbound/metadata_port.py b/percell/ports/outbound/metadata_port.py
+new file mode 100644
+index 0000000..a8f269d
+--- /dev/null
++++ b/percell/ports/outbound/metadata_port.py
+@@ -0,0 +1,32 @@
++from __future__ import annotations
++
++from abc import ABC, abstractmethod
++from pathlib import Path
++from typing import Optional
++
++import pandas as pd
++
++
++class MetadataStorePort(ABC):
++    """Driven port for CSV/metadata storage operations."""
++
++    @abstractmethod
++    def read_csv(self, path: Path) -> pd.DataFrame:
++        """Read a CSV into a DataFrame."""
++
++    @abstractmethod
++    def write_csv(self, path: Path, df: pd.DataFrame, index: bool = False) -> None:
++        """Write a DataFrame to CSV."""
++
++    @abstractmethod
++    def merge_csv(
++        self,
++        left_path: Path,
++        right_path: Path,
++        on: str,
++        how: str,
++        output_path: Optional[Path] = None,
++    ) -> pd.DataFrame:
++        """Merge two CSVs on a key with `how` and optionally write to output_path."""
++
++
+diff --git a/percell/ports/outbound/roi_repository_port.py b/percell/ports/outbound/roi_repository_port.py
+new file mode 100644
+index 0000000..5f1f67f
+--- /dev/null
++++ b/percell/ports/outbound/roi_repository_port.py
+@@ -0,0 +1,27 @@
++from __future__ import annotations
++
++from abc import ABC, abstractmethod
++from pathlib import Path
++from typing import Dict, List, Tuple
++
++from percell.domain.services.roi_tracking_service import ROI
++
++
++class ROIRepositoryPort(ABC):
++    """Driven port for reading/writing ROI archives (e.g., ImageJ ROI .zip files)."""
++
++    @abstractmethod
++    def load_rois(self, zip_path: Path) -> Tuple[List[ROI], List[str], Dict[str, bytes]]:
++        """Load ROIs and raw bytes from a zip.
++
++        Returns (rois, names, bytes_map) where:
++        - rois: list of ROI domain objects; ids should be stable indices (0..n-1)
++        - names: ROI entry names in the zip (same order/length as rois)
++        - bytes_map: mapping from ROI name to its raw bytes
++        """
++
++    @abstractmethod
++    def save_reordered(self, output_zip_path: Path, names_in_order: List[str], bytes_map: Dict[str, bytes]) -> None:
++        """Write a new zip (or overwrite existing) with ROIs in the provided order."""
++
++
+diff --git a/percell/ports/outbound/segmenter_port.py b/percell/ports/outbound/segmenter_port.py
+new file mode 100644
+index 0000000..ed0d95b
+--- /dev/null
++++ b/percell/ports/outbound/segmenter_port.py
+@@ -0,0 +1,18 @@
++from __future__ import annotations
++
++from abc import ABC, abstractmethod
++from typing import Protocol
++
++import numpy as np
++
++from percell.domain.value_objects.processing import SegmentationParameters
++
++
++class SegmenterPort(ABC):
++    """Driven port for running cell segmentation on an image array."""
++
++    @abstractmethod
++    def segment(self, image: np.ndarray, parameters: SegmentationParameters) -> np.ndarray:
++        """Return a label mask (int array) for the given image and parameters."""
++
++
