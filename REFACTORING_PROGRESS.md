@@ -17,6 +17,7 @@ Status
 - [x] Add adapter factory for DI selection
 - [x] Implement GroupCellsUseCase
 - [x] Implement TrackROIsUseCase
+- [x] Implement SegmentationUseCase
 
 Notes
 - Created branch `refactor/ports-and-adapters` and initialized the migration.
@@ -24,5 +25,5 @@ Notes
 - All existing tests pass (1 passed).
 
 Next
-- Implement SegmentationUseCase (Commit 13).
+- Refactor stage classes to use application services (Commit 14).
 
