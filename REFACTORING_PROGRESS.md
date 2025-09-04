@@ -10,6 +10,7 @@ Status
 - [x] Define core port interfaces (ImageReaderPort, ImageWriterPort, MacroRunnerPort)
 - [x] Extract ROI tracking domain service
 - [ ] Extract cell grouping domain service
+ - [x] Extract cell grouping domain service
 
 Notes
 - Created branch `refactor/ports-and-adapters` and initialized the migration.
