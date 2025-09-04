@@ -1,6 +1,6 @@
 Percell Refactoring Progress
 
-Phase: Phase 1 - Foundation
+Phase: Phase 2 - Adapters
 
 Status
 - [x] Create refactor branch and initial empty commit
@@ -9,8 +9,8 @@ Status
 - [x] Extract value objects (experiment.py, processing.py, imaging.py)
 - [x] Define core port interfaces (ImageReaderPort, ImageWriterPort, MacroRunnerPort)
 - [x] Extract ROI tracking domain service
-- [ ] Extract cell grouping domain service
- - [x] Extract cell grouping domain service
+- [x] Extract cell grouping domain service
+- [x] Implement TifffileImageAdapter (read/write + metadata) with tests
 
 Notes
 - Created branch `refactor/ports-and-adapters` and initialized the migration.
@@ -18,5 +18,5 @@ Notes
 - All existing tests pass (1 passed).
 
 Next
-- Extract ROI tracking domain service and add pure unit tests.
+- Implement ImageJMacroAdapter (mock subprocess) and tests (Commit 7).
 
