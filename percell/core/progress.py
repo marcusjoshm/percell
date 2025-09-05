@@ -162,20 +162,22 @@ def iter_with_progress(
 
 
 @contextmanager
-def spinner() -> Iterator[None]:
+def spinner(title: Optional[str] = None) -> Iterator[None]:
     """
     A simple spinner when total is unknown.
-    
-    For 80x24 terminal compatibility, titles should be printed separately above the spinner.
+
+    If a title is provided, it is printed once above the spinner for compact
+    80x24 terminal layouts.
 
     Usage:
-        print("Indexing files")
-        with spinner():
+        with spinner("Indexing files"):
             do_work()
     """
     if alive_bar is None:
         yield
         return
+    if title:
+        print(f"{title}")
     with alive_bar(None, force_tty=True):
         yield
 
