@@ -1,0 +1,178 @@
+## Refactoring Review: Percell Ports and Adapters Architecture
+
+Your refactoring implementation shows solid understanding of the architecture principles. Here's my detailed assessment:
+
+## Strengths
+
+### 1. Clean Domain Layer
+Your `CellGroupingService` is exemplary:
+- Pure business logic with no I/O dependencies
+- Clear error handling with descriptive messages
+- Proper separation of strategies (uniform, kmeans, gmm)
+- The `compute_auc()` implementation correctly preserves the original behavior (sum vs. trapz)
+
+### 2. Well-Defined Ports
+The port interfaces are minimal and focused:
+- `ImageReaderPort` and `ImageWriterPort` properly separated
+- Clear abstraction boundaries
+- Good use of type hints and return types
+
+### 3. Thoughtful Adapter Implementation
+The `TifffileImageAdapter` shows good practices:
+- Environment variable configuration for compression (excellent for ops flexibility)
+- Graceful metadata extraction with error handling
+- Performance considerations with optional BigTIFF support
+
+### 4. Proper Use Case Orchestration
+`GroupCellsUseCase` correctly:
+- Delegates business logic to the domain service
+- Uses ports for all I/O operations
+- Returns a clean result object
+- Includes optional I/O concurrency (smart performance optimization)
+
+## Areas for Improvement
+
+### 1. Domain Service Coupling
+```python
+# Current
+@dataclass(frozen=True)
+class GroupingParameters:
+    num_bins: int
+    strategy: str  # "uniform" | "kmeans" | "gmm"
+```
+The comment mentions "Mirrors BinningParameters but scoped to the service to avoid coupling" - this duplication could be avoided. Consider having `BinningParameters` in the domain layer instead of creating a duplicate.
+
+### 2. Use Case Dependencies
+The `GroupCellsUseCase` has a minor domain leak:
+```python
+import pandas as pd  # This is in the use case!
+```
+The pandas import should be handled entirely by the `MetadataStorePort`. The use case should pass raw data structures to the port.
+
+### 3. Container Design Issues
+Several concerns with the DI container:
+- `DummySegmenter` in the container file breaks separation - this should be in adapters
+- Global singleton pattern (`_GLOBAL_CONTAINER`) could cause issues in testing
+- Type ignores suggest typing issues that should be resolved
+- Missing proper interface for repository injection in `track_rois_use_case`
+
+### 4. Missing Error Handling
+The adapters lack comprehensive error handling:
+```python
+def read(self, path: Path) -> np.ndarray:
+    return tifffile.imread(str(path))  # What if file doesn't exist?
+```
+
+### 5. Incomplete Port Abstractions
+Some ports are mentioned but not shown:
+- `SegmenterPort` - implementation details unclear
+- `ROIRepositoryPort` - passed externally but interface not defined
+- `MacroRunnerPort` - listed in structure but not shown
+
+## Specific Recommendations
+
+### 1. Fix the Use Case Data Leak
+```python
+# Instead of this in the use case:
+import pandas as pd
+df = pd.DataFrame(metadata_rows)
+self.metadata_store.write_csv(output_dir / "grouping_metadata.csv", df, index=False)
+
+# Do this:
+metadata = {
+    "files": [str(p) for p in cell_files],
+    "intensities": intensities,
+    "groups": assignments
+}
+self.metadata_store.write_grouping_metadata(
+    output_dir / "grouping_metadata.csv", 
+    metadata
+)
+```
+
+### 2. Improve Error Handling
+```python
+class TifffileImageAdapter(ImageReaderPort, ImageWriterPort):
+    def read(self, path: Path) -> np.ndarray:
+        if not path.exists():
+            raise FileNotFoundError(f"Image file not found: {path}")
+        try:
+            return tifffile.imread(str(path))
+        except Exception as e:
+            raise IOError(f"Failed to read image {path}: {e}") from e
+```
+
+### 3. Fix Container Typing
+```python
+# Instead of type ignores, use proper typing:
+from typing import Union
+
+ImageAdapter = Union[TifffileImageAdapter, ...]  # Define your adapter types
+
+def image_adapter(self) -> ImageAdapter:
+    return self._factory.build_image_reader()
+```
+
+### 4. Remove Global State
+```python
+class Container:
+    # Remove global singleton
+    pass
+
+# In main application:
+def create_container(config: AppConfig) -> Container:
+    return Container(config)
+```
+
+### 5. Complete Port Definitions
+Ensure all ports mentioned in the architecture are properly defined and documented.
+
+## Architecture Compliance Assessment
+
+✅ **Domain Independence**: Domain services are pure and testable
+✅ **Port Definitions**: Clear contracts between layers
+✅ **Use Case Pattern**: Proper orchestration of domain and ports
+✅ **Adapter Pattern**: Clean infrastructure implementations
+⚠️ **Dependency Injection**: Functional but could be cleaner
+⚠️ **Error Handling**: Needs improvement
+✅ **Backward Compatibility**: Shim warning is appropriate
+✅ **Type Safety**: Good use of type hints overall
+
+## Performance Considerations
+
+Your performance optimizations are thoughtful:
+- Optional I/O concurrency via `PERCELL_IO_WORKERS`
+- TIFF compression options
+- BigTIFF support
+
+Consider adding:
+- Lazy loading for large datasets
+- Caching layer for frequently accessed images
+- Batch processing interfaces in ports
+
+## Testing Strategy
+
+With 50 tests passing, you have a good foundation. Ensure you have:
+1. Pure domain service tests (no mocks needed)
+2. Use case tests with mocked ports
+3. Adapter integration tests with real files
+4. End-to-end tests through the container
+
+## Migration Path
+
+Your deprecation warning is good. Consider:
+1. Adding a migration guide for users
+2. Providing clear timeline for deprecation
+3. Offering automated migration scripts if possible
+
+## Overall Assessment
+
+**Score: 8.5/10**
+
+This is a solid implementation of Ports and Adapters architecture. The domain is properly isolated, ports are well-defined, and the overall structure follows the pattern correctly. The main areas for improvement are:
+1. Removing the pandas import from the use case
+2. Improving error handling across adapters
+3. Cleaning up the DI container
+4. Completing all port definitions
+
+The refactoring successfully achieves the main goals of testability, maintainability, and extensibility. With the suggested improvements, this would be a exemplary implementation of the pattern.

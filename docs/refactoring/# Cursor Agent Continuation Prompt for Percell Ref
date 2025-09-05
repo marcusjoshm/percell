@@ -1,0 +1,261 @@
+# Cursor Agent Continuation Prompt for Percell Refactoring
+
+## Context Recovery and Status Review
+
+You are continuing a refactoring project for the Percell microscopy pipeline, migrating from a monolithic architecture to Ports and Adapters (Hexagonal) architecture. The refactoring may be partially complete.
+
+## Initial Status Assessment
+
+### 1. First, check the current git status:
+```bash
+# Check which branch we're on
+git branch --show-current
+
+# If not on refactor/ports-and-adapters branch, switch to it
+git checkout refactor/ports-and-adapters
+
+# View the commit history to understand progress
+git log --oneline -20
+
+# Check for any uncommitted changes
+git status
+
+# View the last commit details
+git show --stat
+```
+
+### 2. Read the project documentation:
+Locate and read these files in order:
+1. **inventory_report.md** - Original codebase analysis
+2. **refactoring_guide.md** - Complete refactoring strategy
+3. **layer_assignments.md** - Component placement specifications
+4. **REFACTORING_PROGRESS.md** - Current progress tracker (if it exists)
+
+### 3. Assess the current project structure:
+```bash
+# Check if new directories exist
+ls -la percell/domain/ 2>/dev/null || echo "Domain layer not created yet"
+ls -la percell/application/ 2>/dev/null || echo "Application layer not created yet"
+ls -la percell/ports/ 2>/dev/null || echo "Ports layer not created yet"
+ls -la percell/adapters/ 2>/dev/null || echo "Adapters layer not created yet"
+ls -la percell/infrastructure/ 2>/dev/null || echo "Infrastructure layer not created yet"
+
+# Check for test directories
+ls -la tests/domain/ 2>/dev/null || echo "Domain tests not created yet"
+ls -la tests/application/ 2>/dev/null || echo "Application tests not created yet"
+ls -la tests/integration/ 2>/dev/null || echo "Integration tests not created yet"
+```
+
+### 4. Analyze what's been completed:
+```python
+# Create a Python script to analyze progress
+import os
+from pathlib import Path
+
+def analyze_refactoring_progress():
+    """Analyze the current state of refactoring"""
+    
+    progress = {
+        "domain_layer": {
+            "value_objects": [],
+            "entities": [],
+            "services": []
+        },
+        "application_layer": {
+            "use_cases": [],
+            "commands": []
+        },
+        "ports": {
+            "inbound": [],
+            "outbound": []
+        },
+        "adapters": {
+            "inbound": [],
+            "outbound": []
+        }
+    }
+    
+    # Check each layer for existing files
+    base_path = Path("percell")
+    
+    # Domain layer
+    if (base_path / "domain").exists():
+        for category in ["value_objects", "entities", "services"]:
+            path = base_path / "domain" / category
+            if path.exists():
+                progress["domain_layer"][category] = [f.name for f in path.glob("*.py") if f.name != "__init__.py"]
+    
+    # Application layer
+    if (base_path / "application").exists():
+        for category in ["use_cases", "commands"]:
+            path = base_path / "application" / category
+            if path.exists():
+                progress["application_layer"][category] = [f.name for f in path.glob("*.py") if f.name != "__init__.py"]
+    
+    # Ports
+    if (base_path / "ports").exists():
+        for direction in ["inbound", "outbound"]:
+            path = base_path / "ports" / direction
+            if path.exists():
+                progress["ports"][direction] = [f.name for f in path.glob("*.py") if f.name != "__init__.py"]
+    
+    # Adapters
+    if (base_path / "adapters").exists():
+        for direction in ["inbound", "outbound"]:
+            path = base_path / "adapters" / direction
+            if path.exists():
+                progress["adapters"][direction] = [f.name for f in path.glob("*.py") if f.name != "__init__.py"]
+    
+    return progress
+
+# Run the analysis
+progress = analyze_refactoring_progress()
+print("Current Refactoring Progress:")
+for layer, components in progress.items():
+    print(f"\n{layer}:")
+    for component_type, files in components.items():
+        print(f"  {component_type}: {len(files)} files")
+        for file in files:
+            print(f"    - {file}")
+```
+
+### 5. Run existing tests to verify current state:
+```bash
+# Run all tests to see what's working
+pytest -v
+
+# Run specific test categories if they exist
+pytest tests/domain/ -v 2>/dev/null || echo "No domain tests yet"
+pytest tests/application/ -v 2>/dev/null || echo "No application tests yet"
+pytest tests/integration/ -v 2>/dev/null || echo "No integration tests yet"
+
+# Check test coverage if available
+pytest --cov=percell --cov-report=term-missing
+```
+
+## Progress Tracking Checklist
+
+Review this checklist and determine where to continue:
+
+### Phase 1: Foundation
+- [ ] Directory structure created
+- [ ] Value objects implemented (`experiment.py`, `processing.py`, `imaging.py`)
+- [ ] Port interfaces defined (`ImageReaderPort`, `ImageWriterPort`, `MacroRunnerPort`)
+- [ ] ROI tracking service extracted
+- [ ] Cell grouping service extracted
+
+### Phase 2: Adapters
+- [ ] TifffileImageAdapter implemented
+- [ ] ImageJMacroAdapter implemented
+- [ ] PandasMetadataAdapter implemented
+- [ ] PathlibFilesystemAdapter implemented
+- [ ] Adapter factory created
+
+### Phase 3: Application Services
+- [ ] GroupCellsUseCase created
+- [ ] TrackROIsUseCase created
+- [ ] SegmentationUseCase created
+- [ ] Stage classes refactored
+- [ ] Command objects created
+
+### Phase 4: Dependency Injection
+- [ ] DI container setup
+- [ ] Container integrated with main
+- [ ] Configuration migrated
+
+### Phase 5: Testing and Migration
+- [ ] Domain tests complete
+- [ ] Use case tests complete
+- [ ] Integration tests complete
+- [ ] Migration shims added
+- [ ] Documentation updated
+- [ ] Performance optimized
+- [ ] Final cleanup done
+
+## Continuation Instructions
+
+Based on your assessment above:
+
+### If REFACTORING_PROGRESS.md exists:
+1. Read it to understand the last completed task
+2. Check for any noted blockers or decisions needed
+3. Continue with the next uncompleted task
+
+### If REFACTORING_PROGRESS.md doesn't exist:
+1. Create it with the current status:
+```markdown
+# Refactoring Progress
+
+## Last Updated: [current date]
+
+## Completed Tasks:
+[List what you found to be complete]
+
+## Current Task:
+[What you're about to work on]
+
+## Next Tasks:
+[From the checklist above]
+
+## Blockers/Decisions Needed:
+[Any issues found during assessment]
+```
+
+### Determine Next Action:
+
+Based on the git history and file analysis, identify which commit number (from the original plan) you should work on next:
+
+1. **If no commits exist yet**: Start with Phase 1, Commit 1
+2. **If domain structure exists but no value objects**: Continue with Commit 2
+3. **If value objects exist but no ports**: Continue with Commit 3
+4. **If ports exist but no domain services**: Continue with Commit 4
+5. **And so on...**
+
+### Resume Refactoring:
+
+Once you've identified where to continue:
+
+1. **Review the specifications** for the next task in `refactoring_guide.md`
+2. **Check layer_assignments.md** for specific component placements
+3. **Write tests first** for the component you're about to create
+4. **Implement the component** according to specifications
+5. **Run tests** to verify functionality
+6. **Commit with appropriate message** as specified in the guide
+7. **Update REFACTORING_PROGRESS.md** with your progress
+
+## Quick Reference Commands:
+
+```bash
+# View recent changes
+git diff HEAD~1
+
+# Check which files have been modified recently
+git log --name-status -5
+
+# See what's in the new directories
+find percell/domain percell/application percell/ports percell/adapters -type f -name "*.py" 2>/dev/null | head -20
+
+# Run the most recent test that was added
+pytest $(git diff --name-only HEAD~1 | grep test | head -1) -v
+
+# Check for any TODO or FIXME markers
+grep -r "TODO\|FIXME" percell/domain percell/application percell/ports percell/adapters 2>/dev/null
+```
+
+## Critical Reminders:
+
+1. **Maintain backward compatibility** - Don't break existing functionality
+2. **Follow the architecture strictly** - No I/O in domain, no business logic in adapters
+3. **Test everything** - Write tests before implementing
+4. **Commit atomically** - Each commit should be complete and working
+5. **Update progress tracking** - Keep REFACTORING_PROGRESS.md current
+
+## Start Instructions:
+
+1. Execute the status assessment steps above
+2. Report what you found (last commit, current phase, what exists)
+3. Identify the next task to work on
+4. Confirm the plan before proceeding
+5. Continue with the refactoring
+
+Begin by running the status assessment and report your findings.
