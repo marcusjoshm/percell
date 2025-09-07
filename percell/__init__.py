@@ -8,7 +8,7 @@ __version__ = "1.0.0"
 __author__ = "Joshua Marcus"
 
 # Import main components for easy access
-from .core.pipeline import Pipeline, create_pipeline
+from percell.application.pipeline_api import Pipeline, create_pipeline
 from percell.application.config_api import Config, ConfigError, create_default_config
 from percell.application.logger_api import PipelineLogger, ModuleLogger
 # CLI components are now provided via application layer and UI adapters.

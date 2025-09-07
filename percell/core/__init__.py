@@ -19,15 +19,14 @@ from percell.application.config_api import (
     detect_software_paths,
 )
 from percell.application.logger_api import PipelineLogger, ModuleLogger, create_logger
-from .pipeline import Pipeline, create_pipeline
-from .stages import (
-    StageBase, 
-    FileProcessingStage, 
-    StageRegistry, 
-    StageExecutor, 
+from percell.application.stages_api import (
+    StageBase,
+    FileProcessingStage,
+    StageRegistry,
+    StageExecutor,
     StageError,
-    register_stage, 
-    get_stage_registry
+    register_stage,
+    get_stage_registry,
 )
 # Note: legacy utils functions are no longer re-exported here.
 # They remain available under percell.core.utils during migration.
@@ -57,8 +56,6 @@ __all__ = [
     'PipelineLogger',
     'ModuleLogger',
     'create_logger',
-    'Pipeline',
-    'create_pipeline',
     'StageBase',
     'FileProcessingStage',
     'StageRegistry',
