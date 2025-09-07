@@ -3,7 +3,7 @@
 A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
 
 ## Next Up
-- [ ] Phase 1.5: Extract orchestration into `WorkflowOrchestrationService` (NEXT)
+- [ ] Phase 2.2: Implement `ImageJMacroAdapter` (NEXT)
 
 ---
 
@@ -42,8 +42,8 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 ## Phase 2: Create Ports and Adapters
 
 ### 2.1 Define Port Interfaces
-- [ ] Define driving port interfaces
-- [ ] Define driven port interfaces
+- [x] Define driving port interfaces
+- [x] Define driven port interfaces
 
 ### 2.2 Implement ImageJ Adapter
 - [ ] Implement `ImageJMacroAdapter` and tests
