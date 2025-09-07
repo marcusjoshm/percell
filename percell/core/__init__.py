@@ -18,7 +18,7 @@ from percell.application.config_api import (
     validate_software_paths,
     detect_software_paths,
 )
-from .logger import PipelineLogger, ModuleLogger, create_logger
+from percell.application.logger_api import PipelineLogger, ModuleLogger, create_logger
 from .pipeline import Pipeline, create_pipeline
 from .stages import (
     StageBase, 

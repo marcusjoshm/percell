@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Import from the package (no sys.path manipulation needed!)
 from percell.application.config_api import Config, ConfigError, create_default_config
-from percell.core.logger import PipelineLogger
+from percell.application.logger_api import PipelineLogger
 from percell.core.pipeline import Pipeline
 from percell.main.bootstrap import bootstrap
 from percell.adapters.cli_user_interface_adapter import CLIUserInterfaceAdapter
