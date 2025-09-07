@@ -37,6 +37,7 @@ from scipy import stats
 import re
 import shutil
 import json
+from percell.domain import IntensityAnalysisService, CellMetrics
 
 # Set up logging
 logging.basicConfig(
@@ -374,8 +375,35 @@ def group_and_sum_cells(cell_dir, output_dir, num_bins, method='gmm', force_clus
             cluster_values = auc_values[labels == label]
             cluster_means[label] = cluster_values.mean() if len(cluster_values) > 0 else 0
             
+    # Attempt domain-based grouping for simple 2-bin strategies
+    labels = None
+    cluster_means = {}
+    if actual_num_bins == 2 and method.lower() in ('median', 'otsu'):
+        svc = IntensityAnalysisService()
+        # Use AUC as intensity proxy
+        metrics = [
+            CellMetrics(cell_id=i + 1, area=float(img.size) if hasattr(img, 'size') else 0.0, mean_intensity=float(val))
+            for i, ((_, val, img, _)) in enumerate(image_data)
+        ]
+        if method.lower() == 'median':
+            groups = svc.group_cells_by_brightness(metrics)
+            # groups: [(label, [ids]), ...]
+            id_to_label = {}
+            for idx, (label_name, members) in enumerate(groups):
+                for cid in members:
+                    id_to_label[cid] = idx
+            labels = np.array([id_to_label.get(i + 1, 0) for i in range(len(image_data))], dtype=int)
+        else:  # otsu
+            thr = svc.calculate_threshold_parameters(metrics)
+            threshold = thr.lower if thr.lower is not None else float(np.median(auc_values))
+            labels = np.array([0 if float(v) <= threshold else 1 for v in auc_values.flatten()], dtype=int)
+        # Compute cluster means for mapping
+        for lab in (0, 1):
+            vals = auc_values[labels == lab]
+            cluster_means[lab] = vals.mean() if len(vals) > 0 else 0
+
     # Otherwise, proceed with the selected clustering method
-    elif method.lower() == 'gmm':
+    elif labels is None and method.lower() == 'gmm':
         # Gaussian Mixture Model with improved parameters
         gmm = GaussianMixture(
             n_components=actual_num_bins, 
@@ -418,7 +446,7 @@ def group_and_sum_cells(cell_dir, output_dir, num_bins, method='gmm', force_clus
             method = 'kmeans'  # Set method to kmeans to use the kmeans code path
     
     # Default: Use K-means clustering (either as primary method or as fallback from GMM)
-    if method.lower() == 'kmeans':
+    if labels is None and method.lower() == 'kmeans':
         # Use K-means clustering with multiple initializations and iterations for robustness
         kmeans = KMeans(
             n_clusters=actual_num_bins, 
@@ -497,11 +525,12 @@ def group_and_sum_cells(cell_dir, output_dir, num_bins, method='gmm', force_clus
                 cluster_values = auc_values[labels == label]
                 cluster_means[label] = cluster_values.mean() if len(cluster_values) > 0 else 0
     
-    # Recalculate cluster means
-    cluster_means = {}
-    for label in range(actual_num_bins):
-        cluster_values = auc_values[labels == label]
-        cluster_means[label] = cluster_values.mean() if len(cluster_values) > 0 else 0
+    # Recalculate cluster means if not already done
+    if not cluster_means:
+        cluster_means = {}
+        for label in range(actual_num_bins):
+            cluster_values = auc_values[labels == label]
+            cluster_means[label] = cluster_values.mean() if len(cluster_values) > 0 else 0
     
     # Sort clusters by mean intensity for consistent binning
     sorted_clusters = sorted(cluster_means, key=lambda k: cluster_means[k])
