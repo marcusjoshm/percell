@@ -24,6 +24,7 @@ import re
 import csv
 import pandas as pd
 from percell.domain import AnalysisAggregationService
+from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter
 import numpy as np
 import cv2
 import shutil
@@ -121,20 +122,10 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
         bool: True if successful, False otherwise
     """
     try:
-        # Use -batch mode for headless execution
-        cmd = [imagej_path, "-batch", str(macro_file)]
-        
-        logger.info(f"Running ImageJ command: {' '.join(cmd)}")
-        logger.info(f"ImageJ will {'auto-close' if auto_close else 'remain open'} after execution")
-        
-        # Run ImageJ in headless mode with the macro
-        # Show spinner while batch macro runs; still stream logs
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+        # Prefer adapter-based execution
+        adapter = ImageJMacroAdapter(Path(imagej_path))
+        logger.info(f"Running ImageJ macro via adapter: {macro_file}")
+        process = subprocess.Popen(["true"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         from percell.core import spinner as progress_spinner
         spin_ctx = progress_spinner("ImageJ: Analyze Cell Masks")
         spin = spin_ctx.__enter__()
@@ -142,18 +133,9 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
         # Variables for processing output
         results_count = 0
         
-        # Monitor and log the output in real-time
-        while True:
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break
-            if output:
-                line = output.strip()
-                logger.info(f"ImageJ: {line}")
-                
-                # Count how many files were analyzed
-                if line.startswith("ANALYSIS_END:"):
-                    results_count += 1
+        # Execute and capture return code
+        rc = adapter.run_macro(Path(macro_file), [])
+        results_count = 1 if rc == 0 else 0
         
         # Get any remaining output
         # Close spinner
@@ -168,8 +150,8 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
             logger.warning(f"ImageJ errors: {stderr.strip()}")
         
         # Check if the command executed successfully
-        if process.returncode != 0:
-            logger.error(f"ImageJ returned non-zero exit code: {process.returncode}")
+        if rc != 0:
+            logger.error(f"ImageJ returned non-zero exit code: {rc}")
             if results_count == 0:
                 return False
         
