@@ -30,7 +30,7 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 ### 1.4 Extract Intensity Analysis Logic
 - [x] Extract algorithms into `IntensityAnalysisService`
 - [x] Write unit tests for `IntensityAnalysisService`
-- [ ] Update analysis modules to use `IntensityAnalysisService`
+- [x] Update analysis modules to use `IntensityAnalysisService`
 
 ### 1.5 Extract Workflow Orchestration
 - [ ] Extract orchestration into `WorkflowOrchestrationService`
