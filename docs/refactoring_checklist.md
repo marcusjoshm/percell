@@ -28,8 +28,8 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 - [x] Update CLI to use `DataSelectionService`
 
 ### 1.4 Extract Intensity Analysis Logic
-- [ ] Extract algorithms into `IntensityAnalysisService`
-- [ ] Write unit tests for `IntensityAnalysisService` (NEXT)
+- [x] Extract algorithms into `IntensityAnalysisService`
+- [x] Write unit tests for `IntensityAnalysisService`
 - [ ] Update analysis modules to use `IntensityAnalysisService`
 
 ### 1.5 Extract Workflow Orchestration
