@@ -38,7 +38,7 @@ from percell.application.paths_api import (
     ensure_executable,
     list_all_paths,
 )
-from .progress import (
+from percell.application.progress_api import (
     is_progress_available,
     configure_global,
     progress_bar,
