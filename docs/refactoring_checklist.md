@@ -50,8 +50,8 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 - [x] Replace direct ImageJ calls with adapter (modules updated: `analyze_cell_masks`, `create_cell_masks`, `extract_cells`, `measure_roi_area`, `resize_rois`)
 
 ### 2.3 Implement Cellpose Adapter
-- [ ] Implement `CellposeSubprocessAdapter` and tests
-- [ ] Update segmentation to use Cellpose adapter
+- [x] Implement `CellposeSubprocessAdapter` and tests
+- [ ] Update segmentation to use Cellpose adapter (optional headless path wired)
 
 ### 2.4 Implement File System Adapter
 - [ ] Implement `LocalFileSystemAdapter` and tests

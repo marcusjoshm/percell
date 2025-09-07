@@ -732,27 +732,42 @@ class SegmentationStage(StageBase):
             self.logger.info("Images binned successfully")
             self.logger.info(f"Bin script output: {result.stdout}")
             
-            # Step 2: Launch interactive segmentation
-            self.logger.info("Launching interactive segmentation tools...")
-            seg_script_path = get_path("launch_segmentation_tools_script")
+            # Step 2: Launch segmentation (interactive script or adapter)
             preprocessed_dir = f"{output_dir}/preprocessed"
-            
-            # Make sure the script is executable
-            ensure_executable("launch_segmentation_tools_script")
-            
-            # Run the script interactively (not capturing output to allow user interaction)
-            self.logger.info("Starting interactive segmentation session...")
-            self.logger.info("The script will open Cellpose and ImageJ for manual segmentation.")
-            self.logger.info("Please complete your segmentation work and press Enter when done.")
-            
-            # Run interactively without capturing output
-            # Keep interactive session without spinner (user interaction)
-            result = subprocess.run([str(seg_script_path), preprocessed_dir], 
-                                  stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
-            if result.returncode != 0:
-                self.logger.error(f"Failed to launch segmentation tools: {result.returncode}")
-                return False
-            self.logger.info("Segmentation tools completed successfully")
+            cellpose_python = self.config.get('cellpose_path')
+            if cellpose_python:
+                # Use adapter for headless batch segmentation if configured
+                from percell.adapters.cellpose_subprocess_adapter import CellposeSubprocessAdapter
+                from percell.domain.models import SegmentationParameters
+                adapter = CellposeSubprocessAdapter(Path(cellpose_python))
+                # Collect images to segment
+                from pathlib import Path as _P
+                imgs = sorted(_P(preprocessed_dir).rglob("*.tif"))
+                if not imgs:
+                    self.logger.warning("No preprocessed images found for segmentation")
+                params = SegmentationParameters(
+                    cell_diameter=30.0,
+                    flow_threshold=0.4,
+                    probability_threshold=0.0,
+                    model_type="nuclei",
+                )
+                masks = adapter.run_segmentation(imgs, _P(f"{output_dir}/combined_masks"), params)
+                self.logger.info(f"Cellpose adapter produced {len(masks)} masks")
+            else:
+                # Fallback to interactive tools script
+                self.logger.info("Launching interactive segmentation tools...")
+                seg_script_path = get_path("launch_segmentation_tools_script")
+                # Make sure the script is executable
+                ensure_executable("launch_segmentation_tools_script")
+                self.logger.info("Starting interactive segmentation session...")
+                self.logger.info("The script will open Cellpose and ImageJ for manual segmentation.")
+                self.logger.info("Please complete your segmentation work and press Enter when done.")
+                result = subprocess.run([str(seg_script_path), preprocessed_dir], 
+                                      stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr)
+                if result.returncode != 0:
+                    self.logger.error(f"Failed to launch segmentation tools: {result.returncode}")
+                    return False
+                self.logger.info("Segmentation tools completed successfully")
             
             return True
             
