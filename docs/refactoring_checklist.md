@@ -55,11 +55,11 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 
 ### 2.4 Implement File System Adapter
 - [x] Implement `LocalFileSystemAdapter` and tests
-- [ ] Replace file I/O with adapter (partial: `create_cell_masks`, `analyze_cell_masks`, `resize_rois`, `measure_roi_area`, `extract_cells`, `combine_masks`, `otsu_threshold_grouped_cells`)
+- [x] Replace file I/O with adapter (modules updated: `create_cell_masks`, `analyze_cell_masks`, `resize_rois`, `measure_roi_area`, `extract_cells`, `combine_masks`, `otsu_threshold_grouped_cells`, `group_cells`, `stage_classes`, `duplicate_rois_for_channels`)
 
 ### 2.5 Implement Image Processing Adapter
 - [x] Implement `PILImageProcessingAdapter` and tests
-- [ ] Update code to use image processing adapter (partial: `bin_images`, `group_cells`, `combine_masks`)
+- [x] Update code to use image processing adapter (modules updated: `bin_images`, `group_cells`, `combine_masks`)
 
 ---
 
