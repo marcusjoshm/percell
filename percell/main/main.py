@@ -15,6 +15,7 @@ from percell.core.config import Config, ConfigError, create_default_config
 from percell.core.logger import PipelineLogger
 from percell.core.cli import parse_arguments, CLIError, show_header, create_cli
 from percell.core.pipeline import Pipeline
+from percell.main.bootstrap import bootstrap
 
 
 def main():
@@ -40,6 +41,13 @@ def main():
             print(f"Configuration file not found: {config_path}")
             print("Creating default configuration...")
             config = create_default_config(config_path)
+        
+        # Initialize DI container (adapters/services)
+        try:
+            container = bootstrap(config_path)
+        except Exception as e:
+            print(f"Warning: Failed to initialize DI container: {e}")
+            container = None
         
         # Validate configuration (but don't exit on missing software paths)
         try:

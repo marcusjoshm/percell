@@ -3,7 +3,7 @@
 A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
 
 ## Next Up
-- [ ] Phase 2.5: Implement Image Processing Adapter
+- [ ] Phase 3.2: Add dependency injection container
 
 ---
 
@@ -66,14 +66,15 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 ## Phase 3: Application Layer Integration
 
 ### 3.1 Create Application Services
-- [ ] Create `WorkflowCoordinator`
-- [ ] Create `StepExecutionCoordinator`
-- [ ] Add `ConfigurationManager`
+- [x] Create `WorkflowCoordinator`
+- [x] Create `StepExecutionCoordinator`
+- [x] Add `ConfigurationManager`
 
 ### 3.2 Wire Everything Together
 - [ ] Add dependency injection container
-- [ ] Create application bootstrap and wire adapters
-- [ ] Update main entry point with DI
+- [x] Add dependency injection container
+- [x] Create application bootstrap and wire adapters
+- [x] Update main entry point with DI
 
 ### 3.3 Integration Testing
 - [ ] Add end-to-end workflow tests
