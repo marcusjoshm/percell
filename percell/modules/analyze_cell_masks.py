@@ -15,7 +15,6 @@ import os
 import sys
 import argparse
 import logging
-import subprocess
 from pathlib import Path
 import tempfile
 import glob
@@ -122,42 +121,23 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
         bool: True if successful, False otherwise
     """
     try:
-        # Prefer adapter-based execution
         adapter = ImageJMacroAdapter(Path(imagej_path))
         logger.info(f"Running ImageJ macro via adapter: {macro_file}")
-        process = subprocess.Popen(["true"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         from percell.core import spinner as progress_spinner
         spin_ctx = progress_spinner("ImageJ: Analyze Cell Masks")
-        spin = spin_ctx.__enter__()
-        
-        # Variables for processing output
-        results_count = 0
-        
-        # Execute and capture return code
-        rc = adapter.run_macro(Path(macro_file), [])
-        results_count = 1 if rc == 0 else 0
-        
-        # Get any remaining output
-        # Close spinner
+        spin_ctx.__enter__()
         try:
-            spin_ctx.__exit__(None, None, None)
-        except Exception:
-            pass
-        stdout, stderr = process.communicate()
-        if stdout:
-            logger.info(f"ImageJ additional output: {stdout.strip()}")
-        if stderr:
-            logger.warning(f"ImageJ errors: {stderr.strip()}")
-        
-        # Check if the command executed successfully
+            rc = adapter.run_macro(Path(macro_file), [])
+        finally:
+            try:
+                spin_ctx.__exit__(None, None, None)
+            except Exception:
+                pass
         if rc != 0:
             logger.error(f"ImageJ returned non-zero exit code: {rc}")
-            if results_count == 0:
-                return False
-        
-        logger.info(f"Successfully processed {results_count} mask files")
-        return results_count > 0
-        
+            return False
+        logger.info("Successfully processed mask files")
+        return True
     except Exception as e:
         logger.error(f"Error running ImageJ: {e}")
         return False
