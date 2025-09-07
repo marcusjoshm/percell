@@ -18,6 +18,7 @@ import logging
 import tempfile
 import subprocess
 from pathlib import Path
+from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
 
 # Set up logging
 logging.basicConfig(
@@ -252,7 +253,7 @@ def main():
         logger.info("No channels specified, processing all channels")
     
     # Create output directory if it doesn't exist
-    os.makedirs(args.output_dir, exist_ok=True)
+    LocalFileSystemAdapter().ensure_dir(Path(args.output_dir))
     
     # Check macro file
     if not check_macro_file(args.macro):

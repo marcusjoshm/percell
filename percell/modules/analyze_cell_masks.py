@@ -23,6 +23,7 @@ import re
 import csv
 import pandas as pd
 from percell.domain import AnalysisAggregationService
+from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
 from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter
 import numpy as np
 import cv2
@@ -34,6 +35,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("CellAnalysis")
+fs = LocalFileSystemAdapter()
 
 # Map timepoint (t00, t03, etc.) to timepoint label (t00, t03, etc.)
 TIME_MAPPING = {
@@ -495,7 +497,7 @@ def main():
     args = parser.parse_args()
     
     # Create output directory if it doesn't exist
-    os.makedirs(args.output, exist_ok=True)
+    fs.ensure_dir(Path(args.output))
     
     # Check macro file
     if not check_macro_file(args.macro):

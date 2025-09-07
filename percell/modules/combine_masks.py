@@ -15,6 +15,7 @@ import argparse
 import logging
 import numpy as np
 from pathlib import Path
+from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
 import cv2
 try:
     # Import tifffile for preserving metadata when writing TIFF files
@@ -156,7 +157,7 @@ def combine_masks(mask_dir, output_dir, channels=None):
         
         # Ensure the output directory exists
         output_condition_dir = output_dir / condition
-        os.makedirs(output_condition_dir, exist_ok=True)
+        LocalFileSystemAdapter().ensure_dir(output_condition_dir)
         
         # Find all mask groups
         mask_groups = find_mask_groups(mask_dir)
@@ -277,7 +278,7 @@ def process_all_masks(input_dir, output_dir):
         bool: True if all mask directories were processed successfully, False otherwise
     """
     # Ensure the output directory exists
-    os.makedirs(output_dir, exist_ok=True)
+    LocalFileSystemAdapter().ensure_dir(output_dir)
     
     # Find all mask directories
     # The expected structure is: input_dir/condition/region_timepoint

@@ -17,6 +17,7 @@ import argparse
 import logging
 import tempfile
 from pathlib import Path
+from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
 from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter
 
 # Set up logging
@@ -25,6 +26,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("ROIResizer")
+fs = LocalFileSystemAdapter()
 
 def create_macro_with_parameters(macro_template_file, input_dir, output_dir, channel, auto_close=False):
     """
@@ -133,7 +135,7 @@ def validate_inputs(input_dir, output_dir, channel):
     
     # Create output directory if it doesn't exist
     try:
-        os.makedirs(output_dir, exist_ok=True)
+        fs.ensure_dir(Path(output_dir))
         logger.info(f"Output directory ready: {output_dir}")
     except Exception as e:
         logger.error(f"Cannot create output directory {output_dir}: {e}")

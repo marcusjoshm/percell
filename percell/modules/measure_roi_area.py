@@ -10,10 +10,12 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
 
 # Setup module logger
 import logging
 logger = logging.getLogger(__name__)
+fs = LocalFileSystemAdapter()
 
 
 def create_macro_with_parameters(macro_template_file, roi_file, image_file, csv_file, auto_close=False):
@@ -45,7 +47,7 @@ def create_macro_with_parameters(macro_template_file, roi_file, image_file, csv_
             return None
         
         # Ensure output directory exists
-        os.makedirs(os.path.dirname(csv_file), exist_ok=True)
+        fs.ensure_dir(Path(os.path.dirname(csv_file)))
         
         # Read the macro template
         with open(macro_template_file, 'r') as f:
@@ -170,7 +172,7 @@ def validate_inputs(roi_file, image_file, output_dir):
     
     # Check/create output directory
     try:
-        os.makedirs(output_dir, exist_ok=True)
+        fs.ensure_dir(Path(output_dir))
         logger.info(f"Output directory validated/created: {output_dir}")
         return True
     except Exception as e:

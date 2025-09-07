@@ -21,6 +21,7 @@ import time
 import re
 from percell.domain import FileNamingService
 from pathlib import Path
+from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
 from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter
 
 # Set up logging
@@ -33,6 +34,7 @@ logger = logging.getLogger("CellExtractor")
 
 # Domain services
 naming_service = FileNamingService()
+fs = LocalFileSystemAdapter()
 
 def create_macro_with_parameters(macro_template_file, roi_file, image_file, output_dir, auto_close=False):
     """
@@ -243,7 +245,7 @@ def create_output_dir_for_roi(roi_file, output_base_dir):
     # Create the output directory structure
     # Format: output_base_dir/condition/region_channel_timepoint
     output_dir = Path(output_base_dir) / condition / f"{region}_{channel}_{timepoint}"
-    os.makedirs(output_dir, exist_ok=True)
+    fs.ensure_dir(output_dir)
     
     logger.info(f"Created output directory: {output_dir}")
     return output_dir
@@ -282,7 +284,7 @@ def main():
         logger.debug("Verbose logging enabled")
     
     # Create output directory if it doesn't exist
-    os.makedirs(args.output_dir, exist_ok=True)
+    fs.ensure_dir(Path(args.output_dir))
     
     # Check macro file
     if not check_macro_file(args.macro):
