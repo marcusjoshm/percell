@@ -3,7 +3,7 @@
 A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
 
 ## Next Up
-- [ ] Phase 2.3: Implement Cellpose adapter
+- [ ] Phase 2.4: Implement File System Adapter
 
 ---
 
@@ -51,7 +51,7 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 
 ### 2.3 Implement Cellpose Adapter
 - [x] Implement `CellposeSubprocessAdapter` and tests
-- [ ] Update segmentation to use Cellpose adapter (optional headless path wired)
+- [x] Update segmentation to use Cellpose adapter (GUI launch wired)
 
 ### 2.4 Implement File System Adapter
 - [ ] Implement `LocalFileSystemAdapter` and tests
