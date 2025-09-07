@@ -19,6 +19,7 @@ import logging
 import tempfile
 import time
 import re
+from percell.domain import FileNamingService
 from pathlib import Path
 
 # Set up logging
@@ -28,6 +29,9 @@ logging.basicConfig(
     stream=sys.stdout  # Ensure logging goes to stdout for visibility
 )
 logger = logging.getLogger("CellExtractor")
+
+# Domain services
+naming_service = FileNamingService()
 
 def create_macro_with_parameters(macro_template_file, roi_file, image_file, output_dir, auto_close=False):
     """
@@ -194,41 +198,11 @@ def find_image_for_roi(roi_file, raw_data_dir):
     logger.info(f"Looking for image file for ROI: {roi_filename}")
     logger.info(f"Condition: {condition}")
     
-    # Parse ROI filename to extract components
-    # Example: ROIs_R_1_Merged_ch01_t00_rois.zip
-    
-    # Remove the ROIs_ prefix and _rois.zip suffix
-    cleaned_name = roi_filename
-    if cleaned_name.startswith("ROIs_"):
-        cleaned_name = cleaned_name[5:]  # Remove "ROIs_"
-    
-    if cleaned_name.endswith("_rois.zip"):
-        cleaned_name = cleaned_name[:-9]  # Remove "_rois.zip"
-    elif cleaned_name.endswith(".zip"):
-        cleaned_name = cleaned_name[:-4]  # Remove ".zip"
-    
-    logger.info(f"Cleaned ROI name: {cleaned_name}")
-    
-    # Extract components using regex
-    channel_match = re.search(r'_(ch\d+)_', cleaned_name)
-    timepoint_match = re.search(r'_(t\d+)(?:_|$)', cleaned_name)
-    
-    # Default to empty strings if not found
-    channel = channel_match.group(1) if channel_match else ""
-    timepoint = timepoint_match.group(1) if timepoint_match else ""
-    
-    # The region is the remaining part of the name
-    # For example, if cleaned_name is "R_1_Merged_ch01_t00", 
-    # and we remove "_ch01_t00", we get "R_1_Merged"
-    region = cleaned_name
-    if channel:
-        region = region.replace(f"_{channel}", "")
-    if timepoint:
-        region = region.replace(f"_{timepoint}", "")
-    
-    # Clean up any trailing underscores
-    region = region.rstrip("_")
-    
+    # Use domain service to parse ROI filename tokens
+    tokens = naming_service.extract_metadata_from_name(roi_filename)
+    region = tokens.get("region", "")
+    channel = tokens.get("channel", "")
+    timepoint = tokens.get("timepoint", "")
     logger.info(f"Extracted components - Region: {region}, Channel: {channel}, Timepoint: {timepoint}")
     
     # Use the extracted components to find the image file
@@ -285,36 +259,11 @@ def create_output_dir_for_roi(roi_file, output_base_dir):
     # Get the condition from the parent directory
     condition = roi_path.parent.name
     
-    # Extract components from the ROI filename
-    # Example: ROIs_R_1_Merged_ch01_t00_rois.zip
-    
-    # Remove the ROIs_ prefix and _rois.zip suffix
-    cleaned_name = roi_filename
-    if cleaned_name.startswith("ROIs_"):
-        cleaned_name = cleaned_name[5:]  # Remove "ROIs_"
-    
-    if cleaned_name.endswith("_rois.zip"):
-        cleaned_name = cleaned_name[:-9]  # Remove "_rois.zip"
-    elif cleaned_name.endswith(".zip"):
-        cleaned_name = cleaned_name[:-4]  # Remove ".zip"
-    
-    # Extract components using regex
-    channel_match = re.search(r'_(ch\d+)_', cleaned_name)
-    timepoint_match = re.search(r'_(t\d+)(?:_|$)', cleaned_name)
-    
-    # Default to empty strings if not found
-    channel = channel_match.group(1) if channel_match else ""
-    timepoint = timepoint_match.group(1) if timepoint_match else ""
-    
-    # Remove channel and timepoint parts to get the region
-    region = cleaned_name
-    if channel:
-        region = region.replace(f"_{channel}", "")
-    if timepoint:
-        region = region.replace(f"_{timepoint}", "")
-    
-    # Clean up any trailing underscores
-    region = region.rstrip("_")
+    # Extract components using domain service
+    tokens = naming_service.extract_metadata_from_name(roi_filename)
+    region = tokens.get("region", "")
+    channel = tokens.get("channel", "")
+    timepoint = tokens.get("timepoint", "")
     
     # Create the output directory structure
     # Format: output_base_dir/condition/region_channel_timepoint

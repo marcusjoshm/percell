@@ -20,6 +20,7 @@ from skimage import io, exposure
 from skimage.transform import downscale_local_mean
 import tifffile
 import sys
+from percell.domain import FileNamingService
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream=sys.stdout)
@@ -56,6 +57,7 @@ def process_images(input_dir, output_dir, bin_factor=4,
     """
     input_path = Path(input_dir)
     output_path = Path(output_dir)
+    naming_service = FileNamingService()
     
     logger.info(f"Starting image binning process.")
     logger.info(f"Input directory: {input_path}")
@@ -123,42 +125,11 @@ def process_images(input_dir, output_dir, bin_factor=4,
                 
             # Extract region, timepoint, channel from filename
             filename = file_path.name
-            
-            # Match region from filename based on actual naming convention in the dataset
-            # Pattern for filenames like: 60min_washout_P_10_RAW_ch01_t00.tif
-            region_pattern = r'(.+?)_(ch\d+)_(t\d+)'
-            
-            region_match = re.search(region_pattern, filename)
-            if region_match:
-                current_region = region_match.group(1)  # This will capture '60min_washout_P_10_RAW'
-            else:
-                # Fallback for other potential naming patterns
-                # Try to extract everything before the channel and timepoint
-                parts = filename.split('_')
-                ch_index = -1
-                t_index = -1
-                for i, part in enumerate(parts):
-                    if part.startswith('ch'):
-                        ch_index = i
-                    if part.startswith('t'):
-                        t_index = i
-                
-                if ch_index > 0:  # If we found a channel marker
-                    current_region = '_'.join(parts[:ch_index])
-                else:
-                    current_region = None
-                    
-                logger.debug(f"Fallback region extraction: {current_region} from {filename}")
-                
-            logger.debug(f"Extracted region '{current_region}' from filename {filename}")
-            
-            # Match timepoint and channel patterns (t00, ch01 format)
-            timepoint_match = re.search(r'(t\d+)', filename)
-            channel_match = re.search(r'(ch\d+)', filename)
-            
-            current_timepoint = timepoint_match.group(1) if timepoint_match else None
-            current_channel = channel_match.group(1) if channel_match else None
-
+            # Use domain service for parsing instead of ad-hoc regex
+            meta = naming_service.parse_microscopy_filename(filename)
+            current_region = meta.region
+            current_timepoint = meta.timepoint
+            current_channel = meta.channel
             logger.debug(f"Parsed metadata - Condition: {current_condition}, Region: {current_region}, Timepoint: {current_timepoint}, Channel: {current_channel}")
 
             # Apply filters

@@ -25,6 +25,7 @@ import numpy as np
 import cv2
 import tempfile
 import shutil
+from percell.domain import FileNamingService
 
 # Set up logging
 logging.basicConfig(
@@ -35,6 +36,9 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger("CellMaskCreator")
+
+# Domain services
+naming_service = FileNamingService()
 
 def find_matching_mask_for_roi(roi_file, mask_dir):
     """
@@ -59,35 +63,11 @@ def find_matching_mask_for_roi(roi_file, mask_dir):
         logger.warning(f"Condition directory not found in mask dir: {condition_mask_dir}")
         return None
     
-    # Parse ROI filename to extract components
-    # Example: ROIs_A549 Control_Merged_Processed001_ch00_t00_rois.zip
-    # Remove the ROIs_ prefix and _rois.zip suffix
-    cleaned_name = roi_filename
-    if cleaned_name.startswith("ROIs_"):
-        cleaned_name = cleaned_name[5:]  # Remove "ROIs_"
-    
-    if cleaned_name.endswith("_rois.zip"):
-        cleaned_name = cleaned_name[:-9]  # Remove "_rois.zip"
-    elif cleaned_name.endswith(".zip"):
-        cleaned_name = cleaned_name[:-4]  # Remove ".zip"
-    
-    # Extract components using regex
-    channel_match = re.search(r'_(ch\d+)_', cleaned_name)
-    timepoint_match = re.search(r'_(t\d+)(?:_|$)', cleaned_name)
-    
-    # Default to empty strings if not found
-    channel = channel_match.group(1) if channel_match else ""
-    timepoint = timepoint_match.group(1) if timepoint_match else ""
-    
-    # The region is the remaining part of the name
-    region = cleaned_name
-    if channel:
-        region = region.replace(f"_{channel}", "")
-    if timepoint:
-        region = region.replace(f"_{timepoint}", "")
-    
-    # Clean up any trailing underscores
-    region = region.rstrip("_")
+    # Use domain service to extract components
+    tokens = naming_service.extract_metadata_from_name(roi_filename)
+    channel = tokens.get("channel", "")
+    timepoint = tokens.get("timepoint", "")
+    region = tokens.get("region", "")
     
     logger.info(f"Extracted components - Region: {region}, Channel: {channel}, Timepoint: {timepoint}")
     
@@ -141,35 +121,11 @@ def create_output_dir_for_roi(roi_file, output_base_dir):
     # Get the condition from the parent directory
     condition = roi_path.parent.name
     
-    # Parse ROI filename to extract components
-    # Example: ROIs_A549 Control_Merged_Processed001_ch00_t00_rois.zip
-    # Remove the ROIs_ prefix and _rois.zip suffix
-    cleaned_name = roi_filename
-    if cleaned_name.startswith("ROIs_"):
-        cleaned_name = cleaned_name[5:]  # Remove "ROIs_"
-    
-    if cleaned_name.endswith("_rois.zip"):
-        cleaned_name = cleaned_name[:-9]  # Remove "_rois.zip"
-    elif cleaned_name.endswith(".zip"):
-        cleaned_name = cleaned_name[:-4]  # Remove ".zip"
-    
-    # Extract components using regex
-    channel_match = re.search(r'_(ch\d+)_', cleaned_name)
-    timepoint_match = re.search(r'_(t\d+)(?:_|$)', cleaned_name)
-    
-    # Default to empty strings if not found
-    channel = channel_match.group(1) if channel_match else ""
-    timepoint = timepoint_match.group(1) if timepoint_match else ""
-    
-    # The region is the remaining part of the name
-    region = cleaned_name
-    if channel:
-        region = region.replace(f"_{channel}", "")
-    if timepoint:
-        region = region.replace(f"_{timepoint}", "")
-    
-    # Clean up any trailing underscores
-    region = region.rstrip("_")
+    # Use domain service to extract components
+    tokens = naming_service.extract_metadata_from_name(roi_filename)
+    channel = tokens.get("channel", "")
+    timepoint = tokens.get("timepoint", "")
+    region = tokens.get("region", "")
     
     # Create the output directory structure with channel-specific organization
     # Format: output_base_dir/condition/region_channel_timepoint
