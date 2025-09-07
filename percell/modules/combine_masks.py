@@ -16,6 +16,7 @@ import logging
 import numpy as np
 from pathlib import Path
 from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
 import cv2
 try:
     # Import tifffile for preserving metadata when writing TIFF files
@@ -248,12 +249,12 @@ def combine_masks(mask_dir, output_dir, channels=None):
                     )
                     logger.info(f"Saved combined mask with metadata to {output_path}")
                 except Exception as e:
-                    logger.warning(f"Failed to save with tifffile, falling back to OpenCV: {e}")
-                    cv2.imwrite(str(output_path), combined_mask)
+                    logger.warning(f"Failed to save with tifffile, falling back to image adapter: {e}")
+                    PILImageProcessingAdapter().write_image(output_path, combined_mask)
                     logger.info(f"Saved combined mask to {output_path} (without metadata)")
             else:
-                # Use OpenCV as fallback
-                cv2.imwrite(str(output_path), combined_mask)
+                # Use image adapter as fallback
+                PILImageProcessingAdapter().write_image(output_path, combined_mask)
                 if not HAVE_TIFFFILE:
                     logger.warning("tifffile library not available - scale information not preserved. Install with: pip install tifffile")
                 logger.info(f"Saved combined mask to {output_path}")

@@ -38,6 +38,7 @@ import re
 import shutil
 import json
 from percell.domain import IntensityAnalysisService, CellMetrics
+from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
 
 # Set up logging
 logging.basicConfig(
@@ -46,6 +47,7 @@ logging.basicConfig(
     stream=sys.stdout  # Ensure logging goes to stdout for visibility
 )
 logger = logging.getLogger("CellGrouper")
+image_adapter = PILImageProcessingAdapter()
 
 def compute_auc(img):
     """
@@ -212,8 +214,8 @@ def resize_image_to_target(img, target_height, target_width):
         new_height = target_height
         new_width = int(new_height * img_aspect)
     
-    # Resize the image
-    resized = cv2.resize(img, (new_width, new_height), interpolation=cv2.INTER_AREA)
+    # Resize the image using image processing adapter
+    resized = image_adapter.resize(img, (new_height, new_width))
     
     # Create a black canvas of the target size
     result = np.zeros((target_height, target_width), dtype=img.dtype)
@@ -654,10 +656,10 @@ def group_and_sum_cells(cell_dir, output_dir, num_bins, method='gmm', force_clus
                 logger.info(f"Saved summed image with metadata for group {i+1} with {cell_counts[i]} cells: {output_file}")
             except Exception as e:
                 logger.warning(f"Failed to save with tifffile, falling back to OpenCV: {e}")
-                cv2.imwrite(str(output_file), norm_img)
+                image_adapter.write_image(output_file, norm_img)
         else:
             # Fallback to OpenCV (doesn't preserve scale/units)
-            cv2.imwrite(str(output_file), norm_img)
+            image_adapter.write_image(output_file, norm_img)
             logger.info(f"Saved summed image for group {i+1} with {cell_counts[i]} cells: {output_file}")
             if not HAVE_TIFFFILE:
                 logger.warning("tifffile library not available - scale information not preserved. Install with: pip install tifffile")

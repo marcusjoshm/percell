@@ -59,7 +59,7 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 
 ### 2.5 Implement Image Processing Adapter
 - [x] Implement `PILImageProcessingAdapter` and tests
-- [ ] Update code to use image processing adapter (partial: `bin_images`)
+- [ ] Update code to use image processing adapter (partial: `bin_images`, `group_cells`, `combine_masks`)
 
 ---
 
