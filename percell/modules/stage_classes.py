@@ -6,7 +6,7 @@ Contains the concrete implementations of each pipeline stage.
 """
 
 import subprocess
-from percell.core import run_subprocess_with_spinner
+from percell.application.progress_api import run_subprocess_with_spinner
 import os
 import re
 import sys

@@ -125,7 +125,7 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
     try:
         adapter = ImageJMacroAdapter(Path(imagej_path))
         logger.info(f"Running ImageJ macro via adapter: {macro_file}")
-        from percell.core import spinner as progress_spinner
+        from percell.application.progress_api import spinner as progress_spinner
         spin_ctx = progress_spinner("ImageJ: Analyze Cell Masks")
         spin_ctx.__enter__()
         try:

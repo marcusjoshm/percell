@@ -3,8 +3,12 @@ import stat
 import pytest
 import importlib.util
 
-# Skip this migration test if utils module no longer exists
-if importlib.util.find_spec("percell.core.utils") is None:
+# Skip this migration test if utils module (or core package) no longer exists
+try:
+    spec = importlib.util.find_spec("percell.core.utils")
+except ModuleNotFoundError:
+    spec = None
+if spec is None:
     pytest.skip("percell.core.utils removed after migration", allow_module_level=True)
 
 from percell.core import utils as legacy
