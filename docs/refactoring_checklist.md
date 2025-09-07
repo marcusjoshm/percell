@@ -1,0 +1,98 @@
+# Hexagonal Refactoring Checklist
+
+A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
+
+## Next Up
+- [ ] Phase 1.2: Identify all file naming logic across the codebase (NEXT)
+- [ ] Phase 1.2: Write unit tests for `FileNamingService`
+- [ ] Phase 1.2: Implement `FileNamingService` methods and refactor usages
+
+---
+
+## Phase 1: Extract Core Business Logic
+
+### 1.1 Create Domain Services Structure — Completed
+- [x] Create domain directories `percell/domain` and `percell/domain/services`
+- [x] Add `__init__.py` files for domain and services
+- [x] Add `percell/domain/models.py` with dataclasses and enums
+- [x] Add six service skeletons under `percell/domain/services`
+- [x] Configure `black`/`isort`/`ruff` in `pyproject.toml`
+
+### 1.2 Extract File Naming Logic
+- [ ] Identify all file naming logic across the codebase (NEXT)
+- [ ] Implement `FileNamingService` methods
+- [ ] Write unit tests for `FileNamingService`
+- [ ] Refactor codebase to use `FileNamingService`
+
+### 1.3 Extract Data Selection Logic
+- [ ] Extract selection algorithms into `DataSelectionService`
+- [ ] Write unit tests for `DataSelectionService`
+- [ ] Update CLI to use `DataSelectionService`
+
+### 1.4 Extract Intensity Analysis Logic
+- [ ] Extract algorithms into `IntensityAnalysisService`
+- [ ] Write unit tests for `IntensityAnalysisService`
+- [ ] Update analysis modules to use `IntensityAnalysisService`
+
+### 1.5 Extract Workflow Orchestration
+- [ ] Extract orchestration into `WorkflowOrchestrationService`
+- [ ] Write unit tests for `WorkflowOrchestrationService`
+- [ ] Update workflow execution to use orchestration service
+
+---
+
+## Phase 2: Create Ports and Adapters
+
+### 2.1 Define Port Interfaces
+- [ ] Define driving port interfaces
+- [ ] Define driven port interfaces
+
+### 2.2 Implement ImageJ Adapter
+- [ ] Implement `ImageJMacroAdapter` and tests
+- [ ] Replace direct ImageJ calls with adapter
+
+### 2.3 Implement Cellpose Adapter
+- [ ] Implement `CellposeSubprocessAdapter` and tests
+- [ ] Update segmentation to use Cellpose adapter
+
+### 2.4 Implement File System Adapter
+- [ ] Implement `LocalFileSystemAdapter` and tests
+- [ ] Replace file I/O with adapter
+
+### 2.5 Implement Image Processing Adapter
+- [ ] Implement `PILImageProcessingAdapter` and tests
+- [ ] Update code to use image processing adapter
+
+---
+
+## Phase 3: Application Layer Integration
+
+### 3.1 Create Application Services
+- [ ] Create `WorkflowCoordinator`
+- [ ] Create `StepExecutionCoordinator`
+- [ ] Add `ConfigurationManager`
+
+### 3.2 Wire Everything Together
+- [ ] Add dependency injection container
+- [ ] Create application bootstrap and wire adapters
+- [ ] Update main entry point with DI
+
+### 3.3 Integration Testing
+- [ ] Add end-to-end workflow tests
+- [ ] Add custom workflow integration tests
+- [ ] Add performance benchmarks
+
+---
+
+## Documentation
+- [ ] Phase 1: Domain/business-logic docs and README updates
+- [ ] Phase 2: Ports/adapters and external integrations docs
+- [ ] Phase 3: Application layer, testing strategy, and README updates
+
+---
+
+## Quality Gates (Ongoing)
+- [ ] Maintain feature parity and UX
+- [ ] Preserve performance characteristics
+- [ ] Achieve target test coverage thresholds
+- [ ] Run regression and acceptance tests after each phase
