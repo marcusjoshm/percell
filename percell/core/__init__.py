@@ -31,13 +31,13 @@ from .stages import (
 )
 # Note: legacy utils functions are no longer re-exported here.
 # They remain available under percell.core.utils during migration.
-from .paths import (
+from percell.application.paths_api import (
     get_path_config,
     get_path,
     get_path_str,
     path_exists,
     ensure_executable,
-    list_all_paths
+    list_all_paths,
 )
 from .progress import (
     is_progress_available,

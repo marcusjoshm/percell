@@ -8,7 +8,7 @@ if importlib.util.find_spec("percell.core.utils") is None:
     pytest.skip("percell.core.utils removed after migration", allow_module_level=True)
 
 from percell.core import utils as legacy
-from percell.core.paths import get_path_config
+from percell.application.paths_api import get_path_config
 
 
 def test_get_package_root_matches_paths():

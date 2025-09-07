@@ -28,7 +28,7 @@ def main():
         register_all_stages()
         
         # Load configuration
-        from percell.core.paths import get_path_str, path_exists
+        from percell.application.paths_api import get_path_str, path_exists
         try:
             config_path = get_path_str("config_default")
             if path_exists("config_default"):

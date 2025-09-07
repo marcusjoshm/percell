@@ -53,7 +53,7 @@ def show_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argpa
             # Resolve config path similar to validate_args
             from percell.modules.directory_setup import load_config
             from percell.modules.set_directories import set_default_directories
-            from percell.core.paths import get_path
+            from percell.application.paths_api import get_path
 
             try:
                 config_path = str(get_path("config_default"))
@@ -112,7 +112,7 @@ def validate_args(args: argparse.Namespace, ui: Optional[UserInterfacePort] = No
     default_output = ""
     try:
         from percell.modules.directory_setup import load_config
-        from percell.core.paths import get_path
+        from percell.application.paths_api import get_path
 
         if getattr(args, "config", None):
             config_path = args.config
