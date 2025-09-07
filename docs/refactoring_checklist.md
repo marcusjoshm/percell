@@ -3,7 +3,7 @@
 A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
 
 ## Next Up
-- [ ] Phase 1.3: Update CLI to use `DataSelectionService` (NEXT)
+- [ ] Phase 1.4: Write unit tests for `IntensityAnalysisService` (NEXT)
 
 ---
 
@@ -25,11 +25,11 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 ### 1.3 Extract Data Selection Logic
 - [x] Extract selection algorithms into `DataSelectionService`
 - [x] Write unit tests for `DataSelectionService`
-- [ ] Update CLI to use `DataSelectionService`
+- [x] Update CLI to use `DataSelectionService`
 
 ### 1.4 Extract Intensity Analysis Logic
 - [ ] Extract algorithms into `IntensityAnalysisService`
-- [ ] Write unit tests for `IntensityAnalysisService`
+- [ ] Write unit tests for `IntensityAnalysisService` (NEXT)
 - [ ] Update analysis modules to use `IntensityAnalysisService`
 
 ### 1.5 Extract Workflow Orchestration
