@@ -4,7 +4,7 @@ Stage Registration Module for Microscopy Single-Cell Analysis
 Registers all available pipeline stages and their implementations.
 """
 
-from ..core.stages import register_stage
+from percell.application.stages_api import register_stage
 
 
 def register_all_stages():

@@ -16,7 +16,7 @@ from typing import Dict, Any, List, Set, Optional
 from percell.domain import WorkflowOrchestrationService
 from percell.domain.models import WorkflowStep, WorkflowState, WorkflowConfig
 from percell.domain import DataSelectionService, FileNamingService
-from ..core.stages import StageBase
+from percell.application.stages_api import StageBase
 
 
 class DataSelectionStage(StageBase):
@@ -271,12 +271,12 @@ class DataSelectionStage(StageBase):
             self.logger.info(f"Starting input directory structure preparation: {input_path}")
             
             # Use the prepare_input_structure.sh script
-            from percell.core.paths import get_path, ensure_executable
+            from percell.application.paths_api import get_path, ensure_executable
             script_path = get_path("prepare_input_structure_script")
             
             # Make sure the script is executable
             from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
-            from percell.core.paths import get_path
+            from percell.application.paths_api import get_path
             LocalFileSystemAdapter().ensure_executable(get_path("prepare_input_structure_script"))
             
             self.logger.info(f"Running prepare_input_structure.sh with input: {input_path}")
@@ -1405,7 +1405,7 @@ class CompleteWorkflowStage(StageBase):
             self.logger.info("Starting Complete Workflow")
             
             # Get the global stage registry
-            from ..core.stages import get_stage_registry
+            from percell.application.stages_api import get_stage_registry
             registry = get_stage_registry()
             
             # Build workflow steps subset in canonical order based on available stages
