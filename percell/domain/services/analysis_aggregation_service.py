@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import List, Dict, Any
 
 from ..models import AnalysisResult
 
@@ -19,20 +20,40 @@ class AnalysisAggregationService:
         Returns:
             Aggregated result instance.
         """
+        combined = AnalysisResult()
+        for r in results or []:
+            if r and r.metrics:
+                combined.metrics.extend(r.metrics)
+        return combined
 
-        raise NotImplementedError
+    def to_tabular(self, result: AnalysisResult) -> List[Dict[str, Any]]:
+        """Convert analysis result into tabular rows (pure data, no I/O).
 
-    def generate_csv(self, result: AnalysisResult, output_path: Path) -> Path:
-        """Generate a CSV file from analysis results.
-
-        Args:
-            result: Aggregated analysis result.
-            output_path: Desired path for the CSV file.
-
-        Returns:
-            Path to the generated CSV file.
+        Adapters are responsible for serializing these rows to CSV/Excel/etc.
         """
+        rows: List[Dict[str, Any]] = []
+        for m in result.metrics:
+            rows.append(
+                {
+                    "cell_id": m.cell_id,
+                    "area": m.area,
+                    "mean_intensity": m.mean_intensity,
+                    "integrated_intensity": m.integrated_intensity,
+                    "perimeter": m.perimeter,
+                }
+            )
+        return rows
 
-        raise NotImplementedError
+    def combine_summary_tables(self, tables: List[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+        """Combine multiple tabular summaries into a single list of rows.
+
+        This is a pure data operation; adapters supply the rows.
+        """
+        combined: List[Dict[str, Any]] = []
+        for t in tables or []:
+            if not t:
+                continue
+            combined.extend(t)
+        return combined
 
 

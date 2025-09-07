@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any, Mapping, Optional, Sequence, Tuple
+from typing import Any, Mapping, Optional, Sequence, Tuple, List
 
 
 class WorkflowStep(Enum):
@@ -220,5 +220,40 @@ class WorkflowConfig:
     steps: list[WorkflowStep]
     allow_custom: bool = False
     stop_on_error: bool = True
+
+
+@dataclass(slots=True)
+class ImageDimensions:
+    """Represents image width and height."""
+
+    width: int
+    height: int
+
+
+@dataclass(slots=True)
+class SegmentationParameters:
+    """Parameters for external segmentation tools (e.g., Cellpose)."""
+
+    cell_diameter: float
+    flow_threshold: float
+    probability_threshold: float
+    model_type: str  # e.g., "nuclei", "cyto"
+
+
+@dataclass(slots=True)
+class SegmentationPreferences:
+    """User preferences influencing segmentation strategy."""
+
+    performance_target: str = "balanced"  # "fast", "balanced", "quality"
+    preferred_model: Optional[str] = None
+    expected_cell_diameter: Optional[float] = None
+
+
+@dataclass(slots=True)
+class ValidationResult:
+    """Result of validating segmentation outputs against expectations."""
+
+    is_valid: bool
+    issues: List[str] = field(default_factory=list)
 
 
