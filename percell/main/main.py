@@ -11,7 +11,7 @@ import argparse
 from pathlib import Path
 
 # Import from the package (no sys.path manipulation needed!)
-from percell.core.config import Config, ConfigError, create_default_config
+from percell.application.config_api import Config, ConfigError, create_default_config
 from percell.core.logger import PipelineLogger
 from percell.core.pipeline import Pipeline
 from percell.main.bootstrap import bootstrap
