@@ -3,7 +3,7 @@
 A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
 
 ## Next Up
-- [ ] Phase 1.2: Refactor usages to `FileNamingService` (NEXT)
+- [ ] Phase 1.3: Extract selection algorithms into `DataSelectionService` (NEXT)
 
 ---
 
@@ -20,7 +20,7 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 - [x] Identify all file naming logic across the codebase
 - [x] Write unit tests for `FileNamingService`
 - [x] Implement `FileNamingService` methods
-- [ ] Refactor codebase to use `FileNamingService`
+- [x] Refactor codebase to use `FileNamingService`
 
 ### 1.3 Extract Data Selection Logic
 - [ ] Extract selection algorithms into `DataSelectionService`
