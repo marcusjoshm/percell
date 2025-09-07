@@ -3,9 +3,9 @@
 A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
 
 ## Next Up
-- [ ] Phase 1.2: Identify all file naming logic across the codebase (NEXT)
-- [ ] Phase 1.2: Write unit tests for `FileNamingService`
-- [ ] Phase 1.2: Implement `FileNamingService` methods and refactor usages
+- [ ] Phase 1.2: Write unit tests for `FileNamingService` (NEXT)
+- [ ] Phase 1.2: Implement `FileNamingService` methods
+- [ ] Phase 1.2: Refactor usages to `FileNamingService`
 
 ---
 
@@ -19,9 +19,9 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 - [x] Configure `black`/`isort`/`ruff` in `pyproject.toml`
 
 ### 1.2 Extract File Naming Logic
-- [ ] Identify all file naming logic across the codebase (NEXT)
+- [x] Identify all file naming logic across the codebase
+- [ ] Write unit tests for `FileNamingService` (NEXT)
 - [ ] Implement `FileNamingService` methods
-- [ ] Write unit tests for `FileNamingService`
 - [ ] Refactor codebase to use `FileNamingService`
 
 ### 1.3 Extract Data Selection Logic
