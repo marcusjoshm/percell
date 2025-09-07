@@ -19,4 +19,7 @@ class FileManagementPort(Protocol):
     def ensure_dir(self, path: Path) -> None:
         ...
 
+    def ensure_executable(self, path: Path) -> None:
+        ...
+
 

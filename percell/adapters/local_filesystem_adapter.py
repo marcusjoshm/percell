@@ -51,4 +51,10 @@ class LocalFileSystemAdapter(FileManagementPort):
     def ensure_dir(self, path: Path) -> None:
         Path(path).mkdir(parents=True, exist_ok=True)
 
+    def ensure_executable(self, path: Path) -> None:
+        p = Path(path)
+        if not p.exists():
+            raise FileNotFoundError(f"File not found: {p}")
+        p.chmod(0o755)
+
 

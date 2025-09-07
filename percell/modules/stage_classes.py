@@ -112,7 +112,9 @@ class DataSelectionStage(StageBase):
             script_path = get_path("setup_output_structure_script")
             
             # Make sure the script is executable
-            ensure_executable("setup_output_structure_script")
+            from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+            from percell.core.paths import get_path
+            LocalFileSystemAdapter().ensure_executable(get_path("setup_output_structure_script"))
             
             self.logger.info(f"Running setup_output_structure.sh with input: {self.input_dir}, output: {self.output_dir}")
             
@@ -273,7 +275,9 @@ class DataSelectionStage(StageBase):
             script_path = get_path("prepare_input_structure_script")
             
             # Make sure the script is executable
-            ensure_executable("prepare_input_structure_script")
+            from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+            from percell.core.paths import get_path
+            LocalFileSystemAdapter().ensure_executable(get_path("prepare_input_structure_script"))
             
             self.logger.info(f"Running prepare_input_structure.sh with input: {input_path}")
             
@@ -751,7 +755,9 @@ class SegmentationStage(StageBase):
                 self.logger.info("Launching interactive segmentation tools...")
                 seg_script_path = get_path("launch_segmentation_tools_script")
                 # Make sure the script is executable
-                ensure_executable("launch_segmentation_tools_script")
+                from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+                from percell.core.paths import get_path
+                LocalFileSystemAdapter().ensure_executable(get_path("launch_segmentation_tools_script"))
                 self.logger.info("Starting interactive segmentation session...")
                 self.logger.info("The script will open Cellpose and ImageJ for manual segmentation.")
                 self.logger.info("Please complete your segmentation work and press Enter when done.")

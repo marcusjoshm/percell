@@ -1,30 +1,45 @@
 from pathlib import Path
+import stat
+import pytest
+import importlib.util
 
-from percell.core.paths import get_path_config, ensure_executable as ensure_exec_by_name
+# Skip this migration test if utils module no longer exists
+if importlib.util.find_spec("percell.core.utils") is None:
+    pytest.skip("percell.core.utils removed after migration", allow_module_level=True)
+
+from percell.core import utils as legacy
+from percell.core.paths import get_path_config
 
 
-def test_utils_equivalents_exist_and_work(tmp_path: Path):
+def test_get_package_root_matches_paths():
     cfg = get_path_config()
-    # get_package_root equivalent
-    root = cfg.get_package_root()
-    assert root.exists()
+    assert legacy.get_package_root() == cfg.get_package_root()
 
-    # get_package_resource equivalent using known file
-    # Verify a known directory under root exists
-    assert (root / 'modules').exists() or (root / 'core').exists()
 
-    # get_bash_script/get_config_file/get_macro_file equivalents via path keys
-    # Assert path resolution works
-    assert (cfg.get_path('install_script')).exists() or True
-    assert (cfg.get_path('requirements_file')).exists() or True
+def test_get_package_resource_and_helpers_exist():
+    root = legacy.get_package_root()
+    # Known resources
+    bash_script = legacy.get_bash_script('launch_segmentation_tools.sh')
+    assert bash_script.exists()
+    cfg_file = legacy.get_config_file('config.json')
+    assert cfg_file.exists()
+    macro_file = legacy.get_macro_file('analyze_cell_masks.ijm')
+    assert macro_file.exists()
+    # Generic resource
+    assert legacy.get_package_resource('bash/prepare_input_structure.sh').exists()
 
-    # ensure_executable via name-based helper (no-op test on temporary file)
+
+def test_get_package_resource_missing_raises():
+    with pytest.raises(FileNotFoundError):
+        legacy.get_package_resource('nope/does_not_exist.xyz')
+
+
+def test_ensure_executable_sets_exec_bit(tmp_path: Path):
     f = tmp_path / 'run.sh'
     f.write_text('#!/bin/sh\necho ok\n')
     f.chmod(0o644)
-    # simulate adding a path name to config for test
-    # directly call chmod-like behavior to ensure no exception
-    f.chmod(0o755)
-    assert f.stat().st_mode & 0o111
+    legacy.ensure_executable(f)
+    mode = f.stat().st_mode
+    assert mode & stat.S_IXUSR
 
 

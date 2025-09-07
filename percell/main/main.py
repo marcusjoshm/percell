@@ -13,9 +13,11 @@ from pathlib import Path
 # Import from the package (no sys.path manipulation needed!)
 from percell.core.config import Config, ConfigError, create_default_config
 from percell.core.logger import PipelineLogger
-from percell.core.cli import parse_arguments, CLIError, show_header, create_cli
 from percell.core.pipeline import Pipeline
 from percell.main.bootstrap import bootstrap
+from percell.adapters.cli_user_interface_adapter import CLIUserInterfaceAdapter
+from percell.application.cli_services import show_menu, validate_args
+from percell.application.cli_parser import build_parser
 
 
 def main():
@@ -61,22 +63,27 @@ def main():
         while True:
             try:
                 # Parse command line arguments each iteration
-                cli = create_cli()
-                args = cli.parser.parse_args()
+                parser = build_parser()
+                args = parser.parse_args()
+                # Initialize UI adapter
+                ui = CLIUserInterfaceAdapter()
+                # Show menu if needed
+                args = show_menu(ui, args)
+                if args is None:
+                    return 0
                 
-                # Handle interactive mode or show menu if no processing options selected
-                if args.interactive or not any([args.data_selection, args.segmentation, args.process_single_cell,
-                                              args.threshold_grouped_cells, args.measure_roi_area, args.analysis,
-                                              args.cleanup, args.complete_workflow, getattr(args, 'advanced_workflow', False)]):
-                    args = cli.show_interactive_menu(args)
-                    if args is None:  # User chose to exit
-                        print("Goodbye!")
-                        return 0
+                # If still no stages selected and not interactive, continue loop
+                if not any([
+                    args.data_selection, args.segmentation, args.process_single_cell,
+                    args.threshold_grouped_cells, args.measure_roi_area, args.analysis,
+                    args.cleanup, args.complete_workflow, getattr(args, 'advanced_workflow', False)
+                ]):
+                    continue
                 
                 # Now validate arguments after menu processing
                 try:
-                    cli._validate_args(args)
-                except CLIError as e:
+                    validate_args(args, ui)
+                except Exception as e:
                     print(f"CLI Error: {e}")
                     print("Press Enter to return to main menu...")
                     try:
