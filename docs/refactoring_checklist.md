@@ -3,7 +3,7 @@
 A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
 
 ## Next Up
-- [ ] Phase 1.5: Extract workflow orchestration to `WorkflowOrchestrationService` (NEXT)
+- [ ] Phase 1.5: Extract orchestration into `WorkflowOrchestrationService` (NEXT)
 
 ---
 
@@ -33,9 +33,9 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 - [x] Update analysis modules to use `IntensityAnalysisService`
 
 ### 1.5 Extract Workflow Orchestration
-- [ ] Extract orchestration into `WorkflowOrchestrationService`
-- [ ] Write unit tests for `WorkflowOrchestrationService`
-- [ ] Update workflow execution to use orchestration service
+- [x] Extract orchestration into `WorkflowOrchestrationService`
+- [x] Write unit tests for `WorkflowOrchestrationService`
+- [x] Update workflow execution to use orchestration service
 
 ---
 
