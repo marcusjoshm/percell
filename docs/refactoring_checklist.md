@@ -3,7 +3,7 @@
 A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
 
 ## Next Up
-- [ ] Phase 1.4: Write unit tests for `IntensityAnalysisService` (NEXT)
+- [ ] Phase 1.5: Extract workflow orchestration to `WorkflowOrchestrationService` (NEXT)
 
 ---
 
