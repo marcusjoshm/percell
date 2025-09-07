@@ -393,10 +393,13 @@ def group_and_sum_cells(cell_dir, output_dir, num_bins, method='gmm', force_clus
                 for cid in members:
                     id_to_label[cid] = idx
             labels = np.array([id_to_label.get(i + 1, 0) for i in range(len(image_data))], dtype=int)
-        else:  # otsu
-            thr = svc.calculate_threshold_parameters(metrics)
-            threshold = thr.lower if thr.lower is not None else float(np.median(auc_values))
-            labels = np.array([0 if float(v) <= threshold else 1 for v in auc_values.flatten()], dtype=int)
+        else:  # otsu delegated externally; fallback to median grouping in-app
+            groups = svc.group_cells_by_brightness(metrics)
+            id_to_label = {}
+            for idx, (label_name, members) in enumerate(groups):
+                for cid in members:
+                    id_to_label[cid] = idx
+            labels = np.array([id_to_label.get(i + 1, 0) for i in range(len(image_data))], dtype=int)
         # Compute cluster means for mapping
         for lab in (0, 1):
             vals = auc_values[labels == lab]

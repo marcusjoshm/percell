@@ -79,33 +79,14 @@ class IntensityAnalysisService:
         return [("dim", low_ids), ("bright", high_ids)]
 
     def calculate_threshold_parameters(self, metrics: list[CellMetrics]) -> ThresholdParameters:
-        """Compute threshold parameters from per-cell metrics.
+        """Placeholder for thresholding which is handled by ImageJ.
 
-        Args:
-            metrics: Per-cell metrics used for threshold estimation.
-
-        Returns:
-            Calculated threshold parameters.
+        Domain layer does not compute threshold parameters; external tools
+        (e.g., ImageJ) are responsible. This method is intentionally not
+        implemented to keep thresholding out of business logic.
         """
 
-        values = np.array([m.mean_intensity for m in metrics], dtype=float)
-        if values.size == 0:
-            return ThresholdParameters(method="otsu", lower=None, upper=None, params={})
-        if values.size == 1:
-            thr = float(values[0])
-            return ThresholdParameters(method="otsu", lower=thr, upper=None, params={})
-
-        # Compute Otsu threshold on 1D intensities
-        hist, bin_edges = np.histogram(values, bins=256)
-        hist = hist.astype(float)
-        prob = hist / hist.sum() if hist.sum() > 0 else hist
-        omega = np.cumsum(prob)
-        mu = np.cumsum(prob * (bin_edges[:-1]))
-        mu_t = mu[-1] if mu.size > 0 else 0.0
-        sigma_b_sq = (mu_t * omega - mu) ** 2 / (omega * (1.0 - omega) + 1e-12)
-        idx = int(np.nanargmax(sigma_b_sq)) if sigma_b_sq.size > 0 else 0
-        threshold = float(bin_edges[idx])
-        return ThresholdParameters(method="otsu", lower=threshold, upper=None, params={"bins": 256})
+        raise NotImplementedError("Thresholding is performed by ImageJ adapter, not the domain service")
 
     def analyze_binary_masks(self, mask_paths: list[Path]) -> AnalysisResult:
         """Analyze binary masks to produce aggregated results.

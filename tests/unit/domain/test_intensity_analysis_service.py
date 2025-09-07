@@ -44,15 +44,13 @@ def test_group_cells_by_brightness_contract(svc: IntensityAnalysisService):
     assert 2 in members.get("bright", set())
 
 
-def test_calculate_threshold_parameters_contract(svc: IntensityAnalysisService):
+def test_calculate_threshold_parameters_delegated(svc: IntensityAnalysisService):
     metrics = [
         CellMetrics(cell_id=1, area=10, mean_intensity=5.0),
         CellMetrics(cell_id=2, area=10, mean_intensity=15.0),
     ]
-    tp = svc.calculate_threshold_parameters(metrics)
-    assert isinstance(tp, ThresholdParameters)
-    assert tp.method == "otsu"
-    assert tp.lower is not None
+    with pytest.raises(NotImplementedError):
+        svc.calculate_threshold_parameters(metrics)
 
 
 def test_analyze_binary_masks_contract(svc: IntensityAnalysisService, tmp_path: Path):
