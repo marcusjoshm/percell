@@ -23,6 +23,7 @@ import time
 import re
 import csv
 import pandas as pd
+from percell.domain import AnalysisAggregationService
 import numpy as np
 import cv2
 import shutil
@@ -600,8 +601,8 @@ def combine_csv_files(output_dir):
     
     logger.info(f"Found {len(csv_files)} CSV summary files to combine")
     
-    # Read all CSV files into pandas DataFrames
-    all_dfs = []
+    # Read all CSV files into tables (list of dict rows) and combine via domain service
+    all_tables = []
     for csv_file in csv_files:
         try:
             # Extract condition/region information from filename
@@ -634,19 +635,21 @@ def combine_csv_files(output_dir):
                 # Generic handling if the filename doesn't match expected pattern
                 df['Source'] = base_name
             
-            all_dfs.append(df)
+            all_tables.append(df.to_dict(orient='records'))
             logger.info(f"Processed {filename} with {len(df)} rows")
             
         except Exception as e:
             logger.warning(f"Error reading CSV file {csv_file}: {e}")
             continue
     
-    if not all_dfs:
+    if not all_tables:
         logger.warning("No valid data found in CSV files")
         return None
     
-    # Combine all DataFrames
-    combined_df = pd.concat(all_dfs, ignore_index=True)
+    # Combine using domain aggregation service (pure business logic)
+    agg = AnalysisAggregationService()
+    combined_rows = agg.combine_summary_tables(all_tables)
+    combined_df = pd.DataFrame.from_records(combined_rows)
     
     # Generate output filename based on common elements
     # Extract what appears to be the experiment identifier (e.g., Dish_9)
