@@ -3,7 +3,7 @@
 A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
 
 ## Next Up
-- [ ] Phase 1.3: Extract selection algorithms into `DataSelectionService` (NEXT)
+- [ ] Phase 1.3: Update CLI to use `DataSelectionService` (NEXT)
 
 ---
 
@@ -23,8 +23,8 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 - [x] Refactor codebase to use `FileNamingService`
 
 ### 1.3 Extract Data Selection Logic
-- [ ] Extract selection algorithms into `DataSelectionService`
-- [ ] Write unit tests for `DataSelectionService`
+- [x] Extract selection algorithms into `DataSelectionService`
+- [x] Write unit tests for `DataSelectionService`
 - [ ] Update CLI to use `DataSelectionService`
 
 ### 1.4 Extract Intensity Analysis Logic
