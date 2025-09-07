@@ -26,6 +26,7 @@ import cv2
 import tempfile
 import shutil
 from percell.domain import FileNamingService
+from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
 from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter
 
 # Set up logging
@@ -40,6 +41,7 @@ logger = logging.getLogger("CellMaskCreator")
 
 # Domain services
 naming_service = FileNamingService()
+fs = LocalFileSystemAdapter()
 
 def find_matching_mask_for_roi(roi_file, mask_dir):
     """
@@ -131,7 +133,7 @@ def create_output_dir_for_roi(roi_file, output_base_dir):
     # Create the output directory structure with channel-specific organization
     # Format: output_base_dir/condition/region_channel_timepoint
     output_dir = Path(output_base_dir) / condition / f"{region}_{channel}_{timepoint}"
-    os.makedirs(output_dir, exist_ok=True)
+    fs.ensure_dir(output_dir)
     
     logger.info(f"Created output directory: {output_dir}")
     return output_dir

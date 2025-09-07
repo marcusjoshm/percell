@@ -3,7 +3,7 @@
 A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
 
 ## Next Up
-- [ ] Phase 2.4: Implement File System Adapter
+- [ ] Phase 2.4: Replace file I/O with File System Adapter (wiring)
 
 ---
 
@@ -54,8 +54,8 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 - [x] Update segmentation to use Cellpose adapter (GUI launch wired)
 
 ### 2.4 Implement File System Adapter
-- [ ] Implement `LocalFileSystemAdapter` and tests
-- [ ] Replace file I/O with adapter
+- [x] Implement `LocalFileSystemAdapter` and tests
+- [ ] Replace file I/O with adapter (partial: starting with `create_cell_masks`)
 
 ### 2.5 Implement Image Processing Adapter
 - [ ] Implement `PILImageProcessingAdapter` and tests
