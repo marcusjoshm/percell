@@ -9,7 +9,7 @@ Design goals:
 - Decouple project code from alive-progress specifics
 - Provide simple context managers and helper functions
 - Support nested progress (task + subtasks) when needed
-- Work well alongside existing logging in percell.core.logger
+- Work well alongside logging via percell.application.logger_api
 """
 
 from __future__ import annotations

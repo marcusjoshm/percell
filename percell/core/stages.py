@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional, List
 from pathlib import Path
 
 from percell.application.config_api import Config
-from .logger import PipelineLogger, ModuleLogger
+from percell.application.logger_api import PipelineLogger, ModuleLogger
 
 
 class StageError(Exception):
