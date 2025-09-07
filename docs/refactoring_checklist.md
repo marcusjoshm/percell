@@ -3,7 +3,7 @@
 A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
 
 ## Next Up
-- [ ] Phase 2.4: Replace file I/O with File System Adapter (wiring)
+- [ ] Phase 2.5: Implement Image Processing Adapter
 
 ---
 
