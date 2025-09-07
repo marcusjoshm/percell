@@ -210,7 +210,8 @@ class DataSelectionStage(StageBase):
                                     
                                     # Copy the file
                                     output_file = timepoint_output_dir / tif_file.name
-                                    shutil.copy2(tif_file, output_file)
+                                    from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+                                    LocalFileSystemAdapter().copy(tif_file, output_file, overwrite=True)
                                     total_copied += 1
                                     copied_in_timepoint += 1
                                     self.logger.debug(f"Copied: {tif_file.name}")
@@ -236,7 +237,8 @@ class DataSelectionStage(StageBase):
                         
                         # Copy the file
                         output_file = condition_output_dir / tif_file.name
-                        shutil.copy2(tif_file, output_file)
+                        from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+                        LocalFileSystemAdapter().copy(tif_file, output_file, overwrite=True)
                         total_copied += 1
                         copied_in_condition += 1
                         self.logger.debug(f"Copied: {tif_file.name}")
@@ -732,27 +734,18 @@ class SegmentationStage(StageBase):
             self.logger.info("Images binned successfully")
             self.logger.info(f"Bin script output: {result.stdout}")
             
-            # Step 2: Launch segmentation (interactive script or adapter)
+            # Step 2: Launch segmentation (interactive Cellpose GUI only)
             preprocessed_dir = f"{output_dir}/preprocessed"
             cellpose_python = self.config.get('cellpose_path')
             if cellpose_python:
-                # Use adapter for headless batch segmentation if configured
                 from percell.adapters.cellpose_subprocess_adapter import CellposeSubprocessAdapter
                 from percell.domain.models import SegmentationParameters
                 adapter = CellposeSubprocessAdapter(Path(cellpose_python))
-                # Collect images to segment
+                self.logger.info("Launching Cellpose GUI (python -m cellpose) — no directories passed")
+                # Launch GUI and wait for user to complete segmentation, then close
                 from pathlib import Path as _P
-                imgs = sorted(_P(preprocessed_dir).rglob("*.tif"))
-                if not imgs:
-                    self.logger.warning("No preprocessed images found for segmentation")
-                params = SegmentationParameters(
-                    cell_diameter=30.0,
-                    flow_threshold=0.4,
-                    probability_threshold=0.0,
-                    model_type="nuclei",
-                )
-                masks = adapter.run_segmentation(imgs, _P(f"{output_dir}/combined_masks"), params)
-                self.logger.info(f"Cellpose adapter produced {len(masks)} masks")
+                adapter.run_segmentation([], _P(f"{output_dir}/combined_masks"), SegmentationParameters(0, 0, 0, "nuclei"))
+                self.logger.info("Cellpose GUI closed by user")
             else:
                 # Fallback to interactive tools script
                 self.logger.info("Launching interactive segmentation tools...")

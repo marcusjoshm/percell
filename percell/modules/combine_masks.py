@@ -125,6 +125,14 @@ def read_image_with_metadata(image_path):
         except Exception as e:
             logger.warning(f"tifffile failed to read {image_path}: {e}")
     
+    # Try image adapter next
+    try:
+        img = PILImageProcessingAdapter().read_image(Path(image_path))
+        if img is not None:
+            return img, None
+    except Exception as e:
+        logger.warning(f"Image adapter failed to read {image_path}: {e}")
+    
     # Fallback to OpenCV
     try:
         img = cv2.imread(str(image_path), cv2.IMREAD_UNCHANGED)

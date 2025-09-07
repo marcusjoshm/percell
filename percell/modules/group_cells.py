@@ -847,7 +847,8 @@ def process_cell_directory(cell_dir, output_dir, bins=5, force_clusters=False, c
         group_copied = 0
         for cell_file, _ in group:
             try:
-                shutil.copy2(cell_file, group_dir / cell_file.name)
+                from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+                LocalFileSystemAdapter().copy(cell_file, group_dir / cell_file.name, overwrite=True)
                 group_copied += 1
                 total_copied += 1
             except Exception as e:

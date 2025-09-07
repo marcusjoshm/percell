@@ -83,6 +83,13 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 
 ---
 
+## Migration
+- [x] Add migration order and checklist docs
+- [ ] Migrate utilities (core/utils.py, core/paths.py)
+- [ ] Remove obsolete files after verification
+
+---
+
 ## Documentation
 - [ ] Phase 1: Domain/business-logic docs and README updates
 - [ ] Phase 2: Ports/adapters and external integrations docs

@@ -118,7 +118,8 @@ def duplicate_rois_for_channels(roi_dir, channels, verbose=False):
                 logger.debug(f"Created ROI file for {target_channel}: {new_name}")
             
             try:
-                shutil.copy2(roi_file, new_path)
+                from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+                LocalFileSystemAdapter().copy(roi_file, new_path, overwrite=True)
                 if verbose:
                     logger.debug(f"Copied {roi_file} -> {new_path}")
                 successful_copies += 1
