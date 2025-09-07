@@ -13,6 +13,7 @@ import sys
 import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Set, Optional
+from percell.domain import DataSelectionService, FileNamingService
 from ..core.stages import StageBase
 
 
@@ -34,6 +35,9 @@ class DataSelectionStage(StageBase):
         self.selected_regions = []
         self.segmentation_channel = None
         self.analysis_channels = []
+        # Domain services for parsing/scanning
+        self._selection_service = DataSelectionService()
+        self._naming_service = FileNamingService()
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for data selection stage."""
@@ -335,7 +339,7 @@ class DataSelectionStage(StageBase):
                 'channels': set(),
                 'region_to_channels': {},
                 'datatype_inferred': 'multi_timepoint',
-                'directory_timepoints': set()  # Track directory-based timepoints separately
+                'directory_timepoints': set()
             }
             
             self.logger.info(f"Scanning input directory: {input_path}")
@@ -343,101 +347,39 @@ class DataSelectionStage(StageBase):
                 self.logger.error(f"Input directory does not exist: {input_path}")
                 return False
                 
-            # List all items in the input directory
+            # Discover conditions from top-level directories
             input_items = list(input_path.glob("*"))
-            self.logger.info(f"Found {len(input_items)} items in input directory")
-            
-            # Count directories to help with debugging
             input_dirs = [item for item in input_items if item.is_dir() and not item.name.startswith('.')]
-            self.logger.info(f"Found {len(input_dirs)} directories in input directory: {[d.name for d in input_dirs]}")
-            
             if not input_dirs:
                 self.logger.warning("No subdirectories found in input directory. Expected at least one condition directory.")
                 return False
-            
-            # Find all directories in the input directory as potential conditions
-            for item in input_dirs:
-                condition_name = item.name
-                metadata['conditions'].append(condition_name)
-                
-                self.logger.info(f"Processing condition: {condition_name}")
-                
-                # Use a more efficient approach to find TIF files
-                # First, try to find TIF files directly in the condition directory
-                tif_files = []
-                
-                # Check if there are TIF files directly in the condition directory
-                direct_tifs = list(item.glob("*.tif"))
-                if direct_tifs:
-                    self.logger.info(f"Found {len(direct_tifs)} TIF files directly in condition '{condition_name}'")
-                    tif_files.extend(direct_tifs)
-                
-                # If no direct TIF files, check one level down for timepoint directories
-                if not direct_tifs:
-                    timepoint_dirs = [d for d in item.iterdir() if d.is_dir()]
-                    self.logger.info(f"Found {len(timepoint_dirs)} subdirectories in condition '{condition_name}': {[d.name for d in timepoint_dirs]}")
-                    
-                    for timepoint_dir in timepoint_dirs:
-                        timepoint_name = timepoint_dir.name
-                        timepoint_tifs = list(timepoint_dir.glob("*.tif"))
-                        if timepoint_tifs:
-                            self.logger.info(f"Found {len(timepoint_tifs)} TIF files in {timepoint_name}")
-                            tif_files.extend(timepoint_tifs)
-                            
-                            # Track directory-based timepoints separately (for file copying)
-                            # Check if it's a timepoint directory (timepoint_1, timepoint_2, etc.)
-                            if timepoint_name.startswith('timepoint_'):
-                                metadata['directory_timepoints'].add(timepoint_name)
-                            # Also check for other timepoint patterns
-                            elif re.match(r't[0-9]+', timepoint_name):
-                                metadata['directory_timepoints'].add(timepoint_name)
-                
-                # If still no TIF files, do a limited recursive search (max depth 3)
-                if not tif_files:
-                    self.logger.info(f"No TIF files found in immediate subdirectories, doing limited recursive search...")
-                    for depth in range(1, 4):  # Limit to 3 levels deep
-                        pattern = "*/" * depth + "*.tif"
-                        found_tifs = list(item.glob(pattern))
-                        if found_tifs:
-                            self.logger.info(f"Found {len(found_tifs)} TIF files at depth {depth}")
-                            tif_files.extend(found_tifs)
-                            break  # Stop at first depth with files
-                
-                self.logger.info(f"Total TIF files found in condition '{condition_name}': {len(tif_files)}")
-                
-                if not tif_files:
-                    self.logger.warning(f"No TIF files found in condition '{condition_name}'")
+            metadata['conditions'].extend([d.name for d in input_dirs])
+
+            # Track directory-based timepoints for copy step
+            for d in input_dirs:
+                for sub in d.iterdir():
+                    if sub.is_dir():
+                        name = sub.name
+                        if name.startswith('timepoint_') or re.match(r't[0-9]+', name):
+                            metadata['directory_timepoints'].add(name)
+
+            # Use domain service to scan and parse filenames globally
+            files = self._selection_service.scan_available_data(input_path)
+            self.logger.info(f"Found {len(files)} microscopy files under input directory")
+            _conditions, timepoints, regions = self._selection_service.parse_conditions_timepoints_regions(files)
+            for tp in timepoints:
+                metadata['timepoints'].add(tp)
+            for rg in regions:
+                metadata['regions'].add(rg)
+
+            # Extract channels via domain file naming service
+            for f in files[:100]:
+                try:
+                    meta = self._naming_service.parse_microscopy_filename(f.name)
+                    if meta.channel:
+                        metadata['channels'].add(meta.channel)
+                except Exception:
                     continue
-                
-                # Extract metadata from filenames (limit to first 100 files to avoid excessive processing)
-                files_to_process = tif_files[:100] if len(tif_files) > 100 else tif_files
-                if len(tif_files) > 100:
-                    self.logger.info(f"Processing first 100 files out of {len(tif_files)} total files for metadata extraction")
-                
-                for tif_file in files_to_process:
-                    filename = tif_file.name
-                    
-                    # Extract timepoint from filename (for selection interface)
-                    timepoint_match = re.search(r't([0-9]+)', filename)
-                    if timepoint_match:
-                        timepoint = f"t{timepoint_match.group(1)}"
-                        metadata['timepoints'].add(timepoint)
-                    
-                    # Extract channel
-                    channel_match = re.search(r'ch([0-9]+)', filename)
-                    if channel_match:
-                        channel = f"ch{channel_match.group(1)}"
-                        metadata['channels'].add(channel)
-                    
-                    # Extract region by looking at what's not a channel or timepoint
-                    # Remove channel and timepoint parts from filename
-                    temp_name = re.sub(r'(ch\d+|t\d+)', '', filename)
-                    # Remove file extension
-                    temp_name = os.path.splitext(temp_name)[0]
-                    # Remove any trailing or duplicate underscores from the result and clean it up
-                    region_name = re.sub(r'_+', '_', temp_name).strip('_')
-                    if region_name:  # Only add if not empty
-                        metadata['regions'].add(region_name)
             
             # Convert sets to sorted lists
             metadata['regions'] = sorted(list(metadata['regions']))
@@ -561,35 +503,19 @@ class DataSelectionStage(StageBase):
             self.logger.warning("No conditions selected. Please select conditions first.")
             return False
         
-        # Filter regions based on the selected conditions
+        # Filter regions based on the selected conditions using domain service
         available_regions_by_condition = {}
         for condition in self.selected_conditions:
-            # Use the input directory from the stage's context
             input_dir = getattr(self, 'input_dir', None)
             if not input_dir:
-                # Fallback to using the experiment metadata regions
                 available_items = self.experiment_metadata.get('regions', [])
                 self.selected_regions = self._handle_list_selection(available_items, "regions", self.selected_regions)
                 return True
-            
             condition_dir = Path(input_dir) / condition
             if condition_dir.exists():
-                # Find all TIF files in this condition
-                tif_files = list(condition_dir.glob("**/*.tif"))
-                # Extract regions from filenames
-                regions_in_condition = set()
-                for tif_file in tif_files:
-                    filename = tif_file.name
-                    # Extract region by looking at what's not a channel or timepoint
-                    # Remove channel and timepoint parts from filename
-                    temp_name = re.sub(r'(ch\d+|t\d+)', '', filename)
-                    # Remove file extension
-                    temp_name = os.path.splitext(temp_name)[0]
-                    # Remove any trailing or duplicate underscores from the result and clean it up
-                    region_name = re.sub(r'_+', '_', temp_name).strip('_')
-                    if region_name:  # Only add if not empty
-                        regions_in_condition.add(region_name)
-                available_regions_by_condition[condition] = sorted(list(regions_in_condition))
+                files = list(condition_dir.glob("**/*.tif"))
+                _conds, _t, regions = self._selection_service.parse_conditions_timepoints_regions(files)
+                available_regions_by_condition[condition] = sorted(list(regions))
             else:
                 self.logger.warning(f"Selected condition '{condition}' directory not found")
                 available_regions_by_condition[condition] = []
