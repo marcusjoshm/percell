@@ -48,11 +48,31 @@ def show_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argpa
 
     choice = ui.prompt("Select an option (1-11): ").strip().lower()
     if choice == "1":
-        # Keep behavior minimal: just prompt for directories
-        if not args.input:
-            args.input = ui.prompt("Enter input directory path: ").strip()
-        if not args.output:
-            args.output = ui.prompt("Enter output directory path: ").strip()
+        # Use interactive directory setup with recent paths and defaults
+        try:
+            # Resolve config path similar to validate_args
+            from percell.modules.directory_setup import load_config
+            from percell.modules.set_directories import set_default_directories
+            from percell.core.paths import get_path
+
+            try:
+                config_path = str(get_path("config_default"))
+            except Exception:
+                config_path = "percell/config/config.json"
+
+            config = load_config(config_path)
+            input_path, output_path = set_default_directories(config, config_path)
+
+            # Reflect selections back into args
+            args.input = input_path
+            args.output = output_path
+        except Exception as e:
+            ui.error(f"Directory setup failed: {e}")
+            # Fallback to simple prompts
+            if not getattr(args, "input", None):
+                args.input = ui.prompt("Enter input directory path: ").strip()
+            if not getattr(args, "output", None):
+                args.output = ui.prompt("Enter output directory path: ").strip()
         return args
     if choice == "2":
         args.data_selection = True
