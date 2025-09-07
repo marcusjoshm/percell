@@ -18,6 +18,7 @@ import logging
 import tempfile
 from pathlib import Path
 from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
 from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter
 
 # Set up logging

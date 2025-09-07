@@ -58,8 +58,8 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 - [ ] Replace file I/O with adapter (partial: `create_cell_masks`, `analyze_cell_masks`, `resize_rois`, `measure_roi_area`, `extract_cells`, `combine_masks`, `otsu_threshold_grouped_cells`)
 
 ### 2.5 Implement Image Processing Adapter
-- [ ] Implement `PILImageProcessingAdapter` and tests
-- [ ] Update code to use image processing adapter
+- [x] Implement `PILImageProcessingAdapter` and tests
+- [ ] Update code to use image processing adapter (partial: `bin_images`)
 
 ---
 

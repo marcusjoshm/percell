@@ -16,28 +16,18 @@ from pathlib import Path
 import re
 import logging
 import numpy as np
-from skimage import io, exposure
-from skimage.transform import downscale_local_mean
 import tifffile
 import sys
 from percell.domain import FileNamingService
+from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 def bin_image(image, bin_factor=4):
-    """
-    Bin an image by the specified factor using local mean.
-    
-    Args:
-        image (numpy.ndarray): Input image
-        bin_factor (int): Binning factor
-        
-    Returns:
-        numpy.ndarray: Binned image
-    """
-    return downscale_local_mean(image, (bin_factor, bin_factor))
+    adapter = PILImageProcessingAdapter()
+    return adapter.bin_image(image, bin_factor)
 
 
 def process_images(input_dir, output_dir, bin_factor=4,
@@ -167,13 +157,14 @@ def process_images(input_dir, output_dir, bin_factor=4,
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
             # Read the image
-            image = io.imread(file_path)
+            adapter = PILImageProcessingAdapter()
+            image = adapter.read_image(file_path)
             
             # Bin the image
             binned_image = bin_image(image, bin_factor=bin_factor)
             
             # Save the processed image
-            tifffile.imwrite(output_file, binned_image.astype(image.dtype))
+            adapter.write_image(output_file, binned_image.astype(image.dtype))
             
             logger.info(f"Saved binned image to {output_file}")
             processed_count += 1
