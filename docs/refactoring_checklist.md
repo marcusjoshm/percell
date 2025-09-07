@@ -3,7 +3,7 @@
 A consolidated, actionable checklist derived from the Revised Hexagonal Architecture Plan.
 
 ## Next Up
-- [ ] Phase 2.2: Implement `ImageJMacroAdapter` (NEXT)
+- [ ] Phase 2.2: Replace remaining ImageJ calls with adapter (NEXT)
 
 ---
 
@@ -46,8 +46,8 @@ A consolidated, actionable checklist derived from the Revised Hexagonal Architec
 - [x] Define driven port interfaces
 
 ### 2.2 Implement ImageJ Adapter
-- [ ] Implement `ImageJMacroAdapter` and tests
-- [ ] Replace direct ImageJ calls with adapter
+- [x] Implement `ImageJMacroAdapter` and tests
+- [ ] Replace direct ImageJ calls with adapter (partial: `analyze_cell_masks`, `create_cell_masks`)
 
 ### 2.3 Implement Cellpose Adapter
 - [ ] Implement `CellposeSubprocessAdapter` and tests
