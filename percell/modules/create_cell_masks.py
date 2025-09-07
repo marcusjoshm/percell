@@ -26,6 +26,7 @@ import cv2
 import tempfile
 import shutil
 from percell.domain import FileNamingService
+from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter
 
 # Set up logging
 logging.basicConfig(
@@ -203,37 +204,12 @@ def run_imagej_macro(imagej_path, macro_file, auto_close=False):
         bool: True if successful, False otherwise
     """
     try:
-        # Use -macro mode for user interaction
-        cmd = [imagej_path, '-macro', str(macro_file)]
-        
-        logger.info(f"Running ImageJ command: {' '.join(cmd)}")
-        logger.info(f"ImageJ will {'auto-close' if auto_close else 'remain open'} after execution")
-        
-        from percell.core import run_subprocess_with_spinner
-        result = run_subprocess_with_spinner(
-            cmd,
-            title="ImageJ: Create Cell Masks",
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        
-        # Log the output
-        if result.stdout:
-            logger.info("ImageJ output:")
-            for line in result.stdout.splitlines():
-                logger.info(f"  {line}")
-        
-        if result.stderr:
-            logger.warning("ImageJ errors:")
-            for line in result.stderr.splitlines():
-                logger.warning(f"  {line}")
-        
-        # Check if the command executed successfully
-        if result.returncode != 0:
-            logger.error(f"ImageJ returned non-zero exit code: {result.returncode}")
+        adapter = ImageJMacroAdapter(Path(imagej_path))
+        logger.info(f"Running ImageJ macro via adapter: {macro_file}")
+        rc = adapter.run_macro(Path(macro_file), [])
+        if rc != 0:
+            logger.error(f"ImageJ returned non-zero exit code: {rc}")
             return False
-        
         return True
         
     except Exception as e:
