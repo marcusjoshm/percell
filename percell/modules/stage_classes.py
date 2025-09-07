@@ -13,6 +13,8 @@ import sys
 import shutil
 from pathlib import Path
 from typing import Dict, Any, List, Set, Optional
+from percell.domain import WorkflowOrchestrationService
+from percell.domain.models import WorkflowStep, WorkflowState, WorkflowConfig
 from percell.domain import DataSelectionService, FileNamingService
 from ..core.stages import StageBase
 
@@ -1367,6 +1369,7 @@ class CompleteWorkflowStage(StageBase):
             ('measure_roi_area', 'Measure ROI Areas'),
             ('analysis', 'Analysis')
         ]
+        self._orchestration = WorkflowOrchestrationService()
     
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for complete workflow."""
@@ -1391,6 +1394,27 @@ class CompleteWorkflowStage(StageBase):
             from ..core.stages import get_stage_registry
             registry = get_stage_registry()
             
+            # Build workflow steps subset in canonical order based on available stages
+            stage_to_step = {
+                'data_selection': WorkflowStep.DATA_SELECTION,
+                'segmentation': WorkflowStep.SEGMENTATION,
+                'process_single_cell': WorkflowStep.PROCESSING,
+                'threshold_grouped_cells': WorkflowStep.THRESHOLDING,
+                'analysis': WorkflowStep.ANALYSIS,
+            }
+            requested_steps: List[WorkflowStep] = [
+                stage_to_step[name] for name, _ in self.stages if name in stage_to_step
+            ]
+            # Normalize and validate steps
+            normalized = self._orchestration.handle_custom_workflows(requested_steps)
+            self._orchestration.validate_workflow_steps(normalized)
+            wf_config = WorkflowConfig(steps=normalized)
+            self._orchestration.coordinate_step_execution(normalized, wf_config)
+            
+            # Track workflow state
+            state = WorkflowState.PENDING
+            state = self._orchestration.manage_workflow_state(state, "start")
+            
             for stage_name, stage_display_name in self.stages:
                 self.logger.info(f"Starting {stage_display_name}...")
                 
@@ -1408,10 +1432,14 @@ class CompleteWorkflowStage(StageBase):
                 
                 if not success:
                     self.logger.error(f"{stage_display_name} failed!")
+                    state = self._orchestration.manage_workflow_state(state, "error")
                     return False
                 
                 self.logger.info(f"{stage_display_name} completed successfully!")
             
+            # Completed all stages
+            state = self._orchestration.manage_workflow_state(state, "complete")
+            self.logger.info(f"Workflow completed with state: {state.name}")
             self.logger.info("Complete Workflow finished successfully!")
             return True
             
