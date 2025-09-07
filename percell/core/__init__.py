@@ -11,7 +11,13 @@ This package contains the core functionality for the microscopy analysis pipelin
 """
 
 # CLI has been migrated to application layer; no imports here
-from .config import Config, ConfigError, create_default_config, validate_software_paths, detect_software_paths
+from percell.application.config_api import (
+    Config,
+    ConfigError,
+    create_default_config,
+    validate_software_paths,
+    detect_software_paths,
+)
 from .logger import PipelineLogger, ModuleLogger, create_logger
 from .pipeline import Pipeline, create_pipeline
 from .stages import (

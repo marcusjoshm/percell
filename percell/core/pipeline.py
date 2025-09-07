@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 import argparse
 
-from .config import Config
+from percell.application.config_api import Config
 from .logger import PipelineLogger
 from .stages import get_stage_registry, StageExecutor
 

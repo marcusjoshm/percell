@@ -9,7 +9,7 @@ __author__ = "Joshua Marcus"
 
 # Import main components for easy access
 from .core.pipeline import Pipeline, create_pipeline
-from .core.config import Config, ConfigError, create_default_config
+from percell.application.config_api import Config, ConfigError, create_default_config
 from .core.logger import PipelineLogger, ModuleLogger
 # CLI components are now provided via application layer and UI adapters.
 

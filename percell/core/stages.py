@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 
-from .config import Config
+from percell.application.config_api import Config
 from .logger import PipelineLogger, ModuleLogger
 
 
