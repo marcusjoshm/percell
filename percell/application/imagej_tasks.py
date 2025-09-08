@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional, List, Tuple
 import re
 import tempfile
+import subprocess
 
 from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
 from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter
@@ -82,6 +83,19 @@ def run_imagej_macro(imagej_path: str | Path, macro_file: str | Path, auto_close
         adapter = ImageJMacroAdapter(Path(imagej_path))
         rc = adapter.run_macro(Path(macro_file), [])
         return rc == 0
+    except Exception:
+        return False
+
+
+def run_imagej_macro_interactive(imagej_path: str | Path, macro_file: str | Path) -> bool:
+    """Run ImageJ in interactive mode using -macro so that UI-based macros execute.
+
+    Returns True on zero exit code.
+    """
+    try:
+        cmd = [str(imagej_path), "-macro", str(macro_file)]
+        completed = subprocess.run(cmd)
+        return completed.returncode == 0
     except Exception:
         return False
 
@@ -704,7 +718,8 @@ def threshold_grouped_cells(
         return False
     macro_file, flag_file = macro_flag
     try:
-        ok = run_imagej_macro(imagej_path, macro_file, auto_close)
+        # Run interactively so the user can adjust thresholds
+        ok = run_imagej_macro_interactive(imagej_path, macro_file)
         # remove flag if present; we don't currently signal upstream
         try:
             Path(flag_file).unlink(missing_ok=True)

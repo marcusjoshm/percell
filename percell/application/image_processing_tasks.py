@@ -296,6 +296,8 @@ def group_cells(
 
     adapter = PILImageProcessingAdapter()
     any_written = False
+    # Collect per-region group metadata rows as we assign cells to bins
+    region_to_rows: dict[Path, list[dict[str, object]]] = {}
 
     for region_dir in _find_cell_dirs(cells_root):
         if channels:
@@ -336,6 +338,17 @@ def group_cells(
             start = end
             if not group:
                 continue
+            # Record metadata rows for cells in this group/bin
+            rows = region_to_rows.setdefault(out_condition, [])
+            group_metrics = [metric for _, __, metric in group]
+            group_mean = float(np.mean(group_metrics)) if group_metrics else 0.0
+            for path_obj, __, ___ in group:
+                rows.append({
+                    'cell_id': path_obj.name,
+                    'group_id': i + 1,
+                    'group_name': f"bin_{i+1}",
+                    'group_mean_auc': group_mean,
+                })
             # Sum images (resize not handled; assume uniform dims per dir)
             try:
                 acc = None
@@ -360,6 +373,16 @@ def group_cells(
                 any_written = True
             except Exception:
                 continue
+
+        # After processing this region, write group metadata CSV if we collected rows
+        rows = region_to_rows.get(out_condition)
+        if rows:
+            try:
+                import pandas as _pd
+                csv_path = out_condition / f"{region_dir.name}_cell_groups.csv"
+                _pd.DataFrame(rows).to_csv(csv_path, index=False)
+            except Exception:
+                pass
 
     return any_written
 
@@ -474,9 +497,12 @@ def include_group_metadata(
         for p in metadata_files:
             if any(ch in str(p) for ch in channels):
                 mf.append(p)
-        metadata_files = mf
+        # If filtering removed all files, fall back to unfiltered list
+        if mf:
+            metadata_files = mf
     if not metadata_files:
-        return False
+        # No metadata available; treat as no-op so pipeline can continue
+        return True
 
     # Load and augment metadata
     frames: list[pd.DataFrame] = []
@@ -493,27 +519,36 @@ def include_group_metadata(
             df['condition'] = condition
         frames.append(df)
     if not frames:
-        return False
+        # Nothing to merge; treat as no-op
+        return True
     meta_df = pd.concat(frames, ignore_index=True)
 
     # Find analysis file
     analysis_file = _find_analysis_file(analysis_path, out_dir)
     if analysis_file is None:
-        return False
+        # No analysis to merge into; treat as no-op
+        return True
 
     # Load analysis
     ana_df = _read_csv_robust(analysis_file)
     if ana_df is None:
-        return False
+        # Cannot read analysis; treat as no-op
+        return True
 
     # Derive cell_id_clean in both frames
+    # Derive a canonical id for metadata frame
     if 'cell_id' in meta_df.columns:
         meta_df['cell_id_clean'] = meta_df['cell_id'].apply(
             lambda x: str(x).replace('CELL', '').replace('.tif', '').strip() if isinstance(x, str) else str(x)
         )
-    id_column = next((c for c in ['Label', 'Slice', 'ROI'] if c in ana_df.columns), None)
+    elif 'cell' in meta_df.columns:
+        meta_df['cell_id_clean'] = meta_df['cell'].apply(lambda x: str(x).replace('CELL', '').replace('.tif', '').strip())
+    elif 'filename' in meta_df.columns:
+        meta_df['cell_id_clean'] = meta_df['filename'].apply(lambda x: str(x).replace('CELL', '').replace('.tif', '').strip())
+    id_column = next((c for c in ['Label', 'Slice', 'ROI', 'Name', 'Filename', 'Title', 'Image'] if c in ana_df.columns), None)
     if id_column is None:
-        return False
+        # No compatible id column; treat as no-op
+        return True
     def _extract_cell_id(x: object) -> str:
         s = str(x)
         m = _re.search(r"CELL(\d+)[a-zA-Z]*$", s)
