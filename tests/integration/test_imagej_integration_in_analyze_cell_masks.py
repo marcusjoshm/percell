@@ -25,13 +25,13 @@ pandas_stub.read_csv = _read_csv
 pandas_stub.DataFrame = _DataFrame
 sys.modules['pandas'] = pandas_stub
 
-from percell.modules import analyze_cell_masks as acm
+from percell.application.imagej_tasks import run_imagej_macro
 
 
 def test_run_imagej_macro_missing_exe_returns_false(tmp_path: Path):
     macro = tmp_path / "dummy.ijm"
     macro.write_text("// no-op")
-    ok = acm.run_imagej_macro(str(tmp_path / "no_imagej"), str(macro), auto_close=True)
+    ok = run_imagej_macro(str(tmp_path / "no_imagej"), str(macro), auto_close=True)
     assert ok is False
 
 

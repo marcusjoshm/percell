@@ -7,13 +7,12 @@ from higher-level steps by leveraging existing stages and modules.
 
 from __future__ import annotations
 
-import subprocess
-from ..core.progress import run_subprocess_with_spinner, spinner as progress_spinner
+from percell.application.progress_api import run_subprocess_with_spinner
 import sys
 from pathlib import Path
 from typing import List, Tuple
 
-from ..core.stages import StageBase
+from percell.application.stages_api import StageBase
 
 
 class AdvancedWorkflowStage(StageBase):
@@ -53,7 +52,7 @@ class AdvancedWorkflowStage(StageBase):
         return True
 
     def run(self, **kwargs) -> bool:
-        from ..core.stages import get_stage_registry
+        from percell.application.stages_api import get_stage_registry
         registry = get_stage_registry()
 
         try:
@@ -153,7 +152,7 @@ class AdvancedWorkflowStage(StageBase):
             return stage_class(self.config, self.pipeline_logger, 'cleanup').execute(**kwargs)
 
         # Module-based steps
-        from ..core.paths import get_path, get_path_str
+        from percell.application.paths_api import get_path, get_path_str
 
         if step_key == "track_rois":
             # Requires multiple timepoints; skip if not applicable
@@ -172,17 +171,19 @@ class AdvancedWorkflowStage(StageBase):
 
         if step_key == "resize_rois":
             data_selection = self.config.get('data_selection') or {}
-            script = get_path("resize_rois_module")
             output_dir = kwargs.get('output_dir')
-            args = [
-                "--input", f"{output_dir}/preprocessed",
-                "--output", f"{output_dir}/ROIs",
-                "--imagej", self.config.get('imagej_path'),
-                "--channel", data_selection.get('segmentation_channel', ''),
-                "--macro", get_path_str("resize_rois_macro"),
-                "--auto-close",
-            ]
-            return self._run_py_module(script, args)
+            from percell.application.imagej_tasks import resize_rois as _resize_rois
+            ok = _resize_rois(
+                input_dir=f"{output_dir}/preprocessed",
+                output_dir=f"{output_dir}/ROIs",
+                imagej_path=self.config.get('imagej_path'),
+                channel=data_selection.get('segmentation_channel', ''),
+                macro_path=get_path_str("resize_rois_macro"),
+                auto_close=True,
+            )
+            if not ok:
+                self.logger.error("resize_rois failed")
+            return ok
 
         if step_key == "duplicate_rois":
             data_selection = self.config.get('data_selection') or {}

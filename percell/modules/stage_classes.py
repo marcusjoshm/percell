@@ -730,7 +730,6 @@ class SegmentationStage(StageBase):
                 bin_args.extend(["--channels", data_selection['segmentation_channel']])
             
             self.logger.info(f"Running bin_images.py with args: {bin_args}")
-            from percell.core import run_subprocess_with_spinner
             result = run_subprocess_with_spinner([sys.executable, str(bin_script)] + bin_args, title="Binning images")
             if result.returncode != 0:
                 self.logger.error(f"Failed to bin images: {result.stderr}")
@@ -792,7 +791,6 @@ class ProcessSingleCellDataStage(StageBase):
         from percell.application.paths_api import path_exists
         required_scripts = [
             "track_rois_module",
-            "resize_rois_module",
             "duplicate_rois_for_channels_module",
             "extract_cells_module",
             "group_cells_module"
@@ -855,22 +853,20 @@ class ProcessSingleCellDataStage(StageBase):
             else:
                 self.logger.info("Skipping ROI tracking (single timepoint or no timepoints)")
             
-            # Step 2: Resize ROIs
+            # Step 2: Resize ROIs (migrated from module to application helper)
             self.logger.info("Resizing ROIs...")
             from percell.application.paths_api import get_path, get_path_str
-            resize_script = get_path("resize_rois_module")
-            resize_args = [
-                "--input", f"{output_dir}/preprocessed",
-                "--output", f"{output_dir}/ROIs",
-                "--imagej", self.config.get('imagej_path'),
-                "--channel", data_selection.get('segmentation_channel', ''),
-                "--macro", get_path_str("resize_rois_macro"),
-                "--auto-close"
-            ]
-            
-            result = run_subprocess_with_spinner([sys.executable, str(resize_script)] + resize_args, title="Resizing ROIs")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to resize ROIs: {result.stderr}")
+            from percell.application.imagej_tasks import resize_rois as _resize_rois
+            ok_resize = _resize_rois(
+                input_dir=f"{output_dir}/preprocessed",
+                output_dir=f"{output_dir}/ROIs",
+                imagej_path=self.config.get('imagej_path'),
+                channel=data_selection.get('segmentation_channel', ''),
+                macro_path=get_path_str("resize_rois_macro"),
+                auto_close=True,
+            )
+            if not ok_resize:
+                self.logger.error("Failed to resize ROIs")
                 return False
             self.logger.info("ROIs resized successfully")
             
@@ -1026,13 +1022,8 @@ class MeasureROIAreaStage(StageBase):
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for measure ROI area stage."""
-        # Check if required module exists
-        from percell.application.paths_api import path_exists
-        if not path_exists("measure_roi_area_module"):
-            self.logger.error("Required module not found: measure_roi_area_module")
-            return False
-            
         # Check if required macro exists
+        from percell.application.paths_api import path_exists
         if not path_exists("measure_roi_area_macro"):
             self.logger.error("Required macro not found: measure_roi_area_macro")
             return False
@@ -1068,25 +1059,22 @@ class MeasureROIAreaStage(StageBase):
                 self.logger.error("Input and output directories are required")
                 return False
             
-            # Import and run the measure_roi_area module
-            from .measure_roi_area import measure_roi_areas
-            
-            # Get ImageJ path from config
+            # Run via application helper (migrated from module)
+            from percell.application.imagej_tasks import measure_roi_areas as _measure_roi_areas
+            from percell.application.paths_api import get_path_str
+
             imagej_path = self.config.get('imagej_path')
-            
-            # Create analysis/cell_area directory
-            cell_area_dir = Path(output_dir) / "analysis" / "cell_area"
-            
+
             self.logger.info(f"Measuring ROI areas using ImageJ: {imagej_path}")
             self.logger.info(f"Input directory: {input_dir}")
             self.logger.info(f"Output directory: {output_dir}")
-            
-            # Run ROI area measurement
-            success = measure_roi_areas(
+
+            success = _measure_roi_areas(
                 input_dir=str(input_dir),
-                output_dir=str(output_dir), 
+                output_dir=str(output_dir),
                 imagej_path=str(imagej_path),
-                auto_close=True
+                macro_path=get_path_str("measure_roi_area_macro"),
+                auto_close=True,
             )
             
             if success:
@@ -1132,13 +1120,16 @@ class AnalysisStage(StageBase):
         required_scripts = [
             "combine_masks_module",
             "create_cell_masks_module", 
-            "analyze_cell_masks_module",
             "include_group_metadata_module"
         ]
         for script_name in required_scripts:
             if not path_exists(script_name):
                 self.logger.error(f"Required script not found: {script_name}")
                 return False
+        # Check required macro for analysis exists
+        if not path_exists("analyze_cell_masks_macro"):
+            self.logger.error("Required macro not found: analyze_cell_masks_macro")
+            return False
         
         # Check if data selection has been completed
         data_selection = self.config.get('data_selection')
@@ -1215,29 +1206,21 @@ class AnalysisStage(StageBase):
                 return False
             self.logger.info("Cell masks created successfully")
             
-            # Step 3: Analyze cell masks
+            # Step 3: Analyze cell masks (migrated to application helper)
             self.logger.info("Analyzing cell masks...")
-            analyze_script = get_path("analyze_cell_masks_module")
-            analyze_args = [
-                "--input", f"{output_dir}/masks",
-                "--output", f"{output_dir}/analysis",
-                "--imagej", self.config.get('imagej_path'),
-                "--macro", get_path_str("analyze_cell_masks_macro"),
-                "--channels"
-            ]
-            # Add analysis channels as separate arguments (matching original workflow)
-            for channel in data_selection.get('analysis_channels', []):
-                analyze_args.append(channel)
-            
-            # Add optional arguments if provided
-            if data_selection.get('selected_regions'):
-                analyze_args.extend(["--regions"] + data_selection['selected_regions'])
-            if data_selection.get('selected_timepoints'):
-                analyze_args.extend(["--timepoints"] + data_selection['selected_timepoints'])
-            
-            result = run_subprocess_with_spinner([sys.executable, str(analyze_script)] + analyze_args, title="Analyzing cell masks")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to analyze cell masks: {result.stderr}")
+            from percell.application.imagej_tasks import analyze_masks as _analyze_masks
+            ok_analyze = _analyze_masks(
+                input_dir=f"{output_dir}/masks",
+                output_dir=f"{output_dir}/analysis",
+                imagej_path=self.config.get('imagej_path'),
+                macro_path=get_path_str("analyze_cell_masks_macro"),
+                regions=data_selection.get('selected_regions'),
+                timepoints=data_selection.get('selected_timepoints'),
+                max_files=50,
+                auto_close=True,
+            )
+            if not ok_analyze:
+                self.logger.error("Failed to analyze cell masks")
                 return False
             self.logger.info("Cell masks analyzed successfully")
             
