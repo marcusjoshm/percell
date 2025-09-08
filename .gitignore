@@ -40,6 +40,16 @@ log/
 # Temp files created by the workflow
 docs/INSTALL.md
 
+# Analysis and generated artifacts
+analysis_artifacts/
+analysis_artifacts/**
+default/logs/
+test_logger/logs/
+tmp_callgraph/
+docs/architecture/
+refactoring_review/
+pyan3-callgraph-script.py
+
 # Data files (if they're large or confidential)
 # Uncomment if needed
 # data/
