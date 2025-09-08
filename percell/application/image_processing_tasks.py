@@ -10,6 +10,8 @@ from typing import Iterable, Optional, Set
 
 from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
 from percell.domain import FileNamingService
+import os
+import shutil
 
 
 def _to_optional_set(values: Optional[Iterable[str]]) -> Optional[Set[str]]:
@@ -82,5 +84,107 @@ def bin_images(
             continue
 
     return processed_count
+
+
+# ------------------------- Cleanup Directories -------------------------
+
+def get_directory_size(path: Path) -> int:
+    total = 0
+    try:
+        if path.exists() and path.is_dir():
+            for dirpath, _, filenames in os.walk(path):
+                for filename in filenames:
+                    fp = os.path.join(dirpath, filename)
+                    try:
+                        total += os.path.getsize(fp)
+                    except OSError:
+                        continue
+    except Exception:
+        return total
+    return total
+
+
+def format_size(size_bytes: int) -> str:
+    units = ["B", "KB", "MB", "GB", "TB"]
+    size = float(size_bytes)
+    for unit in units:
+        if size < 1024.0:
+            return f"{size:.2f} {unit}"
+        size /= 1024.0
+    return f"{size:.2f} PB"
+
+
+def scan_cleanup_directories(
+    output_dir: str | Path,
+    include_cells: bool = True,
+    include_masks: bool = True,
+    include_combined_masks: bool = False,
+    include_grouped_cells: bool = False,
+    include_grouped_masks: bool = False,
+) -> dict[str, dict]:
+    output_path = Path(output_dir)
+    dir_config = {
+        "cells": include_cells,
+        "masks": include_masks,
+        "combined_masks": include_combined_masks,
+        "grouped_cells": include_grouped_cells,
+        "grouped_masks": include_grouped_masks,
+    }
+    directories_info: dict[str, dict] = {}
+    for name, enabled in dir_config.items():
+        if not enabled:
+            continue
+        dir_path = output_path / name
+        size_bytes = get_directory_size(dir_path) if dir_path.exists() else 0
+        directories_info[name] = {
+            "path": str(dir_path),
+            "exists": dir_path.exists(),
+            "size_bytes": size_bytes,
+            "size_formatted": format_size(size_bytes),
+        }
+    return directories_info
+
+
+def cleanup_directories(
+    output_dir: str | Path,
+    delete_cells: bool = False,
+    delete_masks: bool = False,
+    delete_combined_masks: bool = False,
+    delete_grouped_cells: bool = False,
+    delete_grouped_masks: bool = False,
+    dry_run: bool = False,
+    force: bool = True,
+) -> tuple[int, int]:
+    output_path = Path(output_dir)
+    if not output_path.exists():
+        return 0, 0
+    info = scan_cleanup_directories(
+        output_dir,
+        include_cells=delete_cells,
+        include_masks=delete_masks,
+        include_combined_masks=delete_combined_masks,
+        include_grouped_cells=delete_grouped_cells,
+        include_grouped_masks=delete_grouped_masks,
+    )
+    if not info or dry_run:
+        return 0, 0
+    emptied = 0
+    freed = 0
+    for name, meta in info.items():
+        if not meta.get("exists"):
+            continue
+        dir_path = Path(meta["path"])  # type: ignore[index]
+        try:
+            size = meta.get("size_bytes", 0)
+            for item in dir_path.iterdir():
+                if item.is_file():
+                    item.unlink()
+                elif item.is_dir():
+                    shutil.rmtree(item)
+            emptied += 1
+            freed += int(size)
+        except Exception:
+            continue
+    return emptied, freed
 
 

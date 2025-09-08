@@ -1276,9 +1276,9 @@ class CleanupStage(StageBase):
             
             # Import cleanup functionality
             try:
-                from .cleanup_directories import cleanup_directories, scan_cleanup_directories
+                from percell.application.image_processing_tasks import cleanup_directories, scan_cleanup_directories
             except ImportError as e:
-                self.logger.error(f"Could not import cleanup_directories module: {e}")
+                self.logger.error(f"Could not import cleanup helpers: {e}")
                 return False
             
             # Scan directories to see what can be cleaned up
