@@ -1,5 +1,5 @@
 """
-Example script demonstrating percell.core.progress utilities.
+Example script demonstrating percell.application.progress_api utilities.
 
 Run:
     python examples/progress_demo.py
@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 import random
 
-from percell.core import (
+from percell.application.progress_api import (
     is_progress_available,
     configure_global,
     spinner,

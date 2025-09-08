@@ -1,5 +1,5 @@
 """
-Test script that displays available options in percell.core.progress for a progress bar.
+Test script that displays available options in percell.application.progress_api for a progress bar.
 
 Run:
     python examples/progress_bar_options.py
@@ -11,7 +11,7 @@ import time
 import inspect
 from typing import Any
 
-from percell.core import (
+from percell.application.progress_api import (
     is_progress_available,
     configure_global,
     progress_bar,
@@ -64,9 +64,9 @@ def main() -> None:
     # You can try other values if your environment supports them, e.g. theme="smooth", spinner="waves".
     configure_global(theme="smooth", spinner="it", enrich_print=True)
 
-    # Display available options (parameters) from the progress API in percell.core.progress
-    from percell.core.progress import progress_bar as _progress_bar_impl
-    from percell.core.progress import configure_global as _configure_global_impl
+    # Display available options (parameters) from the progress API
+    from percell.application.progress_api import progress_bar as _progress_bar_impl
+    from percell.application.progress_api import configure_global as _configure_global_impl
 
     print_function_options(_configure_global_impl, "configure_global")
     print_function_options(_progress_bar_impl, "progress_bar")

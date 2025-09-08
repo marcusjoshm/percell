@@ -24,10 +24,10 @@ The solution implements a centralized path configuration system that:
 
 ### 1. Path Configuration Class
 
-The `PathConfig` class in `percell/core/paths.py` manages all file paths:
+The `PathConfig` class in `percell/application/paths_api.py` manages all file paths:
 
 ```python
-from percell.core.paths import get_path, get_path_str, path_exists
+from percell.application.paths_api import get_path, get_path_str, path_exists
 
 # Get a path as a Path object
 script_path = get_path("setup_output_structure_script")
@@ -36,8 +36,8 @@ script_path = get_path("setup_output_structure_script")
 config_path = get_path_str("config_default")
 
 # Check if a path exists
-if path_exists("bin_images_module"):
-    # Use the module
+if path_exists("prepare_input_structure_script"):
+    # Use the script
 ```
 
 ### 2. Package Root Discovery
@@ -60,9 +60,8 @@ paths = {
     'prepare_input_structure_script': self._package_root / 'bash' / 'prepare_input_structure.sh',
     'launch_segmentation_tools_script': self._package_root / 'bash' / 'launch_segmentation_tools.sh',
     
-    # Python modules
-    'bin_images_module': self._package_root / 'modules' / 'bin_images.py',
-    'analyze_cell_masks_module': self._package_root / 'modules' / 'analyze_cell_masks.py',
+    # Python package dirs (reference only)
+    'main': self._package_root / 'main',
     
     # Configuration files
     'config_default': self._package_root / 'config' / 'config.json',
@@ -83,23 +82,8 @@ paths = {
 - `prepare_input_structure_script`
 - `launch_segmentation_tools_script`
 
-### Python Modules
-- `bin_images_module`
-- `analyze_cell_masks_module`
-- `combine_masks_module`
-- `create_cell_masks_module`
-- `directory_setup_module`
-- `duplicate_rois_for_channels_module`
-- `extract_cells_module`
-- `group_cells_module`
-- `include_group_metadata_module`
-- `measure_roi_area_module`
-- `otsu_threshold_grouped_cells_module`
-- `resize_rois_module`
-- `set_directories_module`
-- `stage_classes_module`
-- `stage_registry_module`
-- `track_rois_module`
+### Application Directories
+- `main`
 
 ### Configuration Files
 - `config_default`
@@ -115,8 +99,6 @@ paths = {
 
 ### Directories
 - `package_root`
-- `core`
-- `modules`
 - `main`
 - `config_dir`
 - `bash_dir`
@@ -134,7 +116,7 @@ paths = {
 ### Basic Usage
 
 ```python
-from percell.core.paths import get_path, get_path_str, path_exists
+from percell.application.paths_api import get_path, get_path_str, path_exists
 
 # Get a script path
 script_path = get_path("setup_output_structure_script")
@@ -149,31 +131,31 @@ if path_exists("config_default"):
 ### Making Files Executable
 
 ```python
-from percell.core.paths import ensure_executable_path
+from percell.application.paths_api import ensure_executable
 
 # Make a bash script executable
-ensure_executable_path("setup_output_structure_script")
+ensure_executable("setup_output_structure_script")
 ```
 
 ### Running Scripts
 
 ```python
 import subprocess
-from percell.core.paths import get_path
+from percell.application.paths_api import get_path
 
 # Run a bash script
 script_path = get_path("setup_output_structure_script")
 result = subprocess.run([str(script_path), input_dir, output_dir])
 
 # Run a Python module
-module_path = get_path("bin_images_module")
-result = subprocess.run([sys.executable, str(module_path), "--help"])
+# Run the prepare_input_structure script (example)
+result = subprocess.run([str(script_path), input_dir])
 ```
 
 ### Listing All Paths
 
 ```python
-from percell.core.paths import list_all_paths
+from percell.application.paths_api import list_all_paths
 
 # Get all available paths
 all_paths = list_all_paths()
@@ -202,10 +184,10 @@ subprocess.run([str(script_path), input_dir, output_dir])
 
 ```python
 # New way - centralized paths
-from percell.core.paths import get_path, ensure_executable_path
+from percell.application.paths_api import get_path, ensure_executable
 
 script_path = get_path("setup_output_structure_script")
-ensure_executable_path("setup_output_structure_script")
+ensure_executable("setup_output_structure_script")
 
 # Run script
 subprocess.run([str(script_path), input_dir, output_dir])
@@ -238,14 +220,14 @@ This will show:
 
 To add a new path to the system:
 
-1. **Add to `_initialize_paths()`** in `percell/core/paths.py`:
+1. **Add to `_initialize_paths()`** in `percell/application/paths_api.py`:
    ```python
    'new_file_path': self._package_root / 'path' / 'to' / 'file.ext',
    ```
 
 2. **Use in your code**:
    ```python
-   from percell.core.paths import get_path
+   from percell.application.paths_api import get_path
    file_path = get_path("new_file_path")
    ```
 
@@ -257,7 +239,7 @@ If you get a `KeyError` for a path name:
 
 1. Check the available paths:
    ```python
-   from percell.core.paths import list_all_paths
+   from percell.application.paths_api import list_all_paths
    print(list_all_paths().keys())
    ```
 
@@ -273,8 +255,6 @@ If the package root is not found correctly:
    - `bash/`
    - `config/`
    - `macros/`
-   - `core/`
-   - `modules/`
 
 2. Verify the package structure is correct
 

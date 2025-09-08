@@ -2,10 +2,10 @@
 
 This module provides reusable, minimal wrappers around the `alive-progress` library for consistent terminal progress bars and spinners across the project.
 
-Location: `percell/core/progress.py`
+Location: `percell/application/progress_api.py`
 
 #### Why this design
-- **Decoupled**: Project code imports small helpers from `percell.core.progress` rather than `alive-progress` directly.
+- **Decoupled**: Project code imports small helpers from `percell.application.progress_api` rather than `alive-progress` directly.
 - **Safe fallback**: If `alive-progress` is not installed, helpers degrade to no-ops so code still runs without crashing.
 - **Consistent UX**: Centralized configuration and unified API ensure the same look-and-feel in all modules.
 - **Composable**: Supports simple manual updates, iterable wrapping, and spinner use-cases.
@@ -19,7 +19,7 @@ pip install alive-progress>=3.1.5
 
 #### API Overview
 
-Exported via `percell/core/__init__.py` for convenient import:
+Available via `percell/application/progress_api.py`:
 - `is_progress_available() -> bool`
 - `configure_global(spinner=None, theme=None, enrich_print=None, title_length=None) -> None`
 - `progress_bar(total=None, title=None, unit="items", manual=False)` — context manager yielding `update(delta:int)`
@@ -30,7 +30,7 @@ Exported via `percell/core/__init__.py` for convenient import:
 
 1) Manual updates (known total):
 ```python
-from percell.core import progress_bar
+from percell.application.progress_api import progress_bar
 
 items = range(100)
 with progress_bar(total=len(items), title="Processing") as update:
@@ -41,7 +41,7 @@ with progress_bar(total=len(items), title="Processing") as update:
 
 2) Unknown total (spinner):
 ```python
-from percell.core import spinner
+from percell.application.progress_api import spinner
 
 with spinner("Indexing files"):
     index_files()
@@ -49,7 +49,7 @@ with spinner("Indexing files"):
 
 3) Iterate with progress:
 ```python
-from percell.core import iter_with_progress
+from percell.application.progress_api import iter_with_progress
 
 for item in iter_with_progress(paths, title="Loading"):
     load(item)
@@ -57,7 +57,7 @@ for item in iter_with_progress(paths, title="Loading"):
 
 4) Optional global configuration:
 ```python
-from percell.core import configure_global
+from percell.application.progress_api import configure_global
 
 configure_global(theme="classic", spinner="dots", enrich_print=True)
 ```
@@ -67,14 +67,14 @@ configure_global(theme="classic", spinner="dots", enrich_print=True)
 - Prefer `iter_with_progress` for straightforward loops over known collections.
 - Use `progress_bar` when you need explicit control over increments or mixed work per step.
 - Use `spinner` for tasks with unknown totals or where progress granularity is unclear.
-- Keep existing logging via `percell.core.logger` for textual status; progress bars complement logs, not replace them.
+- Keep existing logging via `percell/application/logger_api.py` for textual status; progress bars complement logs, not replace them.
 - Avoid printing directly while a bar is active; if needed, consider enabling `enrich_print` via `configure_global` to harmonize output.
 
 #### Patterns for pipeline stages
 
-Within any stage implementation (see `percell/modules/*`), wrap file processing:
+Within any stage implementation (see `percell/application/stage_classes.py`), wrap file processing:
 ```python
-from percell.core import iter_with_progress
+from percell.application.progress_api import iter_with_progress
 
 def run_stage(file_paths):
     for path in iter_with_progress(file_paths, title="Stage: processing files"):
@@ -83,7 +83,7 @@ def run_stage(file_paths):
 
 Or for dynamic workloads:
 ```python
-from percell.core import progress_bar
+from percell.application.progress_api import progress_bar
 
 def run_stage(tasks):
     with progress_bar(total=len(tasks), title="Stage: tasks") as update:

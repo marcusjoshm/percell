@@ -10,7 +10,7 @@ from __future__ import annotations
 import time
 from typing import List
 
-from percell.core import (
+from percell.application.progress_api import (
     is_progress_available,
     configure_global,
     progress_bar,
