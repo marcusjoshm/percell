@@ -15,7 +15,13 @@ class PackageResourceService:
 
     package_root: Path
 
-    def verify_root(self, expected_dirs: Sequence[str] = ("bash", "config", "macros", "modules")) -> bool:
+    def verify_root(self, expected_dirs: Sequence[str] = ("bash", "config", "macros")) -> bool:
+        """Verify the package root contains required resource directories.
+
+        The legacy layout included a 'modules' directory, which has been
+        migrated into the application layer. We no longer require 'modules'
+        for a valid package root. Extra directories are ignored.
+        """
         return all((self.package_root / d).exists() for d in expected_dirs)
 
     def resource(self, relative_path: str) -> Path:
