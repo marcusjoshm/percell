@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """
-Stage Classes for Microscopy Single-Cell Analysis Pipeline
+Application Layer Stage Classes for Microscopy Single-Cell Analysis Pipeline
 
-Contains the concrete implementations of each pipeline stage.
+Migrated from percell/modules/stage_classes.py to align with the new
+architecture. Contains the concrete implementations of each pipeline stage.
 """
+
+from __future__ import annotations
 
 import subprocess
 from percell.application.progress_api import run_subprocess_with_spinner
@@ -98,10 +101,6 @@ class DataSelectionStage(StageBase):
             self.logger.error(f"Error in Data Selection Stage: {e}")
             return False
     
-
-    
-
-    
     def _setup_output_structure(self) -> bool:
         """Set up the output directory structure using the setup_output_structure.sh script."""
         try:
@@ -181,9 +180,6 @@ class DataSelectionStage(StageBase):
                 if selected_timepoints and directory_timepoints:
                     # Copy specific timepoints - map filename timepoints to directory timepoints
                     for timepoint in selected_timepoints:
-                        # Find corresponding directory timepoint
-                        # For now, assume t00 maps to timepoint_1, t01 to timepoint_2, etc.
-                        # This can be made more sophisticated if needed
                         timepoint_number = timepoint.replace('t', '')
                         directory_timepoint = f"timepoint_{int(timepoint_number) + 1}"
                         
@@ -740,6 +736,7 @@ class SegmentationStage(StageBase):
             else:
                 # Fallback to interactive tools script
                 self.logger.info("Launching interactive segmentation tools...")
+                from percell.application.paths_api import get_path
                 seg_script_path = get_path("launch_segmentation_tools_script")
                 # Make sure the script is executable
                 from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
@@ -830,7 +827,7 @@ class ProcessSingleCellDataStage(StageBase):
             
             # Step 2: Resize ROIs (migrated from module to application helper)
             self.logger.info("Resizing ROIs...")
-            from percell.application.paths_api import get_path, get_path_str
+            from percell.application.paths_api import get_path_str
             from percell.application.imagej_tasks import resize_rois as _resize_rois
             ok_resize = _resize_rois(
                 input_dir=f"{output_dir}/preprocessed",
@@ -1391,4 +1388,6 @@ class CompleteWorkflowStage(StageBase):
         for flag in stage_flags:
             stage_args[flag] = (flag == stage_name)
         
-        return stage_args 
+        return stage_args
+
+

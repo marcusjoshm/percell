@@ -24,7 +24,7 @@ def main():
     """Main entry point for the microscopy per cell analysis pipeline."""
     try:
         # Register all available stages
-        from percell.modules.stage_registry import register_all_stages
+        from percell.application.stage_registry import register_all_stages
         register_all_stages()
         
         # Load configuration
