@@ -6,19 +6,10 @@ This workflow uses Cellpose for single-cell segmentation, groups cells according
 
 This workflow was optimized for quantifying stress granules and other cytoplasmic biomolecular condensates.
 
-## Table of Contents
+## Where to start
 
-1. [Overview](#overview)
-2. [Installation](#installation)
-3. [Configuration](#configuration)
-4. [Usage](#usage)
-5. [File Format and Naming Conventions](#file-format-and-naming-conventions)
-6. [Workflow Integration](#workflow-integration)
-7. [Directory Structure](#directory-structure)
-8. [Key Components](#key-components)
-9. [Recent Updates](#recent-updates)
-10. [Troubleshooting](#troubleshooting)
-11. [License](#license)
+- New to PerCell? Read `Getting_Started.md`.
+- Want the big picture? Read `Architecture.md`.
 
 ## Overview
 
@@ -31,7 +22,7 @@ This project provides an end-to-end pipeline for analyzing single-cell microscop
 - Mask creation and processing
 - Quantitative analysis of cell features
 
-## Installation
+## Installation (summary)
 
 ### Prerequisites
 
@@ -146,7 +137,7 @@ To verify your Cellpose installation is working correctly:
    python -m cellpose
    ```
 
-## Configuration
+## Configuration (summary)
 
 ### Automatic Configuration
 
@@ -162,7 +153,7 @@ This will:
 - Create a `config/config.json` file with proper settings
 - Validate all software paths
 
-## Usage
+## Usage (summary)
 
 ### Running the Complete Workflow
 
@@ -218,7 +209,7 @@ This workflow combines ImageJ automation for several steps and Cellpose for cell
 
 3. **Workflow Configuration**: The `config/config.json` file orchestrates these tools by specifying paths and parameters.
 
-## Directory Structure
+## Directory Structure (summary)
 
 The workflow generates the following structure in the specified output directory:
 
@@ -237,7 +228,7 @@ The workflow generates the following structure in the specified output directory
 ├── .workflow_state.json  # Record of workflow progress and selections
 ```
 
-## Global Installation
+## Global Installation (summary)
 
 The application is now available globally after installation. This means you can run `percell` from any directory without needing to:
 
@@ -266,7 +257,7 @@ The global installation creates:
 
 For more details, see [GLOBAL_INSTALLATION.md](GLOBAL_INSTALLATION.md).
 
-## Key Components
+## Key Components (summary)
 
 1. **`single_cell_workflow.py`**: Main workflow orchestrator
 2. **`config/config.json`**: Defines the sequence of steps, their types, paths, and arguments
