@@ -13,12 +13,12 @@ import os
 import json
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from .directory_setup import (
-    validate_directory_path, 
-    get_recent_directories, 
+from percell.application.directory_setup import (
+    validate_directory_path,
+    get_recent_directories,
     add_recent_directory,
     prompt_for_directory,
-    save_config
+    save_config,
 )
 
 

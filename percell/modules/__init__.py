@@ -5,13 +5,13 @@ This package contains the specific pipeline stages and modules for microscopy an
 """
 
 # Import modules that don't cause circular imports
-from .directory_setup import (
+from percell.application.directory_setup import (
     validate_directory_path,
     get_recent_directories,
     add_recent_directory,
     prompt_for_directory,
     save_config,
-    load_config
+    load_config,
 )
 
 from .set_directories import (

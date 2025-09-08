@@ -123,7 +123,7 @@ def main():
                     
                     # Automatically save the most recently used directories as defaults
                     try:
-                        from percell.modules.directory_setup import save_recent_directories_automatically
+                        from percell.application.directory_setup import save_recent_directories_automatically
                         # Reload the config to get the latest data
                         config.load()
                         # Convert config to dict for the directory setup functions
