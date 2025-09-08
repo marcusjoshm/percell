@@ -1,0 +1,25 @@
+[importlinter]
+root_package = percell
+
+# Domain must not depend on application or adapters
+[importlinter:contract:1]
+name = Domain independence
+type = forbidden
+source_modules = percell.domain
+forbidden_modules = percell.application, percell.adapters
+
+# Ports should not depend on application or adapters
+[importlinter:contract:2]
+name = Ports layering
+type = forbidden
+source_modules = percell.ports
+forbidden_modules = percell.application, percell.adapters
+
+# Application should not import main entrypoints
+[importlinter:contract:3]
+name = Application does not import main
+type = forbidden
+source_modules = percell.application
+forbidden_modules = percell.main
+
+
