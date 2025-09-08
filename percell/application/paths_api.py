@@ -54,7 +54,6 @@ class PathConfig:
             "setup_output_structure_script": root / "bash" / "setup_output_structure.sh",
             "prepare_input_structure_script": root / "bash" / "prepare_input_structure.sh",
             "launch_segmentation_tools_script": root / "bash" / "launch_segmentation_tools.sh",
-            "include_group_metadata_module": root / "modules" / "include_group_metadata.py",
             "otsu_threshold_grouped_cells_module": root / "modules" / "otsu_threshold_grouped_cells.py",
             "set_directories_module": root / "modules" / "set_directories.py",
             "stage_classes_module": root / "modules" / "stage_classes.py",

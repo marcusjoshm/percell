@@ -1095,16 +1095,8 @@ class AnalysisStage(StageBase):
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for analysis stage."""
-        # Check if required scripts exist
-        from percell.application.paths_api import path_exists
-        required_scripts = [
-            "include_group_metadata_module"
-        ]
-        for script_name in required_scripts:
-            if not path_exists(script_name):
-                self.logger.error(f"Required script not found: {script_name}")
-                return False
         # Check required macro for analysis exists
+        from percell.application.paths_api import path_exists
         if not path_exists("analyze_cell_masks_macro"):
             self.logger.error("Required macro not found: analyze_cell_masks_macro")
             return False
@@ -1191,25 +1183,19 @@ class AnalysisStage(StageBase):
                 return False
             self.logger.info("Cell masks analyzed successfully")
             
-            # Step 4: Include group metadata
+            # Step 4: Include group metadata (migrated to application helper)
             self.logger.info("Including group metadata...")
-            metadata_script = get_path("include_group_metadata_module")
-            metadata_args = [
-                "--grouped-cells-dir", f"{output_dir}/grouped_cells",
-                "--analysis-dir", f"{output_dir}/analysis",
-                "--output-dir", f"{output_dir}/analysis",
-                "--overwrite",
-                "--replace",
-                "--verbose",
-                "--channels"
-            ]
-            # Add analysis channels as separate arguments (matching original workflow)
-            for channel in data_selection.get('analysis_channels', []):
-                metadata_args.append(channel)
-            
-            result = run_subprocess_with_spinner([sys.executable, str(metadata_script)] + metadata_args, title="Including group metadata")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to include group metadata: {result.stderr}")
+            from percell.application.image_processing_tasks import include_group_metadata as _include
+            ok_meta = _include(
+                grouped_cells_dir=f"{output_dir}/grouped_cells",
+                analysis_dir=f"{output_dir}/analysis",
+                output_dir=f"{output_dir}/analysis",
+                overwrite=True,
+                replace=True,
+                channels=data_selection.get('analysis_channels'),
+            )
+            if not ok_meta:
+                self.logger.error("Failed to include group metadata")
                 return False
             self.logger.info("Group metadata included successfully")
             

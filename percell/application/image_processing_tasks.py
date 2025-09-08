@@ -12,6 +12,8 @@ from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdap
 from percell.domain import FileNamingService
 import os
 import shutil
+import re as _re
+import pandas as pd
 import numpy as np
 
 
@@ -416,5 +418,163 @@ def duplicate_rois_for_channels(
     if missing:
         return False
     return successful > 0 or bool(channels_already_exist)
+
+
+# ------------------------- Include Group Metadata -------------------------
+
+def _read_csv_robust(file_path: Path) -> pd.DataFrame | None:
+    for enc in ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'iso-8859-1']:
+        try:
+            return pd.read_csv(file_path, encoding=enc)
+        except UnicodeDecodeError:
+            continue
+        except Exception:
+            continue
+    return None
+
+
+def _find_group_metadata_files(grouped_cells_dir: Path) -> list[Path]:
+    return [p for p in grouped_cells_dir.rglob("*_cell_groups.csv") if not p.name.startswith('._')]
+
+
+def _find_analysis_file(analysis_dir: Path, output_dir: Path | None) -> Path | None:
+    if output_dir is not None:
+        dish_name = output_dir.name.replace('_analysis_', '').replace('/', '_')
+        dish_file = analysis_dir / f"{dish_name}_combined_analysis.csv"
+        if dish_file.exists() and not dish_file.name.startswith('._'):
+            return dish_file
+    for pattern in ["*combined*.csv", "*combined_analysis.csv", "combined_results.csv"]:
+        matches = [f for f in analysis_dir.glob(pattern) if not f.name.startswith('._')]
+        if matches:
+            matches.sort(key=lambda f: f.stat().st_size, reverse=True)
+            return matches[0]
+    csvs = [f for f in analysis_dir.glob("*.csv") if not f.name.startswith('._')]
+    if csvs:
+        csvs.sort(key=lambda f: f.stat().st_size, reverse=True)
+        return csvs[0]
+    return None
+
+
+def include_group_metadata(
+    grouped_cells_dir: str | Path,
+    analysis_dir: str | Path,
+    output_dir: str | Path | None = None,
+    output_file: str | Path | None = None,
+    overwrite: bool = True,
+    replace: bool = True,
+    channels: Optional[Iterable[str]] = None,
+) -> bool:
+    grouped_dir = Path(grouped_cells_dir)
+    analysis_path = Path(analysis_dir)
+    out_dir = Path(output_dir) if output_dir is not None else None
+
+    metadata_files = _find_group_metadata_files(grouped_dir)
+    if channels:
+        mf: list[Path] = []
+        for p in metadata_files:
+            if any(ch in str(p) for ch in channels):
+                mf.append(p)
+        metadata_files = mf
+    if not metadata_files:
+        return False
+
+    # Load and augment metadata
+    frames: list[pd.DataFrame] = []
+    for p in metadata_files:
+        df = _read_csv_robust(p)
+        if df is None:
+            continue
+        parent = p.parent
+        region = parent.name
+        condition = parent.parent.name if parent.parent.name != "grouped_cells" else ""
+        df = df.copy()
+        df['region'] = region
+        if condition:
+            df['condition'] = condition
+        frames.append(df)
+    if not frames:
+        return False
+    meta_df = pd.concat(frames, ignore_index=True)
+
+    # Find analysis file
+    analysis_file = _find_analysis_file(analysis_path, out_dir)
+    if analysis_file is None:
+        return False
+
+    # Load analysis
+    ana_df = _read_csv_robust(analysis_file)
+    if ana_df is None:
+        return False
+
+    # Derive cell_id_clean in both frames
+    if 'cell_id' in meta_df.columns:
+        meta_df['cell_id_clean'] = meta_df['cell_id'].apply(
+            lambda x: str(x).replace('CELL', '').replace('.tif', '').strip() if isinstance(x, str) else str(x)
+        )
+    id_column = next((c for c in ['Label', 'Slice', 'ROI'] if c in ana_df.columns), None)
+    if id_column is None:
+        return False
+    def _extract_cell_id(x: object) -> str:
+        s = str(x)
+        m = _re.search(r"CELL(\d+)[a-zA-Z]*$", s)
+        if m:
+            return m.group(1)
+        if '_' in s:
+            last = s.split('_')[-1]
+            if any(c.isdigit() for c in last):
+                return ''.join(c for c in last if c.isdigit())
+            return last
+        digits = ''.join(c for c in s if c.isdigit())
+        return digits or s
+    ana_df['cell_id_clean'] = ana_df[id_column].apply(_extract_cell_id)
+
+    # Choose group columns
+    group_cols = [c for c in ['group_id', 'group_name', 'group_mean_auc'] if c in meta_df.columns]
+    # Drop duplicate cell ids in meta
+    if 'cell_id_clean' in meta_df.columns and not meta_df.empty:
+        meta_df = meta_df.drop_duplicates(subset=['cell_id_clean'], keep='first')
+
+    existing_group_cols = [c for c in ['group_id', 'group_name', 'group_mean_auc'] if c in ana_df.columns]
+    if existing_group_cols and replace:
+        ana_df = ana_df.drop(columns=existing_group_cols)
+        existing_group_cols = []
+
+    if existing_group_cols and not replace:
+        new_cols = [c for c in group_cols if c not in existing_group_cols]
+        if new_cols:
+            temp = pd.merge(
+                ana_df[['cell_id_clean']],
+                meta_df[['cell_id_clean'] + new_cols],
+                on='cell_id_clean',
+                how='left',
+            )
+            for c in new_cols:
+                ana_df[c] = temp[c]
+        merged_df = ana_df.copy()
+    else:
+        merged_df = pd.merge(
+            ana_df,
+            meta_df[['cell_id_clean'] + group_cols],
+            on='cell_id_clean',
+            how='left',
+        )
+
+    # Basic duplicate cleanup
+    for col in ['cell_id_clean']:
+        if col in merged_df.columns:
+            merged_df = merged_df.drop(columns=[col])
+
+    # Save
+    if overwrite:
+        merged_df.to_csv(analysis_file, index=False)
+    if output_file is not None:
+        out_path = Path(output_file)
+    elif out_dir is not None:
+        out_path = Path(out_dir) / analysis_file.name
+    else:
+        out_path = analysis_file
+    if str(out_path) != str(analysis_file):
+        merged_df.to_csv(out_path, index=False)
+    return True
 
 
