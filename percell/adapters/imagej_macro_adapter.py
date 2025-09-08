@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from ..ports.driven.imagej_integration_port import ImageJIntegrationPort
+from percell.application.progress_api import run_subprocess_with_spinner
 
 
 class ImageJMacroAdapter(ImageJIntegrationPort):
@@ -26,7 +27,8 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
             cmd.append(" ".join(args))
 
         try:
-            completed = subprocess.run(cmd, capture_output=True, text=True)
+            title = f"ImageJ: {Path(macro_path).stem}"
+            completed = run_subprocess_with_spinner(cmd, title=title, capture_output=True, text=True)
             return completed.returncode
         except Exception:
             return 1

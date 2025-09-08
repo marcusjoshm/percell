@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from typing import Iterable, Iterator, Optional, Callable, Any, List, Dict
 import subprocess
 import time
+from threading import Thread, Event
 
 try:
     from alive_progress import alive_bar, alive_it, config_handler
@@ -90,8 +91,22 @@ def spinner(title: Optional[str] = None) -> Iterator[None]:
         return
     if title:
         print(f"{title}")
-    with alive_bar(None, force_tty=True):
-        yield
+    stop_event: Event = Event()
+    with alive_bar(None, force_tty=True) as bar:
+        def _tick() -> None:
+            while not stop_event.is_set():
+                try:
+                    bar()
+                except Exception:
+                    pass
+                time.sleep(0.1)
+        ticker = Thread(target=_tick, daemon=True)
+        ticker.start()
+        try:
+            yield
+        finally:
+            stop_event.set()
+            ticker.join(timeout=0.5)
 
 
 def run_subprocess_with_spinner(
