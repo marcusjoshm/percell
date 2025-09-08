@@ -14,7 +14,7 @@ from percell.application.directory_setup import (
     load_config,
 )
 
-from .set_directories import (
+from percell.application.directory_setup import (
     set_default_directories,
     check_default_directories,
     get_default_directories

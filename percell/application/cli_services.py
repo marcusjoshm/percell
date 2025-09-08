@@ -52,7 +52,7 @@ def show_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argpa
         try:
             # Resolve config path similar to validate_args
             from percell.application.directory_setup import load_config
-            from percell.modules.set_directories import set_default_directories
+            from percell.application.directory_setup import set_default_directories
             from percell.application.paths_api import get_path
 
             try:

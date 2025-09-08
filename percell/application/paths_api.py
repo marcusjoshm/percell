@@ -54,7 +54,6 @@ class PathConfig:
             "setup_output_structure_script": root / "bash" / "setup_output_structure.sh",
             "prepare_input_structure_script": root / "bash" / "prepare_input_structure.sh",
             "launch_segmentation_tools_script": root / "bash" / "launch_segmentation_tools.sh",
-            "set_directories_module": root / "modules" / "set_directories.py",
             "stage_classes_module": root / "modules" / "stage_classes.py",
             "stage_registry_module": root / "modules" / "stage_registry.py",
             "track_rois_module": root / "modules" / "track_rois.py",
