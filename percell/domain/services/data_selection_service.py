@@ -79,6 +79,10 @@ class DataSelectionService:
         if not selection.root.exists() or not selection.root.is_dir():
             return False
         files = self.scan_available_data(selection.root)
+        return self.validate_user_selections_from_files(selection, files)
+
+    def validate_user_selections_from_files(self, selection: DatasetSelection, files: list[Path]) -> bool:
+        """Validate selections using a provided file list (no filesystem scanning)."""
         if not files:
             return False
         conditions, timepoints, regions = self.parse_conditions_timepoints_regions(files)
@@ -112,6 +116,10 @@ class DataSelectionService:
             Concrete file paths to process.
         """
         files = self.scan_available_data(selection.root)
+        return self.generate_file_lists_from_files(selection, files)
+
+    def generate_file_lists_from_files(self, selection: DatasetSelection, files: list[Path]) -> list[Path]:
+        """Generate file list from provided files (no filesystem scanning)."""
         result: list[Path] = []
         for f in files:
             try:
