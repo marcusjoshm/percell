@@ -225,8 +225,8 @@ forbidden_modules = percell.main
 
 ### 12) Action checklist
 
-- [ ] Refactor helpers to consume ports instead of concrete adapters
-- [ ] Inject ports from container into pipeline/stages/helpers
+- [x] Refactor helpers to consume ports instead of concrete adapters
+- [x] Inject ports from container into pipeline/stages/helpers
 - [ ] Move IO from domain services to adapters where feasible
 - [ ] Add import-linter and CI check
 - [ ] Add architecture fitness tests
