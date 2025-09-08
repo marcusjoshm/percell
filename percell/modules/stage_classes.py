@@ -778,8 +778,7 @@ class ProcessSingleCellDataStage(StageBase):
         # Check if required scripts exist
         from percell.application.paths_api import path_exists
         required_scripts = [
-            "track_rois_module",
-            "duplicate_rois_for_channels_module"
+            "track_rois_module"
         ]
         for script_name in required_scripts:
             if not path_exists(script_name):
@@ -856,17 +855,16 @@ class ProcessSingleCellDataStage(StageBase):
                 return False
             self.logger.info("ROIs resized successfully")
             
-            # Step 3: Duplicate ROIs for analysis channels
+            # Step 3: Duplicate ROIs for analysis channels (migrated to application helper)
             self.logger.info("Duplicating ROIs for analysis channels...")
-            duplicate_script = get_path("duplicate_rois_for_channels_module")
-            duplicate_args = [
-                "--roi-dir", f"{output_dir}/ROIs",
-                "--channels"
-            ] + data_selection.get('analysis_channels', []) + ["--verbose"]
-            
-            result = run_subprocess_with_spinner([sys.executable, str(duplicate_script)] + duplicate_args, title="Duplicating ROIs")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to duplicate ROIs: {result.stderr}")
+            from percell.application.image_processing_tasks import duplicate_rois_for_channels as _dup_rois
+            ok_dup = _dup_rois(
+                roi_dir=f"{output_dir}/ROIs",
+                channels=data_selection.get('analysis_channels'),
+                verbose=True,
+            )
+            if not ok_dup:
+                self.logger.error("Failed to duplicate ROIs for requested channels")
                 return False
             self.logger.info("ROIs duplicated successfully")
             

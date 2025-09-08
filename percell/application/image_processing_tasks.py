@@ -362,3 +362,59 @@ def group_cells(
     return any_written
 
 
+# ------------------------- Duplicate ROIs for Channels -------------------------
+
+def duplicate_rois_for_channels(
+    roi_dir: str | Path,
+    channels: Optional[Iterable[str]],
+    verbose: bool = False,
+) -> bool:
+    """Duplicate ROI .zip files to match analysis channels by swapping channel token.
+
+    ROI names are expected to contain a channel token like _chNN_. For each ROI file, copies
+    will be created for each requested analysis channel (skipping the original if it already
+    matches). Returns True if at least one copy was made or all requested channels already exist.
+    """
+    if not channels:
+        return True
+    roi_root = Path(roi_dir)
+    if not roi_root.exists():
+        return False
+    roi_files = list(roi_root.rglob("*.zip"))
+    if not roi_files:
+        return False
+    from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+    fs = LocalFileSystemAdapter()
+
+    import re as _re
+
+    successful = 0
+    channels_already_exist: set[str] = set()
+    channels_processed: set[str] = set()
+
+    for rf in roi_files:
+        m = _re.search(r"_ch\d+_", rf.name)
+        if not m:
+            continue
+        src_channel = m.group(0).strip("_")
+        if src_channel in channels:
+            channels_already_exist.add(src_channel)
+        for target in channels:
+            if target == src_channel:
+                continue
+            new_name = _re.sub(r"_ch\d+_", f"_{target}_", rf.name)
+            dst = rf.parent / new_name
+            try:
+                fs.copy(rf, dst, overwrite=True)
+                successful += 1
+                channels_processed.add(target)
+            except Exception:
+                continue
+
+    all_available = channels_already_exist.union(channels_processed)
+    missing = set(channels) - all_available
+    if missing:
+        return False
+    return successful > 0 or bool(channels_already_exist)
+
+

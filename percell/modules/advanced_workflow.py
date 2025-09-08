@@ -187,14 +187,16 @@ class AdvancedWorkflowStage(StageBase):
 
         if step_key == "duplicate_rois":
             data_selection = self.config.get('data_selection') or {}
-            script = get_path("duplicate_rois_for_channels_module")
             output_dir = kwargs.get('output_dir')
-            channels = data_selection.get('analysis_channels', [])
-            args = [
-                "--roi-dir", f"{output_dir}/ROIs",
-                "--channels",
-            ] + channels + ["--verbose"]
-            return self._run_py_module(script, args)
+            from percell.application.image_processing_tasks import duplicate_rois_for_channels as _dup
+            ok = _dup(
+                roi_dir=f"{output_dir}/ROIs",
+                channels=data_selection.get('analysis_channels', []),
+                verbose=True,
+            )
+            if not ok:
+                self.logger.error("duplicate_rois failed")
+            return ok
 
         if step_key == "extract_cells":
             data_selection = self.config.get('data_selection') or {}
