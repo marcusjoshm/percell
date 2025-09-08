@@ -920,13 +920,11 @@ class ThresholdGroupedCellsStage(StageBase):
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for threshold grouped cells stage."""
-        # Check if required scripts exist
+        # Check required macro path exists
         from percell.application.paths_api import path_exists
-        required_scripts = ["otsu_threshold_grouped_cells_module"]
-        for script_name in required_scripts:
-            if not path_exists(script_name):
-                self.logger.error(f"Required script not found: {script_name}")
-                return False
+        if not path_exists("threshold_grouped_cells_macro"):
+            self.logger.error("Required macro not found: threshold_grouped_cells_macro")
+            return False
         
         # Check if data selection has been completed
         data_selection = self.config.get('data_selection')
@@ -962,23 +960,18 @@ class ThresholdGroupedCellsStage(StageBase):
             
             # Threshold grouped cells
             self.logger.info("Thresholding grouped cells...")
-            from percell.application.paths_api import get_path, get_path_str
-            threshold_script = get_path("otsu_threshold_grouped_cells_module")
-            threshold_args = [
-                "--input-dir", f"{output_dir}/grouped_cells",
-                "--output-dir", f"{output_dir}/grouped_masks",
-                "--imagej", self.config.get('imagej_path'),
-                "--macro", get_path_str("threshold_grouped_cells_macro"),
-                "--channels"
-            ]
-            # Add analysis channels as separate arguments (matching original workflow)
-            for channel in data_selection.get('analysis_channels', []):
-                threshold_args.append(channel)
-            
-            # Run without spinner for thresholding step
-            result = subprocess.run([sys.executable, str(threshold_script)] + threshold_args, capture_output=True, text=True)
-            if result.returncode != 0:
-                self.logger.error(f"Failed to threshold grouped cells: {result.stderr}")
+            from percell.application.imagej_tasks import threshold_grouped_cells as _threshold
+            from percell.application.paths_api import get_path_str
+            ok_thresh = _threshold(
+                input_dir=f"{output_dir}/grouped_cells",
+                output_dir=f"{output_dir}/grouped_masks",
+                imagej_path=self.config.get('imagej_path'),
+                macro_path=get_path_str("threshold_grouped_cells_macro"),
+                channels=data_selection.get('analysis_channels'),
+                auto_close=True,
+            )
+            if not ok_thresh:
+                self.logger.error("Failed to threshold grouped cells")
                 return False
             self.logger.info("Grouped cells thresholded successfully")
             

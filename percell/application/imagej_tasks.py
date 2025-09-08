@@ -636,3 +636,85 @@ def extract_cells(
     return any_success
 
 
+# ------------------------- Threshold Grouped Cells -------------------------
+
+def create_threshold_macro_with_parameters(
+    macro_template_file: str | Path,
+    input_dir: str | Path,
+    output_dir: str | Path,
+    channels: Optional[List[str]] = None,
+    auto_close: bool = True,
+) -> Optional[Tuple[Path, Path]]:
+    try:
+        template = Path(macro_template_file).read_text()
+        lines = [ln for ln in template.split("\n") if not ln.strip().startswith("#@")]
+        in_clean = _normalize_path_for_imagej(input_dir).rstrip('/')
+        out_clean = _normalize_path_for_imagej(output_dir).rstrip('/')
+        flag_file = Path(output_dir) / "NEED_MORE_BINS.flag"
+        flag_clean = _normalize_path_for_imagej(flag_file)
+
+        # Insert channel filter logic
+        channel_logic = ""
+        if channels:
+            conds = [f'indexOf(regionName, "{ch}") >= 0' for ch in channels]
+            channel_logic = (
+                "        // Check channel filter\n"
+                "        channelMatch = false;\n"
+                f"        if ({' || '.join(conds)}) {{ channelMatch = true; }}\n"
+                "        if (!channelMatch) { continue; }\n"
+            )
+
+        params = (
+            "// Parameters embedded from application helper\n"
+            f"input_dir = \"{in_clean}\";\n"
+            f"output_dir = \"{out_clean}\";\n"
+            f"flag_file = \"{flag_clean}\";\n"
+            f"auto_close = {str(bool(auto_close)).lower()};\n"
+        )
+        content = params + "\n" + "\n".join(lines)
+        content = content.replace('        // CHANNEL_FILTER_PLACEHOLDER', channel_logic)
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".ijm", delete=False)
+        try:
+            tmp_path = Path(tmp.name)
+            tmp.write(content)
+        finally:
+            tmp.close()
+        return tmp_path, flag_file
+    except Exception:
+        return None
+
+
+def threshold_grouped_cells(
+    input_dir: str | Path,
+    output_dir: str | Path,
+    imagej_path: str | Path,
+    macro_path: str | Path,
+    channels: Optional[List[str]] = None,
+    auto_close: bool = True,
+) -> bool:
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    macro_flag = create_threshold_macro_with_parameters(
+        macro_template_file=macro_path,
+        input_dir=input_dir,
+        output_dir=output_dir,
+        channels=channels,
+        auto_close=auto_close,
+    )
+    if not macro_flag:
+        return False
+    macro_file, flag_file = macro_flag
+    try:
+        ok = run_imagej_macro(imagej_path, macro_file, auto_close)
+        # remove flag if present; we don't currently signal upstream
+        try:
+            Path(flag_file).unlink(missing_ok=True)
+        except Exception:
+            pass
+        return ok
+    finally:
+        try:
+            Path(macro_file).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
