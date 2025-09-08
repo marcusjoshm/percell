@@ -56,7 +56,6 @@ class PathConfig:
             "launch_segmentation_tools_script": root / "bash" / "launch_segmentation_tools.sh",
             "stage_classes_module": root / "modules" / "stage_classes.py",
             "stage_registry_module": root / "modules" / "stage_registry.py",
-            "track_rois_module": root / "modules" / "track_rois.py",
             "macros_dir": root / "macros",
             "analyze_cell_masks_macro": root / "macros" / "analyze_cell_masks.ijm",
             "create_cell_masks_macro": root / "macros" / "create_cell_masks.ijm",

@@ -164,3 +164,74 @@ def save_recent_directories_automatically(
         print(f"Warning: Could not save directory defaults: {e}")
 
 
+
+# ------------------------- Compatibility helpers -------------------------
+
+def set_default_directories(config: Dict, config_path: str) -> Tuple[str, str]:
+    """Interactive workflow to set and persist default input/output directories.
+
+    Mirrors the previous modules.set_directories API for compatibility.
+    """
+    print("\n=== Set Default Directories ===")
+    print("This will set the default input and output directories for future runs.")
+    print("These directories will be used automatically unless overridden with --input and --output arguments.")
+
+    # Recent and current defaults
+    recent_inputs = get_recent_directories(config, 'input')
+    recent_outputs = get_recent_directories(config, 'output')
+    current_input = config.get('directories', {}).get('input', '')
+    current_output = config.get('directories', {}).get('output', '')
+
+    print(f"\nCurrent defaults:")
+    print(f"  Input: {current_input if current_input else 'Not set'}")
+    print(f"  Output: {current_output if current_output else 'Not set'}")
+
+    # Prompt user
+    print(f"\nSetting input directory:")
+    input_path = prompt_for_directory('input', recent_inputs, current_input)
+
+    print(f"\nSetting output directory:")
+    output_path = prompt_for_directory('output', recent_outputs, current_output)
+
+    # Update config
+    if 'directories' not in config:
+        config['directories'] = {}
+    config['directories']['input'] = input_path
+    config['directories']['output'] = output_path
+
+    # Add to recent and persist
+    add_recent_directory(config, 'input', input_path)
+    add_recent_directory(config, 'output', output_path)
+    save_config(config, config_path)
+
+    print(f"\n✅ Default directories set successfully!")
+    print(f"  Input: {input_path}")
+    print(f"  Output: {output_path}")
+    print(f"  Config saved to: {config_path}")
+
+    return input_path, output_path
+
+
+def check_default_directories(config: Dict) -> Tuple[bool, str, str]:
+    """Validate presence and accessibility of default directories in config."""
+    if 'directories' not in config:
+        return False, "", ""
+
+    input_path = config['directories'].get('input', '')
+    output_path = config['directories'].get('output', '')
+    if not input_path or not output_path:
+        return False, input_path, output_path
+
+    input_valid = validate_directory_path(input_path, create_if_missing=False)
+    output_valid = validate_directory_path(output_path, create_if_missing=True)
+    return input_valid and output_valid, input_path, output_path
+
+
+def get_default_directories(config: Dict) -> Tuple[str, str]:
+    """Return (input, output) defaults from config if present."""
+    if 'directories' not in config:
+        return "", ""
+    return (
+        config['directories'].get('input', ''),
+        config['directories'].get('output', ''),
+    )

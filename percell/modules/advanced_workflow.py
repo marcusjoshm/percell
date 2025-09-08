@@ -161,13 +161,9 @@ class AdvancedWorkflowStage(StageBase):
             if not timepoints or len(timepoints) <= 1:
                 self.logger.info("Skipping ROI tracking (single timepoint or none selected)")
                 return True
-            script = get_path("track_rois_module")
+            from percell.application.image_processing_tasks import track_rois as _track
             output_dir = kwargs.get('output_dir')
-            args = [
-                "--input", f"{output_dir}/preprocessed",
-                "--timepoints",
-            ] + timepoints + ["--recursive"]
-            return self._run_py_module(script, args)
+            return _track(input_dir=f"{output_dir}/preprocessed", timepoints=timepoints, recursive=True)
 
         if step_key == "resize_rois":
             data_selection = self.config.get('data_selection') or {}

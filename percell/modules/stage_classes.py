@@ -775,15 +775,7 @@ class ProcessSingleCellDataStage(StageBase):
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for process single-cell data stage."""
-        # Check if required scripts exist
-        from percell.application.paths_api import path_exists
-        required_scripts = [
-            "track_rois_module"
-        ]
-        for script_name in required_scripts:
-            if not path_exists(script_name):
-                self.logger.error(f"Required script not found: {script_name}")
-                return False
+        # No external script required anymore for tracking
         
         # Check if data selection has been completed
         data_selection = self.config.get('data_selection')
@@ -823,16 +815,14 @@ class ProcessSingleCellDataStage(StageBase):
             timepoints = data_selection.get('selected_timepoints', [])
             if timepoints and len(timepoints) > 1:
                 self.logger.info("Tracking ROIs across timepoints...")
-                from percell.application.paths_api import get_path
-                track_script = get_path("track_rois_module")
-                track_args = [
-                    "--input", f"{output_dir}/preprocessed",
-                    "--timepoints"
-                ] + timepoints + ["--recursive"]
-                
-                result = run_subprocess_with_spinner([sys.executable, str(track_script)] + track_args, title="Tracking ROIs")
-                if result.returncode != 0:
-                    self.logger.error(f"Failed to track ROIs: {result.stderr}")
+                from percell.application.image_processing_tasks import track_rois as _track_rois
+                ok_track = _track_rois(
+                    input_dir=f"{output_dir}/preprocessed",
+                    timepoints=timepoints,
+                    recursive=True,
+                )
+                if not ok_track:
+                    self.logger.error("Failed to track ROIs")
                     return False
                 self.logger.info("ROI tracking completed successfully")
             else:

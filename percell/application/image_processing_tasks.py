@@ -6,7 +6,7 @@ Currently includes image binning previously implemented in modules/bin_images.py
 """
 
 from pathlib import Path
-from typing import Iterable, Optional, Set
+from typing import Iterable, Optional, Set, List, Tuple
 
 from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
 from percell.domain import FileNamingService
@@ -612,4 +612,169 @@ def include_group_metadata(
         merged_df.to_csv(out_path, index=False)
     return True
 
+
+# ------------------------- Track ROIs Across Timepoints -------------------------
+
+def _load_roi_dict(zip_file_path: str | Path):
+    try:
+        from read_roi import read_roi_zip  # type: ignore
+    except Exception:
+        return None
+    try:
+        return read_roi_zip(str(zip_file_path))
+    except Exception:
+        return None
+
+
+def _load_roi_bytes(zip_file_path: str | Path):
+    import zipfile
+    roi_bytes: dict[str, bytes] = {}
+    try:
+        with zipfile.ZipFile(str(zip_file_path), 'r') as z:
+            for name in z.namelist():
+                key = name[:-4] if name.lower().endswith('.roi') else name
+                roi_bytes[key] = z.read(name)
+        return roi_bytes
+    except Exception:
+        return None
+
+
+def _polygon_centroid(x: List[float], y: List[float]) -> Tuple[float, float]:
+    area = 0.0
+    cx = 0.0
+    cy = 0.0
+    n = len(x) - 1
+    for i in range(n):
+        cross = x[i] * y[i + 1] - x[i + 1] * y[i]
+        area += cross
+        cx += (x[i] + x[i + 1]) * cross
+        cy += (y[i] + y[i + 1]) * cross
+    area *= 0.5
+    if abs(area) < 1e-8:
+        return (float(sum(x[:-1]) / n), float(sum(y[:-1]) / n))
+    cx /= (6 * area)
+    cy /= (6 * area)
+    return (float(cx), float(cy))
+
+
+def _roi_center(roi: dict) -> Tuple[float, float]:
+    if 'x' in roi and 'y' in roi:
+        x = list(roi['x'])
+        y = list(roi['y'])
+        if x and y and (x[0] != x[-1] or y[0] != y[-1]):
+            x.append(x[0])
+            y.append(y[0])
+        return _polygon_centroid(x, y)
+    if all(k in roi for k in ['left', 'top', 'width', 'height']):
+        return (float(roi['left'] + roi['width'] / 2), float(roi['top'] + roi['height'] / 2))
+    if all(k in roi for k in ['left', 'top', 'right', 'bottom']):
+        w = roi['right'] - roi['left']
+        h = roi['bottom'] - roi['top']
+        return (float(roi['left'] + w / 2), float(roi['top'] + h / 2))
+    raise ValueError("Unexpected ROI format")
+
+
+def _match_rois(roi_list1: List[dict], roi_list2: List[dict]) -> List[int]:
+    try:
+        from scipy.optimize import linear_sum_assignment  # type: ignore
+    except Exception:
+        n = min(len(roi_list1), len(roi_list2))
+        indices = list(range(n))
+        if len(roi_list2) > len(roi_list1):
+            indices.extend(list(range(n, len(roi_list2))))
+        return indices
+
+    n1 = len(roi_list1)
+    n2 = len(roi_list2)
+    n = min(n1, n2)
+    roi_subset1 = roi_list1[:n]
+    roi_subset2 = roi_list2[:n]
+    centers1 = [_roi_center(r) for r in roi_subset1]
+    centers2 = [_roi_center(r) for r in roi_subset2]
+    cost = np.zeros((n, n), dtype=np.float64)
+    for i in range(n):
+        for j in range(n):
+            dx = centers1[i][0] - centers2[j][0]
+            dy = centers1[i][1] - centers2[j][1]
+            cost[i, j] = np.hypot(dx, dy)
+    row_ind, col_ind = linear_sum_assignment(cost)
+    mapping = list(col_ind)
+    if n2 > n1:
+        mapping.extend(list(range(n, n2)))
+    return mapping
+
+
+def _save_zip_from_bytes(roi_bytes_list: List[bytes], output_zip_path: str | Path) -> bool:
+    import zipfile
+    try:
+        with zipfile.ZipFile(str(output_zip_path), 'w') as z:
+            for i, data in enumerate(roi_bytes_list):
+                name = f"ROI_{i+1:03d}.roi"
+                z.writestr(name, data)
+        return True
+    except Exception:
+        return False
+
+
+def process_roi_pair(zip_file1: str | Path, zip_file2: str | Path) -> bool:
+    roi_dict1 = _load_roi_dict(zip_file1)
+    roi_dict2 = _load_roi_dict(zip_file2)
+    if roi_dict1 is None or roi_dict2 is None:
+        return False
+    roi_bytes2 = _load_roi_bytes(zip_file2)
+    if roi_bytes2 is None:
+        return False
+    items1 = list(roi_dict1.items())
+    items2 = list(roi_dict2.items())
+    rois1 = [it[1] for it in items1]
+    rois2 = [it[1] for it in items2]
+    names2 = [it[0] for it in items2]
+    if not rois1 or not rois2:
+        return False
+    indices = _match_rois(rois1, rois2)
+    reordered: List[bytes] = []
+    for idx in indices:
+        if 0 <= idx < len(names2):
+            key = names2[idx]
+            data = roi_bytes2.get(key)
+            if data is not None:
+                reordered.append(data)
+    zip_file2_path = Path(zip_file2)
+    backup = zip_file2_path.with_suffix(zip_file2_path.suffix + ".bak")
+    try:
+        if not backup.exists():
+            zip_file2_path.replace(backup)
+    except Exception:
+        return False
+    return _save_zip_from_bytes(reordered, zip_file2_path)
+
+
+def find_roi_pairs(directory: str | Path, t0: str, t1: str) -> List[Tuple[Path, Path]]:
+    root = Path(directory)
+    t0_files = list(root.rglob(f"*{t0}*_rois.zip"))
+    t1_files = {str(p): p for p in root.rglob(f"*{t1}*_rois.zip")}
+    pairs: List[Tuple[Path, Path]] = []
+    for f0 in t0_files:
+        f0s = str(f0)
+        if t0 not in f0s:
+            continue
+        expected = f0s.replace(t0, t1)
+        match = t1_files.get(expected)
+        if match is not None:
+            pairs.append((f0, match))
+    return pairs
+
+
+def track_rois(input_dir: str | Path, timepoints: List[str], recursive: bool = True) -> bool:
+    if not timepoints or len(timepoints) < 2:
+        return True
+    t0, t1 = timepoints[0], timepoints[1]
+    pairs = find_roi_pairs(input_dir, t0, t1)
+    if not pairs:
+        return True
+    ok_any = False
+    for a, b in pairs:
+        if process_roi_pair(a, b):
+            ok_any = True
+    return ok_any or True
 
