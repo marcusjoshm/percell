@@ -774,10 +774,18 @@ class SegmentationStage(StageBase):
                 self.logger.info("Launching interactive segmentation tools...")
                 from percell.application.paths_api import get_path
                 seg_script_path = get_path("launch_segmentation_tools_script")
-                # Make sure the script is executable
-                from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
-                from percell.application.paths_api import get_path
-                LocalFileSystemAdapter().ensure_executable(get_path("launch_segmentation_tools_script"))
+                # Make sure the script is executable (prefer injected filesystem port)
+                fs_port = getattr(self, '_fs', None)
+                try:
+                    if fs_port is not None:
+                        from percell.application.paths_api import get_path
+                        fs_port.ensure_executable(get_path("launch_segmentation_tools_script"))
+                    else:
+                        from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+                        from percell.application.paths_api import get_path
+                        LocalFileSystemAdapter().ensure_executable(get_path("launch_segmentation_tools_script"))
+                except Exception:
+                    pass
                 self.logger.info("Starting interactive segmentation session...")
                 self.logger.info("The script will open Cellpose and ImageJ for manual segmentation.")
                 self.logger.info("Please complete your segmentation work and press Enter when done.")
