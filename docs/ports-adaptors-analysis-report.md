@@ -227,7 +227,7 @@ forbidden_modules = percell.main
 
 - [x] Refactor helpers to consume ports instead of concrete adapters
 - [x] Inject ports from container into pipeline/stages/helpers
-- [ ] Move IO from domain services to adapters where feasible
+- [x] Move IO from domain services to adapters where feasible
 - [ ] Add import-linter and CI check
 - [ ] Add architecture fitness tests
 - [ ] Optional: implement `WorkflowExecutionPort` adapter
