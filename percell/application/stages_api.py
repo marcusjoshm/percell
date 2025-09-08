@@ -133,10 +133,18 @@ class StageRegistry:
 
 
 class StageExecutor:
-    def __init__(self, config: Config, logger: PipelineLogger, registry: StageRegistry):
+    def __init__(
+        self,
+        config: Config,
+        logger: PipelineLogger,
+        registry: StageRegistry,
+        *,
+        ports: Optional[Dict[str, Any]] = None,
+    ):
         self.config = config
         self.logger = logger
         self.registry = registry
+        self.ports: Dict[str, Any] = ports or {}
         self.execution_history: List[Dict[str, Any]] = []
 
     def execute_stage(self, stage_name: str, **kwargs) -> bool:
@@ -152,7 +160,14 @@ class StageExecutor:
         except Exception as e:
             self.logger.warning(f"Could not reload config: {e}")
         stage = stage_class(self.config, self.logger, stage_name)
-        success = stage.execute(**kwargs)
+        # Thread injected ports into stage kwargs where helpers expect them
+        # Conventional keys: imagej, fs, imgproc, cellpose
+        port_kwargs = {}
+        for key in ("imagej", "fs", "imgproc", "cellpose"):
+            if key in self.ports and key not in kwargs:
+                port_kwargs[key] = self.ports[key]
+        merged = {**kwargs, **port_kwargs}
+        success = stage.execute(**merged)
         self.execution_history.append(
             {
                 "stage_name": stage_name,

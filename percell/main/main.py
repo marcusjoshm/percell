@@ -113,7 +113,18 @@ def main():
                 logger = PipelineLogger(args.output, log_level=log_level)
                 
                 # Create and run pipeline
-                pipeline = Pipeline(config, logger, args)
+                ports = {}
+                if container is not None:
+                    try:
+                        ports = {
+                            "imagej": getattr(container, "imagej", None),
+                            "fs": getattr(container, "fs", None),
+                            "imgproc": getattr(container, "imgproc", None),
+                            "cellpose": getattr(container, "cellpose", None),
+                        }
+                    except Exception:
+                        ports = {}
+                pipeline = Pipeline(config, logger, args, ports=ports)
                 success = pipeline.run()
                 
                 if success:

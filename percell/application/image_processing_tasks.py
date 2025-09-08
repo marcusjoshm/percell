@@ -8,7 +8,7 @@ Currently includes image binning previously implemented in modules/bin_images.py
 from pathlib import Path
 from typing import Iterable, Optional, Set, List, Tuple
 
-from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
+from percell.ports.driven.image_processing_port import ImageProcessingPort
 from percell.domain import FileNamingService
 import os
 import shutil
@@ -34,6 +34,8 @@ def bin_images(
     regions: Optional[Iterable[str]] = None,
     timepoints: Optional[Iterable[str]] = None,
     channels: Optional[Iterable[str]] = None,
+    *,
+    imgproc: Optional[ImageProcessingPort] = None,
 ) -> int:
     """Bin images from input_dir to output_dir with optional filtering.
 
@@ -49,7 +51,10 @@ def bin_images(
     selected_channels = _to_optional_set(channels)
 
     naming_service = FileNamingService()
-    adapter = PILImageProcessingAdapter()
+    if imgproc is None:
+        # Lazy import to avoid hard coupling when injected
+        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter  # type: ignore
+        imgproc = PILImageProcessingAdapter()
 
     processed_count = 0
     for file_path in input_path.glob("**/*.tif"):
@@ -78,9 +83,9 @@ def bin_images(
             out_file = output_path / rel.parent / f"bin4x4_{file_path.name}"
             out_file.parent.mkdir(parents=True, exist_ok=True)
 
-            image = adapter.read_image(file_path)
-            binned = adapter.bin_image(image, bin_factor)
-            adapter.write_image(out_file, binned.astype(image.dtype))
+            image = imgproc.read_image(file_path)
+            binned = imgproc.bin_image(image, bin_factor)
+            imgproc.write_image(out_file, binned.astype(image.dtype))
             processed_count += 1
         except Exception:
             # Skip problematic files; upstream logs can indicate progress totals
@@ -214,6 +219,8 @@ def combine_masks(
     input_dir: str | Path,
     output_dir: str | Path,
     channels: Optional[Iterable[str]] = None,
+    *,
+    imgproc: Optional[ImageProcessingPort] = None,
 ) -> bool:
     """Combine grouped binary masks into single masks under combined_masks.
 
@@ -223,7 +230,9 @@ def combine_masks(
     out_root = Path(output_dir)
     out_root.mkdir(parents=True, exist_ok=True)
 
-    adapter = PILImageProcessingAdapter()
+    if imgproc is None:
+        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter  # type: ignore
+        imgproc = PILImageProcessingAdapter()
     any_written = False
 
     # Expect layout: input_dir/<condition>/<region_timepoint>
@@ -243,19 +252,19 @@ def combine_masks(
                     continue
                 # Read first to get shape/dtype
                 try:
-                    first = adapter.read_image(files[0])
+                    first = imgproc.read_image(files[0])
                     combined = np.zeros_like(first, dtype=np.uint8)
                 except Exception:
                     continue
                 for f in files:
                     try:
-                        img = adapter.read_image(f)
+                        img = imgproc.read_image(f)
                         combined = np.maximum(combined, img.astype(np.uint8))
                     except Exception:
                         continue
                 out_path = out_condition / f"{prefix}.tif"
                 try:
-                    adapter.write_image(out_path, combined)
+                    imgproc.write_image(out_path, combined)
                     any_written = True
                 except Exception:
                     continue
@@ -284,6 +293,8 @@ def group_cells(
     bins: int = 5,
     force_clusters: bool = True,
     channels: Optional[Iterable[str]] = None,
+    *,
+    imgproc: Optional[ImageProcessingPort] = None,
 ) -> bool:
     """Group cell images by simple intensity and write summed images per group.
 
@@ -294,7 +305,9 @@ def group_cells(
     out_root = Path(output_dir)
     out_root.mkdir(parents=True, exist_ok=True)
 
-    adapter = PILImageProcessingAdapter()
+    if imgproc is None:
+        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter  # type: ignore
+        imgproc = PILImageProcessingAdapter()
     any_written = False
     # Collect per-region group metadata rows as we assign cells to bins
     region_to_rows: dict[Path, list[dict[str, object]]] = {}
@@ -316,7 +329,7 @@ def group_cells(
         images: list[tuple[Path, np.ndarray, float]] = []
         for f in cell_files:
             try:
-                img = adapter.read_image(f)
+                img = imgproc.read_image(f)
                 metric = float(np.mean(img))
                 images.append((f, img, metric))
             except Exception:
@@ -369,7 +382,7 @@ def group_cells(
                     norm = acc * 0
                 out_img = (norm * 65535).astype(np.uint16)
                 out_path = out_condition / f"{region_dir.name}_bin_{i+1}.tif"
-                adapter.write_image(out_path, out_img)
+                imgproc.write_image(out_path, out_img)
                 any_written = True
             except Exception:
                 continue

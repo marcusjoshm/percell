@@ -12,8 +12,9 @@ import re
 import tempfile
 import subprocess
 
-from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
-from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter
+from typing import Optional, List, Tuple
+from percell.ports.driven.file_management_port import FileManagementPort
+from percell.ports.driven.imagej_integration_port import ImageJIntegrationPort
 
 
 def _normalize_path_for_imagej(p: str | Path) -> str:
@@ -62,7 +63,13 @@ def create_macro_with_parameters(
         return None
 
 
-def validate_resize_inputs(input_dir: str | Path, output_dir: str | Path, channel: str) -> bool:
+def validate_resize_inputs(
+    input_dir: str | Path,
+    output_dir: str | Path,
+    channel: str,
+    *,
+    fs: Optional[FileManagementPort] = None,
+) -> bool:
     try:
         in_dir = Path(input_dir)
         if not in_dir.exists():
@@ -72,16 +79,31 @@ def validate_resize_inputs(input_dir: str | Path, output_dir: str | Path, channe
             return False
         if not str(channel).startswith("ch"):
             return False
-        LocalFileSystemAdapter().ensure_dir(Path(output_dir))
+        try:
+            if fs is not None:
+                fs.ensure_dir(Path(output_dir))
+            else:
+                Path(output_dir).mkdir(parents=True, exist_ok=True)
+        except Exception:
+            return False
         return True
     except Exception:
         return False
 
 
-def run_imagej_macro(imagej_path: str | Path, macro_file: str | Path, auto_close: bool = False) -> bool:
+def run_imagej_macro(
+    imagej_path: str | Path,
+    macro_file: str | Path,
+    auto_close: bool = False,
+    *,
+    imagej: Optional[ImageJIntegrationPort] = None,
+) -> bool:
     try:
-        adapter = ImageJMacroAdapter(Path(imagej_path))
-        rc = adapter.run_macro(Path(macro_file), [])
+        if imagej is None:
+            # Lazy import to avoid hard coupling when injected
+            from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter  # type: ignore
+            imagej = ImageJMacroAdapter(Path(imagej_path))
+        rc = imagej.run_macro(Path(macro_file), [])
         return rc == 0
     except Exception:
         return False
@@ -107,8 +129,11 @@ def resize_rois(
     channel: str,
     macro_path: str | Path,
     auto_close: bool = True,
+    *,
+    imagej: Optional[ImageJIntegrationPort] = None,
+    fs: Optional[FileManagementPort] = None,
 ) -> bool:
-    if not validate_resize_inputs(input_dir, output_dir, channel):
+    if not validate_resize_inputs(input_dir, output_dir, channel, fs=fs):
         return False
 
     temp_macro: Optional[Path] = create_macro_with_parameters(
@@ -122,7 +147,7 @@ def resize_rois(
         return False
 
     try:
-        ok = run_imagej_macro(imagej_path, temp_macro, auto_close)
+        ok = run_imagej_macro(imagej_path, temp_macro, auto_close, imagej=imagej)
         return ok
     finally:
         try:
@@ -228,6 +253,8 @@ def measure_roi_areas(
     imagej_path: str | Path,
     macro_path: str | Path,
     auto_close: bool = True,
+    *,
+    imagej: Optional[ImageJIntegrationPort] = None,
 ) -> bool:
     try:
         pairs = find_roi_image_pairs(input_dir, output_dir)
@@ -245,7 +272,7 @@ def measure_roi_areas(
             if not macro_file:
                 continue
             try:
-                if run_imagej_macro(imagej_path, macro_file, auto_close):
+                if run_imagej_macro(imagej_path, macro_file, auto_close, imagej=imagej):
                     if Path(csv_path).exists():
                         ok_any = True
                 else:
@@ -365,6 +392,8 @@ def analyze_masks(
     timepoints: Optional[List[str]] = None,
     max_files: int = 50,
     auto_close: bool = True,
+    *,
+    imagej: Optional[ImageJIntegrationPort] = None,
 ) -> bool:
     groups = find_mask_files(input_dir, max_files=max_files, regions=regions, timepoints=timepoints)
     if not groups:
@@ -377,7 +406,7 @@ def analyze_masks(
         if not macro_file:
             continue
         try:
-            if run_imagej_macro(imagej_path, macro_file, auto_close):
+            if run_imagej_macro(imagej_path, macro_file, auto_close, imagej=imagej):
                 any_ok = True
             else:
                 # early stop if ImageJ failing consistently
@@ -472,6 +501,8 @@ def create_cell_masks(
     macro_path: str | Path,
     channels: Optional[List[str]] = None,
     auto_close: bool = True,
+    *,
+    imagej: Optional[ImageJIntegrationPort] = None,
 ) -> bool:
     roi_root = Path(roi_dir)
     mask_root = Path(mask_dir)
@@ -510,7 +541,7 @@ def create_cell_masks(
         if not macro_file:
             continue
         try:
-            if run_imagej_macro(imagej_path, macro_file, auto_close):
+            if run_imagej_macro(imagej_path, macro_file, auto_close, imagej=imagej):
                 # consider success if any MASK_CELL files exist
                 if list(out_dir.glob("MASK_CELL*.tif")) or list(out_dir.glob("MASK_CELL*.tiff")):
                     any_success = True
@@ -601,6 +632,8 @@ def extract_cells(
     conditions: Optional[List[str]] = None,
     channels: Optional[List[str]] = None,
     auto_close: bool = True,
+    *,
+    imagej: Optional[ImageJIntegrationPort] = None,
 ) -> bool:
     roi_root = Path(roi_dir)
     raw_root = Path(raw_data_dir)
@@ -639,7 +672,7 @@ def extract_cells(
         if not macro_file:
             continue
         try:
-            if run_imagej_macro(imagej_path, macro_file, auto_close):
+            if run_imagej_macro(imagej_path, macro_file, auto_close, imagej=imagej):
                 if list(out_dir.glob("CELL*.tif")):
                     any_success = True
         finally:
@@ -705,6 +738,8 @@ def threshold_grouped_cells(
     macro_path: str | Path,
     channels: Optional[List[str]] = None,
     auto_close: bool = True,
+    *,
+    imagej: Optional[ImageJIntegrationPort] = None,
 ) -> bool:
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     macro_flag = create_threshold_macro_with_parameters(

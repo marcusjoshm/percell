@@ -715,6 +715,7 @@ class SegmentationStage(StageBase):
                 regions=data_selection.get('selected_regions'),
                 timepoints=data_selection.get('selected_timepoints'),
                 channels=[data_selection.get('segmentation_channel')] if data_selection.get('segmentation_channel') else None,
+                imgproc=kwargs.get('imgproc'),
             )
             if processed <= 0:
                 self.logger.error("No images binned; check selection filters and input data")
@@ -723,11 +724,14 @@ class SegmentationStage(StageBase):
             
             # Step 2: Launch segmentation (interactive Cellpose GUI only)
             preprocessed_dir = f"{output_dir}/preprocessed"
+            cellpose_adapter = kwargs.get('cellpose')
             cellpose_python = self.config.get('cellpose_path')
-            if cellpose_python:
-                from percell.adapters.cellpose_subprocess_adapter import CellposeSubprocessAdapter
+            if cellpose_adapter is not None or cellpose_python:
                 from percell.domain.models import SegmentationParameters
-                adapter = CellposeSubprocessAdapter(Path(cellpose_python))
+                adapter = cellpose_adapter
+                if adapter is None:
+                    from percell.adapters.cellpose_subprocess_adapter import CellposeSubprocessAdapter  # type: ignore
+                    adapter = CellposeSubprocessAdapter(Path(cellpose_python))
                 self.logger.info("Launching Cellpose GUI (python -m cellpose) — no directories passed")
                 # Launch GUI and wait for user to complete segmentation, then close
                 from pathlib import Path as _P
@@ -836,6 +840,8 @@ class ProcessSingleCellDataStage(StageBase):
                 channel=data_selection.get('segmentation_channel', ''),
                 macro_path=get_path_str("resize_rois_macro"),
                 auto_close=True,
+                imagej=kwargs.get('imagej'),
+                fs=kwargs.get('fs'),
             )
             if not ok_resize:
                 self.logger.error("Failed to resize ROIs")
@@ -866,6 +872,7 @@ class ProcessSingleCellDataStage(StageBase):
                 macro_path=get_path_str("extract_cells_macro"),
                 channels=data_selection.get('analysis_channels'),
                 auto_close=True,
+                imagej=kwargs.get('imagej'),
             )
             if not ok_extract:
                 self.logger.error("Failed to extract cells")
@@ -881,6 +888,7 @@ class ProcessSingleCellDataStage(StageBase):
                 bins=int(kwargs.get('bins', 5)),
                 force_clusters=True,
                 channels=data_selection.get('analysis_channels'),
+                imgproc=kwargs.get('imgproc'),
             )
             if not ok_group:
                 self.logger.error("Failed to group cells")
@@ -1035,6 +1043,7 @@ class MeasureROIAreaStage(StageBase):
                 imagej_path=str(imagej_path),
                 macro_path=get_path_str("measure_roi_area_macro"),
                 auto_close=True,
+                imagej=kwargs.get('imagej'),
             )
             
             if success:
@@ -1121,6 +1130,7 @@ class AnalysisStage(StageBase):
                 input_dir=f"{output_dir}/grouped_masks",
                 output_dir=f"{output_dir}/combined_masks",
                 channels=data_selection.get('analysis_channels'),
+                imgproc=kwargs.get('imgproc'),
             )
             if not ok_combine:
                 self.logger.error("Failed to combine masks (no output written)")
@@ -1139,6 +1149,7 @@ class AnalysisStage(StageBase):
                 macro_path=get_path_str("create_cell_masks_macro"),
                 channels=data_selection.get('analysis_channels'),
                 auto_close=True,
+                imagej=kwargs.get('imagej'),
             )
             if not ok_create:
                 self.logger.error("Failed to create cell masks")
@@ -1157,6 +1168,7 @@ class AnalysisStage(StageBase):
                 timepoints=data_selection.get('selected_timepoints'),
                 max_files=50,
                 auto_close=True,
+                imagej=kwargs.get('imagej'),
             )
             if not ok_analyze:
                 self.logger.error("Failed to analyze cell masks")

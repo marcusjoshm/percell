@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 from percell.application.config_api import Config
 from percell.application.logger_api import PipelineLogger
@@ -12,15 +12,22 @@ from percell.application.stages_api import get_stage_registry, StageExecutor
 
 
 class Pipeline:
-    def __init__(self, config: Config, logger: PipelineLogger, args: argparse.Namespace):
+    def __init__(
+        self,
+        config: Config,
+        logger: PipelineLogger,
+        args: argparse.Namespace,
+        ports: Optional[Dict[str, Any]] = None,
+    ):
         self.config = config
         self.logger = logger
         self.args = args
+        self.ports: Dict[str, Any] = ports or {}
 
         self.setup_directories()
 
         self.registry = get_stage_registry()
-        self.executor = StageExecutor(config, logger, self.registry)
+        self.executor = StageExecutor(config, logger, self.registry, ports=self.ports)
 
         self.stages_to_run = self._determine_stages()
 
