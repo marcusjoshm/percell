@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Iterable, Optional, Set, List, Tuple
 
 from percell.ports.driven.image_processing_port import ImageProcessingPort
+from percell.ports.driven.file_management_port import FileManagementPort
 from percell.domain import FileNamingService
 import os
 import shutil
@@ -406,6 +407,8 @@ def duplicate_rois_for_channels(
     roi_dir: str | Path,
     channels: Optional[Iterable[str]],
     verbose: bool = False,
+    *,
+    fs: Optional[FileManagementPort] = None,
 ) -> bool:
     """Duplicate ROI .zip files to match analysis channels by swapping channel token.
 
@@ -421,8 +424,9 @@ def duplicate_rois_for_channels(
     roi_files = list(roi_root.rglob("*.zip"))
     if not roi_files:
         return False
-    from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
-    fs = LocalFileSystemAdapter()
+    if fs is None:
+        from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter  # type: ignore
+        fs = LocalFileSystemAdapter()
 
     import re as _re
 
@@ -443,7 +447,7 @@ def duplicate_rois_for_channels(
             new_name = _re.sub(r"_ch\d+_", f"_{target}_", rf.name)
             dst = rf.parent / new_name
             try:
-                fs.copy(rf, dst, overwrite=True)
+                fs.copy(rf, dst, overwrite=True)  # type: ignore[call-arg]
                 successful += 1
                 channels_processed.add(target)
             except Exception:
