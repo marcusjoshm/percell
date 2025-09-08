@@ -261,3 +261,104 @@ def combine_masks(
     return any_written
 
 
+# ------------------------- Group Cells -------------------------
+
+def _find_cell_dirs(cells_dir: Path) -> list[Path]:
+    dirs: list[Path] = []
+    for condition_dir in cells_dir.glob("*"):
+        if not condition_dir.is_dir() or condition_dir.name.startswith('.'):
+            continue
+        for region_dir in condition_dir.glob("*"):
+            if not region_dir.is_dir() or region_dir.name.startswith('.'):
+                continue
+            if list(region_dir.glob("CELL*.tif")):
+                dirs.append(region_dir)
+    return dirs
+
+
+def group_cells(
+    cells_dir: str | Path,
+    output_dir: str | Path,
+    bins: int = 5,
+    force_clusters: bool = True,
+    channels: Optional[Iterable[str]] = None,
+) -> bool:
+    """Group cell images by simple intensity and write summed images per group.
+
+    Produces files named "<region_dir_name>_bin_<i>.tif" under
+    <output_dir>/<condition>/<region_dir_name>/ for i in 1..bins.
+    """
+    cells_root = Path(cells_dir)
+    out_root = Path(output_dir)
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    adapter = PILImageProcessingAdapter()
+    any_written = False
+
+    for region_dir in _find_cell_dirs(cells_root):
+        if channels:
+            # Skip dirs not matching any requested channels in path
+            if not any(ch in str(region_dir) for ch in channels):
+                continue
+
+        condition = region_dir.parent.name
+        out_condition = out_root / condition / region_dir.name
+        out_condition.mkdir(parents=True, exist_ok=True)
+
+        # Gather images and simple intensity metric
+        cell_files = list(region_dir.glob("CELL*.tif"))
+        if not cell_files:
+            continue
+        images: list[tuple[Path, np.ndarray, float]] = []
+        for f in cell_files:
+            try:
+                img = adapter.read_image(f)
+                metric = float(np.mean(img))
+                images.append((f, img, metric))
+            except Exception:
+                continue
+        if not images:
+            continue
+
+        # Sort by intensity and split into bins
+        images.sort(key=lambda x: x[2])
+        n = len(images)
+        k = max(1, min(bins, n))
+        base = n // k
+        rem = n % k
+        start = 0
+        for i in range(k):
+            size = base + (1 if i < rem else 0)
+            end = start + size
+            group = images[start:end]
+            start = end
+            if not group:
+                continue
+            # Sum images (resize not handled; assume uniform dims per dir)
+            try:
+                acc = None
+                for _, img, _ in group:
+                    gi = img.astype(np.float64)
+                    if acc is None:
+                        acc = gi
+                    else:
+                        acc = acc + gi
+                if acc is None:
+                    continue
+                # Normalize to uint16 range for safety
+                acc_min = np.min(acc)
+                acc_max = np.max(acc)
+                if acc_max > acc_min:
+                    norm = (acc - acc_min) / (acc_max - acc_min)
+                else:
+                    norm = acc * 0
+                out_img = (norm * 65535).astype(np.uint16)
+                out_path = out_condition / f"{region_dir.name}_bin_{i+1}.tif"
+                adapter.write_image(out_path, out_img)
+                any_written = True
+            except Exception:
+                continue
+
+    return any_written
+
+

@@ -56,7 +56,6 @@ class PathConfig:
             "launch_segmentation_tools_script": root / "bash" / "launch_segmentation_tools.sh",
             "directory_setup_module": root / "modules" / "directory_setup.py",
             "duplicate_rois_for_channels_module": root / "modules" / "duplicate_rois_for_channels.py",
-            "group_cells_module": root / "modules" / "group_cells.py",
             "include_group_metadata_module": root / "modules" / "include_group_metadata.py",
             "otsu_threshold_grouped_cells_module": root / "modules" / "otsu_threshold_grouped_cells.py",
             "set_directories_module": root / "modules" / "set_directories.py",

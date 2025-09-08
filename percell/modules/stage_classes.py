@@ -779,8 +779,7 @@ class ProcessSingleCellDataStage(StageBase):
         from percell.application.paths_api import path_exists
         required_scripts = [
             "track_rois_module",
-            "duplicate_rois_for_channels_module",
-            "group_cells_module"
+            "duplicate_rois_for_channels_module"
         ]
         for script_name in required_scripts:
             if not path_exists(script_name):
@@ -888,20 +887,18 @@ class ProcessSingleCellDataStage(StageBase):
                 return False
             self.logger.info("Cells extracted successfully")
             
-            # Step 5: Group cells
+            # Step 5: Group cells (migrated to application helper)
             self.logger.info("Grouping cells...")
-            group_script = get_path("group_cells_module")
-            group_args = [
-                "--cells-dir", f"{output_dir}/cells",
-                "--output-dir", f"{output_dir}/grouped_cells",
-                "--bins", str(kwargs.get('bins', 5)),
-                "--force-clusters",
-                "--channels"
-            ] + data_selection.get('analysis_channels', [])
-            
-            result = run_subprocess_with_spinner([sys.executable, str(group_script)] + group_args, title="Grouping cells")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to group cells: {result.stderr}")
+            from percell.application.image_processing_tasks import group_cells as _group_cells
+            ok_group = _group_cells(
+                cells_dir=f"{output_dir}/cells",
+                output_dir=f"{output_dir}/grouped_cells",
+                bins=int(kwargs.get('bins', 5)),
+                force_clusters=True,
+                channels=data_selection.get('analysis_channels'),
+            )
+            if not ok_group:
+                self.logger.error("Failed to group cells")
                 return False
             self.logger.info("Cells grouped successfully")
             
