@@ -21,9 +21,9 @@ def register_all_stages():
         CleanupStage,
         CompleteWorkflowStage
     )
-    # Import advanced workflow stage from a new module to keep separation of concerns
+    # Import advanced workflow stage from application layer
     try:
-        from .advanced_workflow import AdvancedWorkflowStage
+        from percell.application.advanced_workflow import AdvancedWorkflowStage
     except Exception:
         AdvancedWorkflowStage = None
     

@@ -1,24 +1,25 @@
 """
-Advanced Workflow Builder Stage
+Advanced Workflow Builder Stage (Application Layer)
 
-Provides an interactive interface to build and execute a custom workflow
-from higher-level steps by leveraging existing stages and modules.
+Migrated from percell/modules/advanced_workflow.py to align with the
+new architecture. Provides an interactive interface to build and execute
+custom workflows by leveraging existing stages and application tasks.
 """
 
 from __future__ import annotations
 
-from percell.application.progress_api import run_subprocess_with_spinner
 import sys
 from pathlib import Path
 from typing import List, Tuple
 
+from percell.application.progress_api import run_subprocess_with_spinner
 from percell.application.stages_api import StageBase
 
 
 class AdvancedWorkflowStage(StageBase):
     """
     Advanced Workflow Builder
-    
+
     Shows a numbered list of higher-level steps, lets the user enter a
     space-separated sequence, then executes the corresponding stages/modules.
     """
@@ -151,11 +152,10 @@ class AdvancedWorkflowStage(StageBase):
                 return False
             return stage_class(self.config, self.pipeline_logger, 'cleanup').execute(**kwargs)
 
-        # Module-based steps
+        # Application-task steps
         from percell.application.paths_api import get_path, get_path_str
 
         if step_key == "track_rois":
-            # Requires multiple timepoints; skip if not applicable
             data_selection = self.config.get('data_selection') or {}
             timepoints = data_selection.get('selected_timepoints', [])
             if not timepoints or len(timepoints) <= 1:
@@ -196,23 +196,24 @@ class AdvancedWorkflowStage(StageBase):
 
         if step_key == "extract_cells":
             data_selection = self.config.get('data_selection') or {}
-            script = get_path("extract_cells_module")
             output_dir = kwargs.get('output_dir')
             channels = data_selection.get('analysis_channels', [])
-            args = [
-                "--roi-dir", f"{output_dir}/ROIs",
-                "--raw-data-dir", f"{output_dir}/raw_data",
-                "--output-dir", f"{output_dir}/cells",
-                "--imagej", self.config.get('imagej_path'),
-                "--macro", get_path_str("extract_cells_macro"),
-                "--auto-close",
-                "--channels",
-            ] + channels
-            return self._run_py_module(script, args)
+            from percell.application.imagej_tasks import extract_cells as _extract_cells
+            ok = _extract_cells(
+                roi_dir=f"{output_dir}/ROIs",
+                raw_data_dir=f"{output_dir}/raw_data",
+                output_dir=f"{output_dir}/cells",
+                imagej_path=self.config.get('imagej_path'),
+                macro_path=get_path_str("extract_cells_macro"),
+                channels=channels,
+                auto_close=True,
+            )
+            if not ok:
+                self.logger.error("extract_cells failed")
+            return ok
 
         if step_key == "group_cells":
             data_selection = self.config.get('data_selection') or {}
-            script = get_path("group_cells_module")
             output_dir = kwargs.get('output_dir')
             channels = data_selection.get('analysis_channels', [])
             # Allow the user to override and set the default bins for this Advanced session
@@ -238,14 +239,17 @@ class AdvancedWorkflowStage(StageBase):
                 else:
                     self.logger.error("Cannot group without extracted cells. Aborting Group Cells step.")
                     return False
-            args = [
-                "--cells-dir", f"{output_dir}/cells",
-                "--output-dir", f"{output_dir}/grouped_cells",
-                "--bins", str(bins),
-                "--force-clusters",
-                "--channels",
-            ] + channels
-            return self._run_py_module(script, args)
+            from percell.application.image_processing_tasks import group_cells as _group_cells
+            ok = _group_cells(
+                cells_dir=f"{output_dir}/cells",
+                output_dir=f"{output_dir}/grouped_cells",
+                bins=int(bins),
+                force_clusters=True,
+                channels=channels,
+            )
+            if not ok:
+                self.logger.error("group_cells failed")
+            return ok
 
         self.logger.error(f"Unknown step: {step_key}")
         return False
