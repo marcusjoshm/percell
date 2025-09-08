@@ -12,6 +12,7 @@ from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdap
 from percell.domain import FileNamingService
 import os
 import shutil
+import numpy as np
 
 
 def _to_optional_set(values: Optional[Iterable[str]]) -> Optional[Set[str]]:
@@ -186,5 +187,77 @@ def cleanup_directories(
         except Exception:
             continue
     return emptied, freed
+
+
+# ------------------------- Combine Masks -------------------------
+
+def _get_mask_prefix(filename: str) -> str | None:
+    parts = filename.split("_bin_")
+    if len(parts) < 2:
+        return None
+    return parts[0]
+
+
+def _find_mask_groups(mask_dir: Path) -> dict[str, list[Path]]:
+    groups: dict[str, list[Path]] = {}
+    for mask_file in mask_dir.glob("*_bin_*.tif"):
+        prefix = _get_mask_prefix(mask_file.name)
+        if not prefix:
+            continue
+        groups.setdefault(prefix, []).append(mask_file)
+    return groups
+
+
+def combine_masks(
+    input_dir: str | Path,
+    output_dir: str | Path,
+    channels: Optional[Iterable[str]] = None,
+) -> bool:
+    """Combine grouped binary masks into single masks under combined_masks.
+
+    Returns True if at least one combined mask was written.
+    """
+    in_root = Path(input_dir)
+    out_root = Path(output_dir)
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    adapter = PILImageProcessingAdapter()
+    any_written = False
+
+    # Expect layout: input_dir/<condition>/<region_timepoint>
+    for condition_dir in in_root.glob("*"):
+        if not condition_dir.is_dir():
+            continue
+        for rt_dir in condition_dir.glob("*"):
+            if not rt_dir.is_dir():
+                continue
+            groups = _find_mask_groups(rt_dir)
+            if not groups:
+                continue
+            out_condition = out_root / condition_dir.name
+            out_condition.mkdir(parents=True, exist_ok=True)
+            for prefix, files in groups.items():
+                if not files:
+                    continue
+                # Read first to get shape/dtype
+                try:
+                    first = adapter.read_image(files[0])
+                    combined = np.zeros_like(first, dtype=np.uint8)
+                except Exception:
+                    continue
+                for f in files:
+                    try:
+                        img = adapter.read_image(f)
+                        combined = np.maximum(combined, img.astype(np.uint8))
+                    except Exception:
+                        continue
+                out_path = out_condition / f"{prefix}.tif"
+                try:
+                    adapter.write_image(out_path, combined)
+                    any_written = True
+                except Exception:
+                    continue
+
+    return any_written
 
 

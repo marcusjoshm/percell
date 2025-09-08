@@ -54,7 +54,6 @@ class PathConfig:
             "setup_output_structure_script": root / "bash" / "setup_output_structure.sh",
             "prepare_input_structure_script": root / "bash" / "prepare_input_structure.sh",
             "launch_segmentation_tools_script": root / "bash" / "launch_segmentation_tools.sh",
-            "combine_masks_module": root / "modules" / "combine_masks.py",
             "create_cell_masks_module": root / "modules" / "create_cell_masks.py",
             "directory_setup_module": root / "modules" / "directory_setup.py",
             "duplicate_rois_for_channels_module": root / "modules" / "duplicate_rois_for_channels.py",

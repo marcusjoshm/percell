@@ -1106,7 +1106,6 @@ class AnalysisStage(StageBase):
         # Check if required scripts exist
         from percell.application.paths_api import path_exists
         required_scripts = [
-            "combine_masks_module",
             "create_cell_masks_module", 
             "include_group_metadata_module"
         ]
@@ -1152,22 +1151,16 @@ class AnalysisStage(StageBase):
                 self.logger.error("Output directory is required")
                 return False
             
-            # Step 1: Combine masks
+            # Step 1: Combine masks (migrated to application helper)
             self.logger.info("Combining masks...")
-            from percell.application.paths_api import get_path
-            combine_script = get_path("combine_masks_module")
-            combine_args = [
-                "--input-dir", f"{output_dir}/grouped_masks",
-                "--output-dir", f"{output_dir}/combined_masks",
-                "--channels"
-            ]
-            # Add analysis channels as separate arguments (matching original workflow)
-            for channel in data_selection.get('analysis_channels', []):
-                combine_args.append(channel)
-            
-            result = run_subprocess_with_spinner([sys.executable, str(combine_script)] + combine_args, title="Combining masks")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to combine masks: {result.stderr}")
+            from percell.application.image_processing_tasks import combine_masks as _combine_masks
+            ok_combine = _combine_masks(
+                input_dir=f"{output_dir}/grouped_masks",
+                output_dir=f"{output_dir}/combined_masks",
+                channels=data_selection.get('analysis_channels'),
+            )
+            if not ok_combine:
+                self.logger.error("Failed to combine masks (no output written)")
                 return False
             self.logger.info("Masks combined successfully")
             
