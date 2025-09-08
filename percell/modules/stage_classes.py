@@ -667,7 +667,6 @@ class SegmentationStage(StageBase):
         # Check if required scripts exist
         from percell.application.paths_api import path_exists
         required_scripts = [
-            ("bin_images_module", "Python module"),
             ("launch_segmentation_tools_script", "Bash script")
         ]
         for script_name, script_type in required_scripts:
@@ -709,33 +708,22 @@ class SegmentationStage(StageBase):
                 self.logger.error("Input and output directories are required")
                 return False
             
-            # Step 1: Bin images for segmentation
+            # Step 1: Bin images for segmentation (migrated to application helper)
             self.logger.info("Binning images for segmentation...")
-            from percell.application.paths_api import get_path, ensure_executable
-            bin_script = get_path("bin_images_module")
-            bin_args = [
-                "--input", f"{output_dir}/raw_data",
-                "--output", f"{output_dir}/preprocessed",
-                "--verbose"
-            ]
-            
-            # Add data selection parameters
-            if data_selection.get('selected_conditions'):
-                bin_args.extend(["--conditions"] + data_selection['selected_conditions'])
-            if data_selection.get('selected_regions'):
-                bin_args.extend(["--regions"] + data_selection['selected_regions'])
-            if data_selection.get('selected_timepoints'):
-                bin_args.extend(["--timepoints"] + data_selection['selected_timepoints'])
-            if data_selection.get('segmentation_channel'):
-                bin_args.extend(["--channels", data_selection['segmentation_channel']])
-            
-            self.logger.info(f"Running bin_images.py with args: {bin_args}")
-            result = run_subprocess_with_spinner([sys.executable, str(bin_script)] + bin_args, title="Binning images")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to bin images: {result.stderr}")
+            from percell.application.image_processing_tasks import bin_images as _bin_images
+            processed = _bin_images(
+                input_dir=f"{output_dir}/raw_data",
+                output_dir=f"{output_dir}/preprocessed",
+                bin_factor=4,
+                conditions=data_selection.get('selected_conditions'),
+                regions=data_selection.get('selected_regions'),
+                timepoints=data_selection.get('selected_timepoints'),
+                channels=[data_selection.get('segmentation_channel')] if data_selection.get('segmentation_channel') else None,
+            )
+            if processed <= 0:
+                self.logger.error("No images binned; check selection filters and input data")
                 return False
-            self.logger.info("Images binned successfully")
-            self.logger.info(f"Bin script output: {result.stdout}")
+            self.logger.info(f"Images binned successfully: {processed} files")
             
             # Step 2: Launch segmentation (interactive Cellpose GUI only)
             preprocessed_dir = f"{output_dir}/preprocessed"
