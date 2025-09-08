@@ -8,6 +8,7 @@ in standalone module scripts, making them reusable by application stages.
 
 from pathlib import Path
 from typing import Optional, List, Tuple
+import re
 import tempfile
 
 from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
@@ -373,5 +374,138 @@ def analyze_masks(
             except Exception:
                 pass
     return any_ok
+
+
+# ------------------------- Create Cell Masks -------------------------
+
+def _extract_tokens_from_roi_name(filename: str) -> dict[str, str]:
+    from percell.domain import FileNamingService
+    svc = FileNamingService()
+    tokens = svc.extract_metadata_from_name(filename)
+    return tokens
+
+
+def _find_matching_mask_for_roi(roi_file: Path, mask_dir: Path) -> Optional[Path]:
+    condition = roi_file.parent.name
+    condition_mask_dir = mask_dir / condition
+    if not condition_mask_dir.exists():
+        return None
+    tokens = _extract_tokens_from_roi_name(roi_file.name)
+    region = tokens.get("region", "")
+    channel = tokens.get("channel", "")
+    timepoint = tokens.get("timepoint", "")
+    patterns = [
+        f"MASK_{region}_{channel}_{timepoint}.tif",
+        f"MASK_{region}_{channel}_{timepoint}.tiff",
+        f"MASK_{region}_{channel}_*.tif",
+        f"MASK_*{channel}*.tif",
+    ]
+    for pat in patterns:
+        matches = list(condition_mask_dir.glob(pat))
+        if matches:
+            return matches[0]
+    return None
+
+
+def _create_output_dir_for_roi(roi_file: Path, output_base_dir: Path) -> Path:
+    condition = roi_file.parent.name
+    tokens = _extract_tokens_from_roi_name(roi_file.name)
+    region = tokens.get("region", "")
+    channel = tokens.get("channel", "")
+    timepoint = tokens.get("timepoint", "")
+    out_dir = output_base_dir / condition / f"{region}_{channel}_{timepoint}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return out_dir
+
+
+def create_masks_macro_with_parameters(
+    macro_template_file: str | Path,
+    roi_file: str | Path,
+    mask_file: str | Path,
+    output_dir: str | Path,
+    auto_close: bool = True,
+) -> Optional[Path]:
+    try:
+        template = Path(macro_template_file).read_text()
+        lines = [ln for ln in template.split("\n") if not ln.strip().startswith("#@")]
+        roi_clean = _normalize_path_for_imagej(roi_file)
+        mask_clean = _normalize_path_for_imagej(mask_file)
+        out_clean = _normalize_path_for_imagej(output_dir)
+        params = (
+            "// Parameters embedded from application helper\n"
+            f"roi_file = \"{roi_clean}\";\n"
+            f"mask_file = \"{mask_clean}\";\n"
+            f"output_dir = \"{out_clean}\";\n"
+            f"auto_close = {str(bool(auto_close)).lower()};\n"
+        )
+        content = params + "\n" + "\n".join(lines)
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".ijm", delete=False)
+        try:
+            tmp_path = Path(tmp.name)
+            tmp.write(content)
+        finally:
+            tmp.close()
+        return tmp_path
+    except Exception:
+        return None
+
+
+def create_cell_masks(
+    roi_dir: str | Path,
+    mask_dir: str | Path,
+    output_dir: str | Path,
+    imagej_path: str | Path,
+    macro_path: str | Path,
+    channels: Optional[List[str]] = None,
+    auto_close: bool = True,
+) -> bool:
+    roi_root = Path(roi_dir)
+    mask_root = Path(mask_dir)
+    out_root = Path(output_dir)
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    # Collect ROI zips grouped by condition
+    roi_files: List[Path] = []
+    for condition_dir in roi_root.glob("*"):
+        if condition_dir.is_dir() and not condition_dir.name.startswith('.'):
+            roi_files.extend(condition_dir.glob("*.zip"))
+
+    if channels:
+        filtered: List[Path] = []
+        for rf in roi_files:
+            name = rf.name
+            # Expect pattern contains _chNN_
+            m = re.search(r"_(ch\d+)_", name)
+            if m and m.group(1) in channels:
+                filtered.append(rf)
+        roi_files = filtered
+
+    any_success = False
+    for roi_file in roi_files:
+        mask_file = _find_matching_mask_for_roi(roi_file, mask_root)
+        if not mask_file:
+            continue
+        out_dir = _create_output_dir_for_roi(roi_file, out_root)
+        macro_file = create_masks_macro_with_parameters(
+            macro_template_file=macro_path,
+            roi_file=roi_file,
+            mask_file=mask_file,
+            output_dir=out_dir,
+            auto_close=auto_close,
+        )
+        if not macro_file:
+            continue
+        try:
+            if run_imagej_macro(imagej_path, macro_file, auto_close):
+                # consider success if any MASK_CELL files exist
+                if list(out_dir.glob("MASK_CELL*.tif")) or list(out_dir.glob("MASK_CELL*.tiff")):
+                    any_success = True
+        finally:
+            try:
+                Path(macro_file).unlink(missing_ok=True)
+            except Exception:
+                pass
+
+    return any_success
 
 

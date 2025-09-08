@@ -1106,7 +1106,6 @@ class AnalysisStage(StageBase):
         # Check if required scripts exist
         from percell.application.paths_api import path_exists
         required_scripts = [
-            "create_cell_masks_module", 
             "include_group_metadata_module"
         ]
         for script_name in required_scripts:
@@ -1164,26 +1163,21 @@ class AnalysisStage(StageBase):
                 return False
             self.logger.info("Masks combined successfully")
             
-            # Step 2: Create cell masks
+            # Step 2: Create cell masks (migrated to application helper)
             self.logger.info("Creating cell masks...")
-            from percell.application.paths_api import get_path, get_path_str
-            create_masks_script = get_path("create_cell_masks_module")
-            create_masks_args = [
-                "--roi-dir", f"{output_dir}/ROIs",
-                "--mask-dir", f"{output_dir}/combined_masks",
-                "--output-dir", f"{output_dir}/masks",
-                "--imagej", self.config.get('imagej_path'),
-                "--macro", get_path_str("create_cell_masks_macro"),
-                "--auto-close",
-                "--channels"
-            ]
-            # Add analysis channels as separate arguments (matching original workflow)
-            for channel in data_selection.get('analysis_channels', []):
-                create_masks_args.append(channel)
-            
-            result = run_subprocess_with_spinner([sys.executable, str(create_masks_script)] + create_masks_args, title="Creating cell masks")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to create cell masks: {result.stderr}")
+            from percell.application.imagej_tasks import create_cell_masks as _create_cell_masks
+            from percell.application.paths_api import get_path_str
+            ok_create = _create_cell_masks(
+                roi_dir=f"{output_dir}/ROIs",
+                mask_dir=f"{output_dir}/combined_masks",
+                output_dir=f"{output_dir}/masks",
+                imagej_path=self.config.get('imagej_path'),
+                macro_path=get_path_str("create_cell_masks_macro"),
+                channels=data_selection.get('analysis_channels'),
+                auto_close=True,
+            )
+            if not ok_create:
+                self.logger.error("Failed to create cell masks")
                 return False
             self.logger.info("Cell masks created successfully")
             
