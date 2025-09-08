@@ -64,6 +64,8 @@ class DataSelectionStage(StageBase):
             # Store input and output directories for later use
             self.input_dir = Path(kwargs['input_dir'])
             self.output_dir = Path(kwargs['output_dir'])
+            # Injected filesystem port (optional)
+            self._fs = kwargs.get('fs')
             
             # Step 1: Setup output directory structure
             self.logger.info("Setting up output directory structure...")
@@ -110,10 +112,18 @@ class DataSelectionStage(StageBase):
             from percell.application.paths_api import get_path, ensure_executable
             script_path = get_path("setup_output_structure_script")
             
-            # Make sure the script is executable
-            from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
-            from percell.application.paths_api import get_path
-            LocalFileSystemAdapter().ensure_executable(get_path("setup_output_structure_script"))
+            # Make sure the script is executable (prefer injected filesystem port)
+            fs_port = getattr(self, '_fs', None)
+            try:
+                if fs_port is not None:
+                    from percell.application.paths_api import get_path
+                    fs_port.ensure_executable(get_path("setup_output_structure_script"))
+                else:
+                    from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+                    from percell.application.paths_api import get_path
+                    LocalFileSystemAdapter().ensure_executable(get_path("setup_output_structure_script"))
+            except Exception:
+                pass
             
             self.logger.info(f"Running setup_output_structure.sh with input: {self.input_dir}, output: {self.output_dir}")
             
@@ -208,8 +218,12 @@ class DataSelectionStage(StageBase):
                                     
                                     # Copy the file
                                     output_file = timepoint_output_dir / tif_file.name
-                                    from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
-                                    LocalFileSystemAdapter().copy(tif_file, output_file, overwrite=True)
+                                    fs_port = getattr(self, '_fs', None)
+                                    if fs_port is not None:
+                                        fs_port.copy(tif_file, output_file, overwrite=True)
+                                    else:
+                                        from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+                                        LocalFileSystemAdapter().copy(tif_file, output_file, overwrite=True)
                                     total_copied += 1
                                     copied_in_timepoint += 1
                                     self.logger.debug(f"Copied: {tif_file.name}")
@@ -235,8 +249,12 @@ class DataSelectionStage(StageBase):
                         
                         # Copy the file
                         output_file = condition_output_dir / tif_file.name
-                        from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
-                        LocalFileSystemAdapter().copy(tif_file, output_file, overwrite=True)
+                        fs_port = getattr(self, '_fs', None)
+                        if fs_port is not None:
+                            fs_port.copy(tif_file, output_file, overwrite=True)
+                        else:
+                            from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+                            LocalFileSystemAdapter().copy(tif_file, output_file, overwrite=True)
                         total_copied += 1
                         copied_in_condition += 1
                         self.logger.debug(f"Copied: {tif_file.name}")
@@ -270,10 +288,18 @@ class DataSelectionStage(StageBase):
             from percell.application.paths_api import get_path, ensure_executable
             script_path = get_path("prepare_input_structure_script")
             
-            # Make sure the script is executable
-            from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
-            from percell.application.paths_api import get_path
-            LocalFileSystemAdapter().ensure_executable(get_path("prepare_input_structure_script"))
+            # Make sure the script is executable (prefer injected filesystem port)
+            fs_port = getattr(self, '_fs', None)
+            try:
+                if fs_port is not None:
+                    from percell.application.paths_api import get_path
+                    fs_port.ensure_executable(get_path("prepare_input_structure_script"))
+                else:
+                    from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+                    from percell.application.paths_api import get_path
+                    LocalFileSystemAdapter().ensure_executable(get_path("prepare_input_structure_script"))
+            except Exception:
+                pass
             
             self.logger.info(f"Running prepare_input_structure.sh with input: {input_path}")
             
@@ -367,8 +393,14 @@ class DataSelectionStage(StageBase):
                         if name.startswith('timepoint_') or re.match(r't[0-9]+', name):
                             metadata['directory_timepoints'].add(name)
 
-            # Use domain service to scan and parse filenames globally
-            files = self._selection_service.scan_available_data(input_path)
+            # Use adapter-provided file list when available to avoid domain IO
+            try:
+                if getattr(self, '_fs', None) is not None:
+                    files = self._fs.list_files(input_path, ["*.tif", "*.tiff"])  # type: ignore[attr-defined]
+                else:
+                    files = self._selection_service.scan_available_data(input_path)
+            except Exception:
+                files = self._selection_service.scan_available_data(input_path)
             self.logger.info(f"Found {len(files)} microscopy files under input directory")
             _conditions, timepoints, regions = self._selection_service.parse_conditions_timepoints_regions(files)
             for tp in timepoints:
