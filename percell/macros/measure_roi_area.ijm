@@ -49,6 +49,7 @@ run("ROI Manager...");
 roiManager("Open", roi_file);
 num_rois = roiManager("count");
 print("Loaded " + num_rois + " ROIs from: " + roi_file);
+print("MEASURE_TOTAL: " + num_rois);
 
 if (num_rois == 0) {
     print("Warning: No ROIs found in file");
@@ -84,6 +85,7 @@ if (num_rois == 0) {
         
         // Debug: print ROI name and assigned cell number
         print("ROI " + (i+1) + ": " + roi_name + " -> " + cell_number);
+        print("MEASURE_ROI: " + (i+1) + "/" + num_rois);
         
         setResult("Cell_ID", i, cell_number);
     }

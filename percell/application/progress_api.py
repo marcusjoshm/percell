@@ -86,27 +86,37 @@ def iter_with_progress(
 
 @contextmanager
 def spinner(title: Optional[str] = None) -> Iterator[None]:
-    if alive_bar is None:
-        yield
-        return
+    """Display an activity spinner without misleading counts.
+
+    Uses a lightweight ASCII spinner so we don't show an incrementing counter
+    unrelated to real work. This avoids confusion when wrapping external tools
+    (e.g., ImageJ) where we can't easily know true progress.
+    """
     if title:
         print(f"{title}")
+    frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
     stop_event: Event = Event()
-    with alive_bar(None, force_tty=True) as bar:
-        def _tick() -> None:
-            while not stop_event.is_set():
-                try:
-                    bar()
-                except Exception:
-                    pass
-                time.sleep(0.1)
-        ticker = Thread(target=_tick, daemon=True)
-        ticker.start()
+
+    def _spin() -> None:
+        idx = 0
         try:
-            yield
+            while not stop_event.is_set():
+                frame = frames[idx % len(frames)]
+                print(f"\r{frame}", end="", flush=True)
+                idx += 1
+                time.sleep(0.1)
+        except Exception:
+            pass
         finally:
-            stop_event.set()
-            ticker.join(timeout=0.5)
+            print("\r ", end="\r", flush=True)
+
+    t = Thread(target=_spin, daemon=True)
+    t.start()
+    try:
+        yield
+    finally:
+        stop_event.set()
+        t.join(timeout=0.5)
 
 
 def run_subprocess_with_spinner(

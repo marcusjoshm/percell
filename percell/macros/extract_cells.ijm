@@ -38,6 +38,7 @@ print("Opening ROI file");
 roiManager("Open", roi_file);
 roi_count = roiManager("count");
 print("Found " + roi_count + " ROIs");
+print("EXTRACT_TOTAL: " + roi_count);
 
 if (roi_count == 0) {
     print("No ROIs found in file: " + roi_file);
@@ -74,6 +75,7 @@ for (i = 0; i < roi_count; i++) {
     cell_num = i + 1;
     cell_path = output_dir + "/CELL" + cell_num + ".tif";
     print("Saving cell " + cell_num + " to: " + cell_path);
+    print("EXTRACT_CELL: " + (i+1) + "/" + roi_count);
     saveAs("Tiff", cell_path);
     
     // Close the duplicate

@@ -145,6 +145,7 @@ for (c = 0; c < condition_dirs.length; c++) {
             roiManager("open", roi_path);
 
             num_original_rois = roiManager("count");
+            print("RESIZE_TOTAL: " + num_original_rois);
             print("  Found " + num_original_rois + " ROIs to process");
 
             for (j = 0; j < num_original_rois; j++) {
@@ -168,6 +169,9 @@ for (c = 0; c < condition_dirs.length; c++) {
                 // Create a selection from the resized mask
                 run("Create Selection");
                 roiManager("Add");
+
+                // Report progress for determinate progress bars
+                print("RESIZE_ROI: " + (j+1) + "/" + num_original_rois);
 
                 // Close the duplicate and mask windows
                 close(); // Close mask

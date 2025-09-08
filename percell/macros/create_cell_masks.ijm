@@ -38,6 +38,7 @@ print("Opening ROI file");
 roiManager("Open", roi_file);
 roi_count = roiManager("count");
 print("Found " + roi_count + " ROIs");
+print("CREATE_TOTAL: " + roi_count);
 
 if (roi_count == 0) {
     print("No ROIs found in file: " + roi_file);
@@ -74,6 +75,7 @@ for (i = 0; i < roi_count; i++) {
     cell_num = i + 1;
     cell_path = output_dir + "/MASK_CELL" + cell_num + ".tif";
     print("Saving mask " + cell_num + " to: " + cell_path);
+    print("CREATE_MASK: " + (i+1) + "/" + roi_count);
     saveAs("Tiff", cell_path);
     
     // Close the duplicate

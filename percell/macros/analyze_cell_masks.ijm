@@ -26,6 +26,7 @@ mask_files = split(mask_files_list, ";");
 num_files = mask_files.length;
 
 print("Number of mask files to process: " + num_files);
+print("ANALYZE_TOTAL: " + num_files);
 
 // Create an array to store slice names
 var sliceNames = newArray(num_files);
@@ -60,6 +61,7 @@ for (i = 0; i < num_files; i++) {
     run("Analyze Particles...", "size=0.10-Infinity summarize");
     
     print("ANALYSIS_END:" + mask_path);
+    print("ANALYZE_FILE: " + (i+1) + "/" + num_files);
     
     // Close all open images
     while (nImages > 0) {

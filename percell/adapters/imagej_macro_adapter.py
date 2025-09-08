@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+import re
 from typing import List, Optional
 
 from ..ports.driven.imagej_integration_port import ImageJIntegrationPort
-from percell.application.progress_api import run_subprocess_with_spinner
+from percell.application.progress_api import progress_bar, spinner
 
 
 class ImageJMacroAdapter(ImageJIntegrationPort):
@@ -27,10 +28,75 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
             cmd.append(" ".join(args))
 
         try:
+            # Start process with piped stdout to stream lines
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             title = f"ImageJ: {Path(macro_path).stem}"
-            completed = run_subprocess_with_spinner(cmd, title=title, capture_output=True, text=True)
-            return completed.returncode
-        except Exception:
+            print(title)
+
+            # Phase 1: stream lines until we know total, printing logs
+            total: Optional[int] = None
+            while True:
+                line = process.stdout.readline() if process.stdout else ""
+                if not line:
+                    if process.poll() is not None:
+                        break
+                    continue
+                stripped = line.strip()
+                print(line.rstrip())
+                # Generic TOTAL detector, e.g. RESIZE_TOTAL: N, EXTRACT_TOTAL: N, CREATE_TOTAL: N, ANALYZE_TOTAL: N, MEASURE_TOTAL: N
+                m_total = re.match(r"^[A-Z_]+_TOTAL:\s*(\d+)$", stripped)
+                if m_total:
+                    try:
+                        total = int(m_total.group(1))
+                    except Exception:
+                        total = None
+                    break
+
+            # Phase 2: if we have a total, open a determinate bar while still printing logs
+            if total and total > 0 and process.poll() is None:
+                with progress_bar(total=total, title=title, manual=True) as update:
+                    progressed = 0
+                    while True:
+                        line = process.stdout.readline() if process.stdout else ""
+                        if not line:
+                            if process.poll() is not None:
+                                break
+                            continue
+                        stripped = line.strip()
+                        print(line.rstrip())
+                        # Generic progress markers: *_ROI, *_CELL, *_MASK, *_FILE with formats like X/Y or just X
+                        m_prog = re.match(r"^[A-Z_]+_(ROI|CELL|MASK|FILE):\s*(\d+)(?:/(\d+))?", stripped)
+                        if m_prog:
+                            try:
+                                current = int(m_prog.group(2))
+                                # If macro prints absolute current, advance delta; otherwise, step by 1
+                                if current > progressed:
+                                    delta = current - progressed
+                                    for _ in range(delta):
+                                        update(1)
+                                    progressed = current
+                                else:
+                                    update(1)
+                                    progressed += 1
+                            except Exception:
+                                update(1)
+                                progressed += 1
+                    # ensure bar completes if macro finished early without full markers
+                    remaining = (total - progressed) if total and progressed < total else 0
+                    for _ in range(remaining):
+                        update(1)
+
+            # Finalize
+            process.wait()
+            return process.returncode
+        except FileNotFoundError:
             return 1
+        except Exception:
+            # Fallback to simple run if streaming fails
+            try:
+                completed = subprocess.run(cmd, capture_output=True, text=True)
+                return completed.returncode
+            except Exception:
+                return 1
 
 
