@@ -780,7 +780,6 @@ class ProcessSingleCellDataStage(StageBase):
         required_scripts = [
             "track_rois_module",
             "duplicate_rois_for_channels_module",
-            "extract_cells_module",
             "group_cells_module"
         ]
         for script_name in required_scripts:
@@ -872,22 +871,20 @@ class ProcessSingleCellDataStage(StageBase):
                 return False
             self.logger.info("ROIs duplicated successfully")
             
-            # Step 4: Extract cells
+            # Step 4: Extract cells (migrated to application helper)
             self.logger.info("Extracting cells...")
-            extract_script = get_path("extract_cells_module")
-            extract_args = [
-                "--roi-dir", f"{output_dir}/ROIs",
-                "--raw-data-dir", f"{output_dir}/raw_data",
-                "--output-dir", f"{output_dir}/cells",
-                "--imagej", self.config.get('imagej_path'),
-                "--macro", get_path_str("extract_cells_macro"),
-                "--auto-close",
-                "--channels"
-            ] + data_selection.get('analysis_channels', [])
-            
-            result = run_subprocess_with_spinner([sys.executable, str(extract_script)] + extract_args, title="Extracting cells")
-            if result.returncode != 0:
-                self.logger.error(f"Failed to extract cells: {result.stderr}")
+            from percell.application.imagej_tasks import extract_cells as _extract_cells
+            ok_extract = _extract_cells(
+                roi_dir=f"{output_dir}/ROIs",
+                raw_data_dir=f"{output_dir}/raw_data",
+                output_dir=f"{output_dir}/cells",
+                imagej_path=self.config.get('imagej_path'),
+                macro_path=get_path_str("extract_cells_macro"),
+                channels=data_selection.get('analysis_channels'),
+                auto_close=True,
+            )
+            if not ok_extract:
+                self.logger.error("Failed to extract cells")
                 return False
             self.logger.info("Cells extracted successfully")
             
