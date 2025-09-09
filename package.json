@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "mintlify": "^4.2.105"
+  },
+  "scripts": {
+    "docs:dev": "mintlify dev"
+  }
+}

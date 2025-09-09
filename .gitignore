@@ -67,3 +67,6 @@ percell/config/config.json
 
 # MkDocs build output
 site/
+
+# Node
+node_modules/

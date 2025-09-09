@@ -1,0 +1,15 @@
+{
+  "name": "PerCell",
+  "logo": {
+    "light": "/logo.png",
+    "dark": "/logo.png"
+  },
+  "colors": {
+    "primary": "#3B82F6"
+  },
+  "navigation": [
+    { "group": "Overview", "pages": ["/", "/getting-started", "/architecture"] },
+    { "group": "Reference", "pages": ["/api"] },
+    { "group": "Guides", "pages": ["/centralized-paths", "/global-installation"] }
+  ]
+}
