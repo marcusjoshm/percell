@@ -1,0 +1,27 @@
+site_name: PerCell Docs
+site_url: 
+theme:
+  name: material
+nav:
+  - Home: README.md
+  - Getting Started: Getting_Started.md
+  - Architecture: Architecture.md
+  - API Reference: api.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_heading: true
+            show_signature: true
+            separate_signature: true
+            show_source: false
+            filters: ["!^__" ]
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences

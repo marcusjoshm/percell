@@ -64,3 +64,6 @@ pyan3-callgraph-script.py
 # Config files
 config/config.json
 percell/config/config.json
+
+# MkDocs build output
+site/
