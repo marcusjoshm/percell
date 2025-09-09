@@ -21,6 +21,12 @@ build/
 *.egg-info/
 *.egg
 
+# PyPI configuration (contains API tokens)
+.pypirc
+
+# Test environments
+test_env/
+
 # Jupyter Notebook
 .ipynb_checkpoints
 .jupyter/

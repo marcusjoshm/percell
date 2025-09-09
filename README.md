@@ -32,9 +32,20 @@ A single cell microscopy analysis tool that integrates single cell segmentation 
 
 ## Installation
 
-### Option 1: Python Package Installation (Recommended) 🚀
+### Option 1: PyPI Installation (Recommended) 🚀
 
-Install Percell as a proper Python package for the best experience:
+Install Percell directly from PyPI (when published):
+
+```bash
+# Simple installation from PyPI
+pip install percell
+```
+
+**After installation, you can run `percell` from any directory!**
+
+### Option 2: Local Package Installation
+
+Install Percell from the source repository:
 
 ```bash
 # Clone the repository
@@ -53,9 +64,7 @@ This will:
 - ✅ Install the `percell` command globally
 - ✅ Verify the installation works correctly
 
-**After installation, you can run `percell` from any directory!**
-
-### Option 2: Development Installation
+### Option 3: Development Installation
 
 For development or if you want to modify the code:
 
@@ -75,7 +84,7 @@ pip install -e .
 ./install
 ```
 
-### Option 3: Legacy Installation
+### Option 4: Legacy Installation
 
 If you prefer the original installation method:
 
