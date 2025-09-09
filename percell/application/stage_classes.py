@@ -770,6 +770,8 @@ class SegmentationStage(StageBase):
                         cellpose_path = Path(cellpose_python)
                     else:
                         cellpose_path = project_root / cellpose_python
+                    self.logger.info(f"Resolved cellpose path: {cellpose_path}")
+                    self.logger.info(f"Cellpose path exists: {cellpose_path.exists()}")
                     adapter = CellposeSubprocessAdapter(cellpose_path)
                 self.logger.info("Launching Cellpose GUI (python -m cellpose) — no directories passed")
                 # Launch GUI and wait for user to complete segmentation, then close

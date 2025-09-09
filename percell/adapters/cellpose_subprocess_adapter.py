@@ -23,6 +23,8 @@ class CellposeSubprocessAdapter(CellposeIntegrationPort):
         if not python_executable:
             raise ValueError("python_executable must be provided")
         self._python = Path(python_executable)
+        logger.info(f"CellposeSubprocessAdapter initialized with python path: {self._python}")
+        logger.info(f"Python path exists: {self._python.exists()}")
 
     def run_segmentation(
         self,
