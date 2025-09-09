@@ -94,9 +94,7 @@ if (num_rois == 0) {
         print("ROI " + (i+1) + ": " + roi_name + " -> " + cell_number);
         print("MEASURE_ROI: " + (i+1) + "/" + num_rois);
         
-        // Get the area value from the results table (ImageJ uses 1-based indexing)
-        area_value = getResult("Area", i + 1);
-        print("DEBUG: ROI " + (i+1) + " area: " + area_value);
+        // Note: Area values are already in the results table from roiManager("Measure")
         
         // Set all columns for this row (ImageJ uses 1-based indexing)
         setResult("Image", i + 1, image_basename);
