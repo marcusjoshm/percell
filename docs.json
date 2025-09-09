@@ -1,5 +1,6 @@
 {
   "name": "PerCell",
+  "theme": "mint",
   "logo": {
     "light": "/logo.png",
     "dark": "/logo.png"
