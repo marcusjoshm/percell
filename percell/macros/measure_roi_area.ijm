@@ -51,6 +51,13 @@ num_rois = roiManager("count");
 print("Loaded " + num_rois + " ROIs from: " + roi_file);
 print("MEASURE_TOTAL: " + num_rois);
 
+// Debug: List all ROI names to verify they're loaded correctly
+for (i = 0; i < num_rois; i++) {
+    roiManager("Select", i);
+    roi_name = Roi.getName();
+    print("DEBUG: ROI " + (i+1) + " name: " + roi_name);
+}
+
 if (num_rois == 0) {
     print("Warning: No ROIs found in file");
 } else {
@@ -62,7 +69,9 @@ if (num_rois == 0) {
     
     // Measure all ROIs
     roiManager("Deselect");
+    print("DEBUG: About to measure " + num_rois + " ROIs");
     roiManager("Measure");
+    print("DEBUG: Measurement completed");
     
     // Get the base image name for identification
     image_basename = File.getName(image_file);
@@ -74,9 +83,7 @@ if (num_rois == 0) {
     
     // Add image identifier and cell numbers to results table
     for (i = 0; i < num_rois; i++) {
-        setResult("Image", i, image_basename);
-        
-        // Get ROI name
+        // Get ROI name first
         roiManager("Select", i);
         roi_name = Roi.getName();
         
@@ -87,7 +94,12 @@ if (num_rois == 0) {
         print("ROI " + (i+1) + ": " + roi_name + " -> " + cell_number);
         print("MEASURE_ROI: " + (i+1) + "/" + num_rois);
         
-        // Set the Label column with the ROI name (this is crucial!)
+        // Get the area value from the results table
+        area_value = getResult("Area", i);
+        print("DEBUG: ROI " + (i+1) + " area: " + area_value);
+        
+        // Set all columns for this row
+        setResult("Image", i, image_basename);
         setResult("Label", i, roi_name);
         setResult("Cell_ID", i, cell_number);
     }
