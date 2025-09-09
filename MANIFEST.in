@@ -1,14 +1,41 @@
+# Include essential project files
 include README.md
 include LICENSE
-include percell/setup/requirements.txt
-include percell/setup/requirements_cellpose.txt
-include percell/setup/install.py
-include install
+include MANIFEST.in
+include pyproject.toml
 
+# Include configuration files
 recursive-include percell/config *.json
+
+# Include shell scripts
 recursive-include percell/bash *.sh
+
+# Include ImageJ macros
 recursive-include percell/macros *.ijm
 
+# Include art assets
+recursive-include percell/art *.png
+
+# Include setup files
+recursive-include percell/setup *.txt *.py *.sh
+
+# Exclude development and build artifacts
 global-exclude *.pyc
+global-exclude *.pyo
 global-exclude __pycache__
-global-exclude .DS_Store 
+global-exclude .DS_Store
+global-exclude .git*
+global-exclude *.egg-info
+global-exclude build
+global-exclude dist
+global-exclude .pytest_cache
+global-exclude .coverage
+global-exclude htmlcov
+global-exclude .tox
+global-exclude .venv
+global-exclude venv
+global-exclude cellpose_venv
+global-exclude analysis_artifacts
+global-exclude tmp_callgraph
+global-exclude docs/architecture
+global-exclude refactoring_review

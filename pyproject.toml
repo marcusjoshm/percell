@@ -1,3 +1,91 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "percell"
+version = "1.0.0"
+description = "Microscopy Per Cell Analysis Pipeline - Global Installation Available"
+readme = "README.md"
+license = "MIT"
+authors = [
+    {name = "Joshua Marcus", email = "joshua.marcus@bcm.edu"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.20.0",
+    "pandas>=1.3.0",
+    "scipy>=1.7.0",
+    "scikit-learn>=1.0.0",
+    "matplotlib>=3.4.0",
+    "opencv-python>=4.5.0",
+    "tqdm>=4.62.0",
+    "tifffile>=2021.0.0",
+    "natsort>=8.0.0",
+    "read-roi>=1.6.0",
+    "pillow>=9.0.0",
+    "scikit-image>=0.19.0",
+    "python-json-logger>=2.0.0",
+    "colorama>=0.4.4",
+    "alive-progress>=3.3.0",
+    "PyQt6>=6.4.0",
+    "pyqtgraph>=0.12.4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov>=2.0",
+    "black>=21.0",
+    "flake8>=3.8",
+    "mypy>=0.800",
+]
+
+[project.scripts]
+percell = "percell.main.main:main"
+
+[project.urls]
+Homepage = "https://github.com/marcusjoshm/percell"
+Repository = "https://github.com/marcusjoshm/percell"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "percell*",
+    "percell.adapters*",
+    "percell.application*", 
+    "percell.domain*",
+    "percell.domain.services*",
+    "percell.main*",
+    "percell.ports*",
+    "percell.ports.driven*",
+    "percell.ports.driving*",
+]
+
+[tool.setuptools.package-data]
+percell = [
+    "config/*.json",
+    "config/*.template.json", 
+    "bash/*.sh",
+    "macros/*.ijm",
+    "art/*.png",
+    "setup/*.txt",
+    "setup/*.py",
+    "setup/*.sh",
+]
+
 [tool.black]
 line-length = 88
 target-version = ['py311']
