@@ -67,12 +67,6 @@ if (num_rois == 0) {
     // Set measurements to include area (similar to particle analysis)
     run("Set Measurements...", "area display redirect=None decimal=3");
     
-    // Measure all ROIs
-    roiManager("Deselect");
-    print("DEBUG: About to measure " + num_rois + " ROIs");
-    roiManager("Measure");
-    print("DEBUG: Measurement completed");
-    
     // Get the base image name for identification
     image_basename = File.getName(image_file);
     if (endsWith(image_basename, ".tif")) {
@@ -81,29 +75,50 @@ if (num_rois == 0) {
         image_basename = substring(image_basename, 0, lengthOf(image_basename) - 5);
     }
     
-    // Add image identifier and cell numbers to results table
+    // Clear any existing measurements and manually build results table
+    run("Clear Results");
+    
+    // Set measurements to include area
+    run("Set Measurements...", "area display redirect=None decimal=3");
+    
+    print("DEBUG: Building results table manually for " + num_rois + " ROIs");
+    
+    // Measure each ROI and manually add to results table
     for (i = 0; i < num_rois; i++) {
-        // Get ROI name first
+        // Select ROI
         roiManager("Select", i);
         roi_name = Roi.getName();
+        
+        // Get area using getStatistics instead of Measure
+        getStatistics(area, mean, min, max, std, histogram);
         
         // Create sequential cell ID (CELL1, CELL2, CELL3, etc.)
         cell_number = "CELL" + (i + 1);
         
         // Debug: print ROI name and assigned cell number
-        print("ROI " + (i+1) + ": " + roi_name + " -> " + cell_number);
+        print("ROI " + (i+1) + ": " + roi_name + " -> " + cell_number + " (Area: " + area + ")");
         print("MEASURE_ROI: " + (i+1) + "/" + num_rois);
         
-        // Get the area value from the results table (ImageJ uses 1-based indexing)
-        area_value = getResult("Area", i + 1);
-        
-        // Set all columns for this row (ImageJ uses 1-based indexing)
-        setResult("Image", i + 1, image_basename);
-        setResult("Label", i + 1, roi_name);
-        setResult("Cell_ID", i + 1, cell_number);
-        
-        // Explicitly preserve the area value
-        setResult("Area", i + 1, area_value);
+        // Manually add this measurement to the results table
+        setResult("Label", i, roi_name);
+        setResult("Area", i, area);
+        setResult("Image", i, image_basename);
+        setResult("Cell_ID", i, cell_number);
+    }
+    
+    // Update the results table after all measurements
+    updateResults();
+    
+    // Check final results
+    final_count = nResults;
+    print("DEBUG: Final results table has " + final_count + " rows");
+    
+    // Debug: show first few and last few entries
+    if (final_count > 0) {
+        print("DEBUG: First entry - Label: " + getResultString("Label", 0) + ", Area: " + getResult("Area", 0));
+        if (final_count > 1) {
+            print("DEBUG: Last entry - Label: " + getResultString("Label", final_count-1) + ", Area: " + getResult("Area", final_count-1));
+        }
     }
     updateResults();
     
