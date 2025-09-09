@@ -87,6 +87,8 @@ if (num_rois == 0) {
         print("ROI " + (i+1) + ": " + roi_name + " -> " + cell_number);
         print("MEASURE_ROI: " + (i+1) + "/" + num_rois);
         
+        // Set the Label column with the ROI name (this is crucial!)
+        setResult("Label", i, roi_name);
         setResult("Cell_ID", i, cell_number);
     }
     updateResults();
