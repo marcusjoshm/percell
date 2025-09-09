@@ -11,22 +11,23 @@
 [![GitHub stars](https://img.shields.io/github/stars/marcusjoshm/percell?style=social)](https://github.com/marcusjoshm/percell/)
 [![GitHub forks](https://img.shields.io/github/forks/marcusjoshm/percell?style=social)](https://github.com/marcusjoshm/percell/)
 
-A single cell microscopy analysis tool that integrates single cell segmentation using cellpose with imageJ macros into a single software package with an easy-to-use command line interface
+A single cell microscopy analysis tool that integrates single cell segmentation using cellpose with imageJ macros into a single software package with an easy-to-use command line interface. Built with a clean hexagonal architecture for maintainability and extensibility.
 
 ## Table of Contents
 
 1. [Installation](#installation)
-2. [Getting Started](#getting-started)
-3. [Modular CLI System (New!)](#modular-cli-system-new)
-4. [Step 1: Remove Spaces from File Names](#step-1-remove-spaces-from-file-names)
-5. [Step 2: Activate the Python Environment](#step-2-activate-the-python-environment)
-6. [Step 3: Run the Analysis Workflow](#step-3-run-the-analysis-workflow)
-7. [Step 4: Data Analysis Selection](#step-4-data-analysis-selection)
-8. [Step 5: Cellpose Segmentation](#step-5-cellpose-segmentation)
-9. [Step 6: Otsu Thresholding](#step-6-otsu-thresholding)
-10. [Tips and Tricks](#tips-and-tricks)
-11. [Troubleshooting](#troubleshooting)
-12. [Technical Documentation](#technical-documentation)
+2. [Architecture Overview](#architecture-overview)
+3. [Getting Started](#getting-started)
+4. [Modular CLI System](#modular-cli-system)
+5. [Step 1: Remove Spaces from File Names](#step-1-remove-spaces-from-file-names)
+6. [Step 2: Activate the Python Environment](#step-2-activate-the-python-environment)
+7. [Step 3: Run the Analysis Workflow](#step-3-run-the-analysis-workflow)
+8. [Step 4: Data Analysis Selection](#step-4-data-analysis-selection)
+9. [Step 5: Cellpose Segmentation](#step-5-cellpose-segmentation)
+10. [Step 6: Otsu Thresholding](#step-6-otsu-thresholding)
+11. [Tips and Tricks](#tips-and-tricks)
+12. [Troubleshooting](#troubleshooting)
+13. [Technical Documentation](#technical-documentation)
 
 
 ## Installation
@@ -111,6 +112,104 @@ sudo ln -sf /path/to/your/percell/venv/bin/percell /usr/local/bin/percell
 ```
 
 **Note**: The fix script is self-contained and will automatically find the correct paths regardless of where you run it from.
+
+## Architecture Overview
+
+PerCell is built using a **hexagonal architecture** (also known as ports and adapters pattern) that provides clean separation of concerns and makes the codebase maintainable and extensible.
+
+### Architecture Layers
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    User Interface Layer                     │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
+│  │   CLI Adapter   │  │   GUI Adapter   │  │  API Adapter│  │
+│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                                │
+┌─────────────────────────────────────────────────────────────┐
+│                   Application Layer                         │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
+│  │  Pipeline API   │  │  Configuration  │  │   Progress  │  │
+│  │                 │  │      API        │  │     API     │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
+│  │  Stage Classes  │  │  CLI Services   │  │  Workflow   │  │
+│  │                 │  │                 │  │ Coordinator │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                                │
+┌─────────────────────────────────────────────────────────────┐
+│                     Domain Layer                            │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
+│  │     Models      │  │    Services     │  │   Business  │  │
+│  │                 │  │                 │  │    Logic    │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                                │
+┌─────────────────────────────────────────────────────────────┐
+│                   Infrastructure Layer                      │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
+│  │ ImageJ Adapter  │  │ File System     │  │ Cellpose    │  │
+│  │                 │  │ Adapter         │  │ Adapter     │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
+│  │ Image Processing│  │  CLI Interface  │  │   Progress  │  │
+│  │ Adapter         │  │ Adapter         │  │   Adapter   │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Components
+
+#### **Domain Layer** (`percell/domain/`)
+- **Models**: Core business entities and data structures
+- **Services**: Pure business logic without external dependencies
+  - `DataSelectionService`: Handles data validation and selection
+  - `FileNamingService`: Manages file naming conventions
+  - `IntensityAnalysisService`: Performs intensity-based analysis
+  - `WorkflowOrchestrationService`: Coordinates workflow execution
+
+#### **Application Layer** (`percell/application/`)
+- **Pipeline API**: Main orchestration and workflow management
+- **Configuration API**: Centralized configuration management
+- **Progress API**: Progress tracking and user feedback
+- **Stage Classes**: Individual workflow steps and stages
+- **CLI Services**: Command-line interface logic
+
+#### **Adapters** (`percell/adapters/`)
+- **ImageJ Macro Adapter**: Interfaces with ImageJ/Fiji
+- **Cellpose Subprocess Adapter**: Manages Cellpose integration
+- **Local File System Adapter**: Handles file operations
+- **PIL Image Processing Adapter**: Image manipulation tasks
+- **CLI User Interface Adapter**: Terminal-based user interface
+
+#### **Ports** (`percell/ports/`)
+- **Driving Ports**: Interfaces that the application uses to interact with external systems
+- **Driven Ports**: Interfaces that external systems implement to interact with the application
+
+### Benefits of This Architecture
+
+- **🔧 Maintainability**: Clear separation of concerns makes code easier to understand and modify
+- **🧪 Testability**: Each layer can be tested independently with proper mocking
+- **🔄 Extensibility**: New adapters can be added without changing core business logic
+- **🛡️ Reliability**: Domain logic is isolated from external dependencies
+- **📈 Scalability**: Components can be developed and deployed independently
+
+### Package Structure
+
+```
+percell/
+├── adapters/          # External system integrations
+├── application/       # Application orchestration layer
+├── domain/           # Core business logic
+├── main/             # Application entry points
+├── ports/            # Interface definitions
+├── config/           # Configuration files
+├── bash/             # Shell scripts
+├── macros/           # ImageJ macro files
+└── setup/            # Installation and setup files
+```
 
 ## Getting Started
 
@@ -231,9 +330,9 @@ microscopy_data/
 > - Ensure all conditions have the same timepoints and regions for consistent analysis
 > - Use descriptive names for channels to identify them during analysis
 > 
-## Modular CLI System (New!)
+## Modular CLI System
 
-We've introduced a new modular command-line interface that provides a more user-friendly experience. This system allows you to run individual workflow steps or the complete pipeline with an interactive menu.
+PerCell features a modular command-line interface that provides a user-friendly experience. This system allows you to run individual workflow steps or the complete pipeline with an interactive menu, built on the hexagonal architecture for reliability and maintainability.
 
 ### Quick Start with Modular CLI
 
@@ -267,8 +366,10 @@ percell
    6. Threshold Grouped Cells (interactive ImageJ thresholding)
    7. Measure Cell Area (measure areas from single-cell ROIs)
    8. Analysis (combine masks, create cell masks, export results)
-   9. Exit
-   Select an option (1-9):
+   9. Cleanup (empty cells and masks directories, preserves grouped/combined data)
+   10. Advanced Workflow Builder (custom sequence of steps)
+   11. Exit
+   Select an option (1-11):
    ```
 
 
@@ -308,12 +409,28 @@ percell
 - Interactive ImageJ thresholding for grouped cells
 - **Requires data selection to be completed first**
 
-#### Option 7: Analysis
+#### Option 7: Measure Cell Area
+- Measures areas of ROIs in raw images
+- Provides quantitative analysis of cell sizes
+- **Requires data selection to be completed first**
+
+#### Option 8: Analysis
 - Combines masks from different groups
 - Creates individual cell masks
 - Analyzes cell features
 - Includes group metadata in results
 - **Requires data selection to be completed first**
+
+#### Option 9: Cleanup
+- Empties cells and masks directories to free up space
+- Preserves grouped/combined data
+- Useful for managing disk space after analysis
+- **Safe to run after analysis is complete**
+
+#### Option 10: Advanced Workflow Builder
+- Allows custom sequence of workflow steps
+- Provides fine-grained control over the analysis process
+- **For advanced users who need custom workflows**
 
 ### Example Workflow
 
@@ -329,7 +446,9 @@ percell
 3. Choose Option 4 for segmentation
 4. Choose Option 5 for cell processing
 5. Choose Option 6 for thresholding
-6. Choose Option 7 for analysis
+6. Choose Option 7 for cell area measurement
+7. Choose Option 8 for analysis
+8. Choose Option 9 for cleanup (optional)
 
 ### Benefits of the Modular System
 
@@ -422,47 +541,41 @@ Example of how your prompt should look:
 
 You have two options for running the analysis workflow:
 
-### Option A: New Modular CLI (Recommended) ⭐
+### Option A: Modular CLI (Recommended) ⭐
 
 1. **Run the modular interface**:
    ```bash
-   python main.py
+   percell
    ```
 
 2. **Choose Option 2 (Run Complete Workflow)** from the menu
 
 3. **Follow the interactive prompts** for data selection and segmentation
 
-This is the recommended approach for new users as it provides a more user-friendly experience.
+This is the recommended approach as it provides a user-friendly experience built on the hexagonal architecture.
 
-### Option B: Original Workflow
+### Option B: Direct Command Line
 
-If you prefer the original command-line approach:
+If you prefer direct command-line execution:
 
 1. Copy and paste the following into Terminal:
 
 ```bash
-python single_cell_workflow.py --config config/config.json
+percell --input /path/to/input --output /path/to/output --complete-workflow
 ```
 
-2. After pasting the above, press Space and type `--input` followed by another Space.
+2. Replace `/path/to/input` with your actual input directory path
 
-3. Drag the folder you want to analyze from Finder into the Terminal window. The absolute file path will appear.
-
-4. Press Space and type `--output` followed by another Space.
-
-5. Drag the same folder into Terminal again.
-
-6. After the path appears, add `_analysis` followed by a description at the end of the folder name. Make sure there are no spaces in the file path.
+3. Replace `/path/to/output` with your desired output directory path
 
 Your final command should look something like this:
 ```bash
-python single_cell_workflow.py --config config/config.json --input /Volumes/LEELAB/JL_Data/2025-05-08_export_max --output /Volumes/LEELAB/JL_Data/2025-05-08_analysis_Dish_1_Control_40minWash
+percell --input /Volumes/LEELAB/JL_Data/2025-05-08_export_max --output /Volumes/LEELAB/JL_Data/2025-05-08_analysis_Dish_1_Control_40minWash --complete-workflow
 ```
 
-7. Press `Enter` to start the analysis.
+4. Press `Enter` to start the analysis.
 
-8. The script will create an output folder with the name you specified, containing all analysis results.
+5. The script will create an output folder with the name you specified, containing all analysis results.
 
 > **Important:** Remember that the output folder name can be anything you want as long as there are no spaces in it. Use underscores (_) instead of spaces.
 
@@ -529,3 +642,113 @@ Type the number of the project file you would like to analyze. If you want to an
 Next, you'll see a prompt to select timepoints for analysis:
 
 ```
+================================================================================
+MANUAL STEP REQUIRED: select_timepoints
+================================================================================
+Available timepoints:
+1. 0min
+2. 30min
+3. 60min
+
+Input options for timepoints:
+- Enter timepoints as space-separated text (e.g., '0min 30min')
+- Enter numbers from the list (e.g., '1 2')
+- Type 'all' to select all timepoints
+
+Enter your selection:
+```
+
+Type the numbers of the timepoints you want to analyze, separated by spaces, or type "all" to analyze all timepoints. Then press `Enter`.
+
+## Tips and Tricks
+
+### Performance Optimization
+- **Batch Processing**: Process multiple conditions simultaneously for faster analysis
+- **Memory Management**: Use the cleanup option to free up disk space after analysis
+- **Parallel Processing**: The hexagonal architecture enables efficient parallel processing
+
+### Data Organization
+- **Consistent Naming**: Use consistent naming conventions across all conditions
+- **Directory Structure**: Follow the recommended directory structure for optimal performance
+- **File Formats**: Use `.tif` files for best compatibility with ImageJ integration
+
+### Troubleshooting Common Issues
+
+#### Installation Issues
+```bash
+# If percell command is not found
+./percell/setup/fix_global_install.sh
+
+# If dependencies are missing
+pip install -e .
+```
+
+#### Runtime Issues
+- **File Path Issues**: Ensure no spaces in file or directory names
+- **Permission Issues**: Check file permissions for input/output directories
+- **Memory Issues**: Use cleanup option to free up space during long analyses
+
+## Technical Documentation
+
+### Architecture Benefits
+
+The hexagonal architecture provides several key advantages:
+
+- **Separation of Concerns**: Business logic is isolated from external dependencies
+- **Testability**: Each component can be tested independently
+- **Maintainability**: Changes to one layer don't affect others
+- **Extensibility**: New adapters can be added without modifying core logic
+- **Reliability**: External system failures don't crash the application
+
+### Development Guidelines
+
+#### Adding New Features
+1. **Domain Layer**: Add business logic to domain services
+2. **Application Layer**: Add orchestration logic to application services
+3. **Adapters**: Create new adapters for external system integration
+4. **Ports**: Define interfaces for new external interactions
+
+#### Testing Strategy
+- **Unit Tests**: Test domain services in isolation
+- **Integration Tests**: Test adapter implementations
+- **Contract Tests**: Verify port implementations
+- **End-to-End Tests**: Test complete workflows
+
+### API Reference
+
+#### Core APIs
+- **Pipeline API**: `percell.application.pipeline_api`
+- **Configuration API**: `percell.application.config_api`
+- **Progress API**: `percell.application.progress_api`
+- **Logger API**: `percell.application.logger_api`
+
+#### Domain Services
+- **Data Selection**: `percell.domain.services.data_selection_service`
+- **File Naming**: `percell.domain.services.file_naming_service`
+- **Intensity Analysis**: `percell.domain.services.intensity_analysis_service`
+- **Workflow Orchestration**: `percell.domain.services.workflow_orchestration_service`
+
+#### Adapters
+- **ImageJ Integration**: `percell.adapters.imagej_macro_adapter`
+- **File System**: `percell.adapters.local_filesystem_adapter`
+- **Cellpose Integration**: `percell.adapters.cellpose_subprocess_adapter`
+- **Image Processing**: `percell.adapters.pil_image_processing_adapter`
+
+### Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on:
+- Code style and standards
+- Testing requirements
+- Pull request process
+- Architecture principles
+
+### License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### Support
+
+For support and questions:
+- **Issues**: [GitHub Issues](https://github.com/marcusjoshm/percell/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/marcusjoshm/percell/discussions)
+- **Documentation**: [Project Wiki](https://github.com/marcusjoshm/percell/wiki)
