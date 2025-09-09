@@ -49,16 +49,6 @@ setup(
         "Topic :: Scientific/Engineering :: Image Processing",
     ],
     python_requires=">=3.8",
-    install_requires=read_requirements(),
-    extras_require={
-        "dev": [
-            "pytest>=6.0",
-            "pytest-cov>=2.0",
-            "black>=21.0",
-            "flake8>=3.8",
-            "mypy>=0.800",
-        ],
-    },
     entry_points={
         "console_scripts": [
             "percell=percell.main.main:main",

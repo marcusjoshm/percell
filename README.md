@@ -32,16 +32,59 @@ A single cell microscopy analysis tool that integrates single cell segmentation 
 
 ## Installation
 
-### Quick Installation (Recommended)
+### Option 1: Python Package Installation (Recommended) 🚀
 
-After cloning this repository, run a single command to complete the installation:
+Install Percell as a proper Python package for the best experience:
 
 ```bash
 # Clone the repository
 git clone https://github.com/marcusjoshm/percell.git
 cd percell
 
-# Run the installation script (choose one method)
+# Build and install the package
+python -m pip install --upgrade build
+python -m build
+python install_package.py
+```
+
+This will:
+- ✅ Build the package distribution files
+- ✅ Install all dependencies automatically
+- ✅ Install the `percell` command globally
+- ✅ Verify the installation works correctly
+
+**After installation, you can run `percell` from any directory!**
+
+### Option 2: Development Installation
+
+For development or if you want to modify the code:
+
+```bash
+# Clone the repository
+git clone https://github.com/marcusjoshm/percell.git
+cd percell
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install in editable mode
+pip install -e .
+
+# Run the setup script for additional configuration
+./install
+```
+
+### Option 3: Legacy Installation
+
+If you prefer the original installation method:
+
+```bash
+# Clone the repository
+git clone https://github.com/marcusjoshm/percell.git
+cd percell
+
+# Run the installation script
 ./install
 ```
 
@@ -112,6 +155,54 @@ sudo ln -sf /path/to/your/percell/venv/bin/percell /usr/local/bin/percell
 ```
 
 **Note**: The fix script is self-contained and will automatically find the correct paths regardless of where you run it from.
+
+### Package Distribution
+
+Percell is now distributed as a proper Python package with the following benefits:
+
+- **🔧 Easy Installation**: Simple `pip install` process
+- **🌍 Global Access**: Run `percell` from any directory
+- **📦 Dependency Management**: Automatic dependency resolution
+- **🔄 Version Control**: Proper package versioning
+- **🧪 Testing**: Built-in installation verification
+
+#### Building Distribution Packages
+
+To create distribution packages for sharing or publishing:
+
+```bash
+# Install build tools
+python -m pip install --upgrade build twine
+
+# Build the package
+python -m build
+
+# This creates:
+# - dist/percell-1.0.0-py3-none-any.whl (wheel package)
+# - dist/percell-1.0.0.tar.gz (source distribution)
+```
+
+#### Installing from Local Package
+
+```bash
+# Install from wheel file
+pip install dist/percell-1.0.0-py3-none-any.whl
+
+# Or use the automated installer
+python install_package.py
+```
+
+#### Publishing to PyPI (Optional)
+
+If you want to publish to PyPI for public distribution:
+
+```bash
+# Upload to PyPI (requires account setup)
+twine upload dist/*
+
+# Then users can install with:
+pip install percell
+```
 
 ## Architecture Overview
 
