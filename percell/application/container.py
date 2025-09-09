@@ -33,10 +33,19 @@ def build_container(config_path: Path) -> Container:
     workflow = WorkflowCoordinator(orchestrator=orchestrator)
     step_exec = StepExecutionCoordinator()
 
+    # Get project root for resolving relative paths to external resources
+    from percell.application.paths_api import get_path_config
+    project_root = get_path_config().get_project_root()
+
     imagej_path = Path(cfg.get("imagej_path", cfg.get_nested("paths.imagej") or "/Applications/ImageJ.app/Contents/MacOS/ImageJ"))
     imagej = ImageJMacroAdapter(imagej_path)
 
-    cellpose_python = Path(cfg.get("cellpose_path", cfg.get_nested("paths.cellpose") or "cellpose_venv/bin/python"))
+    # Resolve cellpose path relative to project root if it's a relative path
+    cellpose_path_str = cfg.get("cellpose_path", cfg.get_nested("paths.cellpose") or "cellpose_venv/bin/python")
+    if Path(cellpose_path_str).is_absolute():
+        cellpose_python = Path(cellpose_path_str)
+    else:
+        cellpose_python = project_root / cellpose_path_str
     cellpose = CellposeSubprocessAdapter(cellpose_python)
 
     fs = LocalFileSystemAdapter()

@@ -763,7 +763,14 @@ class SegmentationStage(StageBase):
                 adapter = cellpose_adapter
                 if adapter is None:
                     from percell.adapters.cellpose_subprocess_adapter import CellposeSubprocessAdapter  # type: ignore
-                    adapter = CellposeSubprocessAdapter(Path(cellpose_python))
+                    # Resolve cellpose path relative to project root if it's a relative path
+                    from percell.application.paths_api import get_path_config
+                    project_root = get_path_config().get_project_root()
+                    if Path(cellpose_python).is_absolute():
+                        cellpose_path = Path(cellpose_python)
+                    else:
+                        cellpose_path = project_root / cellpose_python
+                    adapter = CellposeSubprocessAdapter(cellpose_path)
                 self.logger.info("Launching Cellpose GUI (python -m cellpose) — no directories passed")
                 # Launch GUI and wait for user to complete segmentation, then close
                 from pathlib import Path as _P

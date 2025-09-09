@@ -14,6 +14,7 @@ import sys
 class PathConfig:
     def __init__(self) -> None:
         self._package_root = self._find_package_root()
+        self._project_root = self._find_project_root()
         self._paths = self._initialize_paths()
 
     def _find_package_root(self) -> Path:
@@ -39,6 +40,32 @@ class PathConfig:
                 break
             cur = cur.parent
         return Path(__file__).parent.parent
+
+    def _find_project_root(self) -> Path:
+        """Find the project root (where cellpose_venv, venv, etc. are located)."""
+        package_root = self._package_root
+        # Project root is one level up from package root
+        project_root = package_root.parent
+        # Verify this is the project root by checking for expected directories
+        expected_dirs = ["cellpose_venv", "venv", "setup.py", "pyproject.toml"]
+        if all((project_root / d).exists() for d in expected_dirs):
+            return project_root
+        # Fallback: try to find project root by looking for cellpose_venv
+        for p in sys.path:
+            pr = Path(p).parent
+            if (pr / "cellpose_venv").exists():
+                return pr
+        # Another fallback: look in current working directory and parents
+        cwd = Path.cwd()
+        cur = cwd
+        for _ in range(10):
+            if (cur / "cellpose_venv").exists():
+                return cur
+            if cur == cur.parent:
+                break
+            cur = cur.parent
+        # Final fallback: assume project root is one level up from package root
+        return package_root.parent
 
     def _initialize_paths(self) -> Dict[str, Path]:
         root = self._package_root
@@ -96,6 +123,9 @@ class PathConfig:
 
     def get_package_root(self) -> Path:
         return self._package_root
+
+    def get_project_root(self) -> Path:
+        return self._project_root
 
 
 _path_config: PathConfig | None = None
