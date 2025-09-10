@@ -318,17 +318,17 @@ def create_analyze_macro_with_parameters(
     except Exception:
         return None
 
-
 def find_mask_files(
     input_dir: str | Path,
-    max_files: int = 50,
     regions: Optional[List[str]] = None,
     timepoints: Optional[List[str]] = None,
+    max_files: int = 9999999999999,
 ) -> dict[str, List[str]]:
     import os, re, glob
     mask_files_by_dir: dict[str, List[str]] = {}
     target_regions: List[str] = []
     target_timepoints: List[str] = []
+    total_files_collected = 0
     if regions:
         for r in regions:
             if isinstance(r, str) and " " in r:
@@ -342,6 +342,8 @@ def find_mask_files(
             else:
                 target_timepoints.append(t)
     for extension in ["tif", "tiff"]:
+        if total_files_collected >= max_files:
+            break
         pattern = os.path.join(str(input_dir), "**", f"MASK_CELL*.{extension}")
         for mask_path in glob.glob(pattern, recursive=True):
             parent_dir = os.path.dirname(mask_path)
@@ -370,9 +372,14 @@ def find_mask_files(
                     continue
             if target_timepoints and timepoint not in target_timepoints:
                 continue
+            
+            # Check if we've reached the maximum number of files
+            if total_files_collected >= max_files:
+                break
+                
             files = mask_files_by_dir.setdefault(parent_dir, [])
-            if len(files) < max_files:
-                files.append(mask_path)
+            files.append(mask_path)
+            total_files_collected += 1
     return mask_files_by_dir
 
 
@@ -382,7 +389,6 @@ def _analysis_csv_filename(dir_path: str | Path, output_dir: str | Path) -> Path
     mask_dir = d.name
     return Path(output_dir) / f"{condition}_{mask_dir}_particle_analysis.csv"
 
-
 def analyze_masks(
     input_dir: str | Path,
     output_dir: str | Path,
@@ -390,7 +396,7 @@ def analyze_masks(
     macro_path: str | Path,
     regions: Optional[List[str]] = None,
     timepoints: Optional[List[str]] = None,
-    max_files: int = 50,
+    max_files: int = 9999999999999,
     auto_close: bool = True,
     *,
     imagej: Optional[ImageJIntegrationPort] = None,
