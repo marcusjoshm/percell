@@ -205,7 +205,7 @@ class AutoThresholdAnalyzer:
         return None
     
     def create_thresholding_macro(self, input_dir: str, output_dir: str, 
-                                method: str = 'otsu', channels: List[str] = None,
+                                method: str = 'percentile', channels: List[str] = None,
                                 quality_assessment: bool = True) -> str:
         """
         Create an ImageJ macro for automated thresholding.
