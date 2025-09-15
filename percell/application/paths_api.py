@@ -20,7 +20,7 @@ class PathConfig:
     def _find_package_root(self) -> Path:
         current_file = Path(__file__)
         package_root = current_file.parent.parent  # percell/
-        expected_dirs = ["bash", "config", "macros", "modules"]
+        expected_dirs = ["bash", "config", "macros"]
         if all((package_root / d).exists() for d in expected_dirs):
             return package_root
         for p in sys.path:
@@ -71,8 +71,6 @@ class PathConfig:
         root = self._package_root
         return {
             "package_root": root,
-            "core": root / "core",
-            "modules": root / "modules",
             "main": root / "main",
             "config_dir": root / "config",
             "config_template": root / "config" / "config.template.json",
@@ -81,8 +79,6 @@ class PathConfig:
             "setup_output_structure_script": root / "bash" / "setup_output_structure.sh",
             "prepare_input_structure_script": root / "bash" / "prepare_input_structure.sh",
             "launch_segmentation_tools_script": root / "bash" / "launch_segmentation_tools.sh",
-            "stage_classes_module": root / "modules" / "stage_classes.py",
-            "stage_registry_module": root / "modules" / "stage_registry.py",
             "macros_dir": root / "macros",
             "analyze_cell_masks_macro": root / "macros" / "analyze_cell_masks.ijm",
             "create_cell_masks_macro": root / "macros" / "create_cell_masks.ijm",
