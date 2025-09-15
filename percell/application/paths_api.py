@@ -20,7 +20,7 @@ class PathConfig:
     def _find_package_root(self) -> Path:
         current_file = Path(__file__)
         package_root = current_file.parent.parent  # percell/
-        expected_dirs = ["bash", "config", "macros", "core", "modules"]
+        expected_dirs = ["bash", "config", "macros", "modules"]
         if all((package_root / d).exists() for d in expected_dirs):
             return package_root
         for p in sys.path:
