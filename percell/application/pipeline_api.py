@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Application-level Pipeline API compatible with legacy core.pipeline."""
+"""Application-level Pipeline API."""
 
 import argparse
 from pathlib import Path

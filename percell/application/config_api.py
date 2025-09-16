@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Application-level configuration API compatible with legacy core.config.
+"""Application-level configuration API.
 
 Exposes: Config, ConfigError, create_default_config, validate_software_paths,
 detect_software_paths

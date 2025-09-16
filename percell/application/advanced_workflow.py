@@ -1,8 +1,7 @@
 """
 Advanced Workflow Builder Stage (Application Layer)
 
-Migrated from percell/modules/advanced_workflow.py to align with the
-new architecture. Provides an interactive interface to build and execute
+Provides an interactive interface to build and execute
 custom workflows by leveraging existing stages and application tasks.
 """
 
@@ -21,7 +20,7 @@ class AdvancedWorkflowStage(StageBase):
     Advanced Workflow Builder
 
     Shows a numbered list of higher-level steps, lets the user enter a
-    space-separated sequence, then executes the corresponding stages/modules.
+    space-separated sequence, then executes the corresponding stages.
     """
 
     def __init__(self, config, logger, stage_name: str = "advanced_workflow"):

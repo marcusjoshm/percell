@@ -13,7 +13,7 @@ class WorkflowCoordinator:
 
     This class sits in the application layer and uses domain services to validate
     and manage workflow execution. It delegates concrete step execution to
-    existing modules or orchestrators as appropriate.
+    existing orchestrators as appropriate.
     """
 
     orchestrator: WorkflowOrchestrationService

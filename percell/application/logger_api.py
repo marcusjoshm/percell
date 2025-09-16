@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Application-level logging API compatible with legacy core.logger exports."""
+"""Application-level logging API."""
 
 import json
 import logging

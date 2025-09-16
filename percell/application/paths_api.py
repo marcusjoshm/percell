@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 """
-Application-level centralized paths API, compatible with legacy percell.core.paths
-exports. Provides `get_path`, `get_path_str`, `path_exists`, `ensure_executable`,
+Application-level centralized paths API.
+Provides `get_path`, `get_path_str`, `path_exists`, `ensure_executable`,
 `list_all_paths`, and `get_path_config`.
 """
 

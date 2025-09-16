@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Application-level helpers for pure image processing tasks.
 
-Currently includes image binning previously implemented in modules/bin_images.py.
+Currently includes image binning functionality.
 """
 
 from pathlib import Path

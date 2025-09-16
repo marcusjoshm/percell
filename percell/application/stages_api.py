@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Application-level stages API mirroring legacy core.stages exports."""
+"""Application-level stages API."""
 
 import time
 from abc import ABC, abstractmethod

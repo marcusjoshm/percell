@@ -1,6 +1,6 @@
 """Domain models and value objects for PerCell.
 
-These dataclasses and enums define the core business entities of the
+These dataclasses and enums define the business entities of the
 application and are intentionally free of infrastructure concerns.
 """
 

@@ -9,8 +9,7 @@ from typing import Sequence
 class PackageResourceService:
     """Pure domain logic for locating package resources relative to a root.
 
-    This encapsulates the core path-derivation logic that previously lived in
-    `core/utils.py` without performing any I/O beyond `exists()` checks.
+    This encapsulates path-derivation logic without performing any I/O beyond `exists()` checks.
     """
 
     package_root: Path
@@ -18,9 +17,7 @@ class PackageResourceService:
     def verify_root(self, expected_dirs: Sequence[str] = ("bash", "config", "macros")) -> bool:
         """Verify the package root contains required resource directories.
 
-        The legacy layout included a 'modules' directory, which has been
-        migrated into the application layer. We no longer require 'modules'
-        for a valid package root. Extra directories are ignored.
+        Extra directories are ignored.
         """
         return all((self.package_root / d).exists() for d in expected_dirs)
 

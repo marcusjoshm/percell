@@ -39,7 +39,7 @@ Examples:
     parser.add_argument('--measure-roi-area', action='store_true', help='Run ROI area measurement (measure areas of ROIs in raw images)')
     parser.add_argument('--analysis', action='store_true', help='Run analysis (combine masks, create cell masks, export results)')
     parser.add_argument('--cleanup', action='store_true', help='Clean up directories (empty cells and masks directories to free space, preserves grouped/combined data)')
-    parser.add_argument('--complete-workflow', action='store_true', help='Run complete analysis workflow (all 6 modules)')
+    parser.add_argument('--complete-workflow', action='store_true', help='Run complete analysis workflow (all 6 stages)')
     parser.add_argument('--advanced-workflow', action='store_true', help='Run advanced workflow builder (custom sequence of steps)')
 
     # Data selection arguments

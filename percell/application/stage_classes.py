@@ -2,8 +2,7 @@
 """
 Application Layer Stage Classes for Microscopy Single-Cell Analysis Pipeline
 
-Migrated from percell/modules/stage_classes.py to align with the new
-architecture. Contains the concrete implementations of each pipeline stage.
+Contains the concrete implementations of each pipeline stage.
 """
 
 from __future__ import annotations

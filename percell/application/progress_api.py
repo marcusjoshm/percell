@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Application-level progress API mirroring legacy core.progress."""
+"""Application-level progress API."""
 
 from contextlib import contextmanager
 from typing import Iterable, Iterator, Optional, Callable, Any, List, Dict

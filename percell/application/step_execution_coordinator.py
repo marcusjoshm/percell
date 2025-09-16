@@ -14,7 +14,7 @@ class StepExecutionCoordinator:
     """Coordinates execution of individual workflow steps via registered executors.
 
     Executors are plain callables taking a WorkflowConfig and returning bool for success.
-    This keeps the application layer decoupled from concrete modules.
+    This keeps the application layer decoupled from concrete implementations.
     """
 
     _executors: Dict[WorkflowStep, StepExecutor] = field(default_factory=dict)

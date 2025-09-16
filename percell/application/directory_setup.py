@@ -168,10 +168,7 @@ def save_recent_directories_automatically(
 # ------------------------- Compatibility helpers -------------------------
 
 def set_default_directories(config: Dict, config_path: str) -> Tuple[str, str]:
-    """Interactive workflow to set and persist default input/output directories.
-
-    Mirrors the previous modules.set_directories API for compatibility.
-    """
+    """Interactive workflow to set and persist default input/output directories."""
     print("\n=== Set Default Directories ===")
     print("This will set the default input and output directories for future runs.")
     print("These directories will be used automatically unless overridden with --input and --output arguments.")

@@ -149,21 +149,21 @@ def main():
                     print("Pipeline completed with errors. Check logs for details.")
                     print("="*80)
                 
-                # Check if this was an interactive module
-                interactive_modules = ['segmentation', 'threshold_grouped_cells']
-                is_interactive = any(getattr(args, module, False) for module in interactive_modules)
+                # Check if this was an interactive stage
+                interactive_stages = ['segmentation', 'threshold_grouped_cells']
+                is_interactive = any(getattr(args, stage, False) for stage in interactive_stages)
                 
                 if is_interactive:
-                    # For interactive modules, show completion message
+                    # For interactive stages, show completion message
                     print("\n" + "="*80)
-                    print("Interactive module completed. Returning to main menu...")
+                    print("Interactive stage completed. Returning to main menu...")
                     print("="*80 + "\n")
                     
                     # Small delay to let user read the completion message
                     import time
                     time.sleep(1)
                 else:
-                    # For non-interactive modules, show completion message
+                    # For non-interactive stages, show completion message
                     print("\n" + "="*80)
                     print("Pipeline completed. Returning to main menu...")
                     print("="*80 + "\n")
