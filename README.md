@@ -1,228 +1,194 @@
-# <p>  <b>PerCell </b> </p>
+# PerCell
+
 <img src="percell/art/percell_terminal_window.png?v=2" width="900" title="Percell Terminal Interface" alt="Percell Terminal Interface" align="center">
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![repo size](https://img.shields.io/github/repo-size/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/)
 [![License: MIT](https://img.shields.io/github/license/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/blob/main/LICENSE)
 [![Contributors](https://img.shields.io/github/contributors-anon/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/graphs/contributors)
-[![Last commit](https://img.shields.io/github/last-commit/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/)
-[![Issues](https://img.shields.io/github/issues/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/issues)
-[![Pull requests](https://img.shields.io/github/issues-pr/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/pulls)
-[![GitHub stars](https://img.shields.io/github/stars/marcusjoshm/percell?style=social)](https://github.com/marcusjoshm/percell/)
-[![GitHub forks](https://img.shields.io/github/forks/marcusjoshm/percell?style=social)](https://github.com/marcusjoshm/percell/)
 
-A single cell microscopy analysis tool that integrates single cell segmentation using cellpose with imageJ macros into a single software package with an easy-to-use command line interface. Built with a clean hexagonal architecture for maintainability and extensibility.
+**A comprehensive single-cell microscopy analysis tool** that integrates Cellpose segmentation with ImageJ macros into a unified command-line interface. Built with clean hexagonal architecture for reliability and extensibility.
 
 ## Table of Contents
 
-1. [Installation](#installation)
-2. [Architecture Overview](#architecture-overview)
-3. [Getting Started](#getting-started)
-4. [Modular CLI System](#modular-cli-system)
-5. [Step 1: Remove Spaces from File Names](#step-1-remove-spaces-from-file-names)
-6. [Step 2: Activate the Python Environment](#step-2-activate-the-python-environment)
-7. [Step 3: Run the Analysis Workflow](#step-3-run-the-analysis-workflow)
-8. [Step 4: Data Analysis Selection](#step-4-data-analysis-selection)
-9. [Step 5: Cellpose Segmentation](#step-5-cellpose-segmentation)
-10. [Step 6: Otsu Thresholding](#step-6-otsu-thresholding)
-11. [Tips and Tricks](#tips-and-tricks)
-12. [Troubleshooting](#troubleshooting)
-13. [Technical Documentation](#technical-documentation)
+1. [Quick Start](#quick-start)
+2. [Typical Use Case](#typical-use-case)
+3. [Workflow Flexibility and Reanalysis](#workflow-flexibility-and-reanalysis)
+4. [Installation](#installation)
+5. [Running PerCell](#running-percell)
+6. [Input Directory Structure](#input-directory-structure)
+7. [Using the Interactive Menu](#using-the-interactive-menu)
+8. [Complete Workflow (Option 2)](#complete-workflow-option-2)
+9. [Individual Menu Options](#individual-menu-options)
+10. [Advanced Workflow Builder (Option 10)](#advanced-workflow-builder-option-10)
+11. [Troubleshooting](#troubleshooting)
+12. [Architecture](#architecture)
 
+## Quick Start
+
+1. **Install PerCell**:
+   ```bash
+   git clone https://github.com/marcusjoshm/percell.git
+   cd percell
+   ./install
+   ```
+
+2. **Run from anywhere**:
+   ```bash
+   percell
+   ```
+
+3. **Set Input/Output directories for your dataset** (Menu Option 1):
+   - Input: Point to your microscope-exported .tif files
+   - Output: Specify path for new analysis directory (PerCell creates it)
+   - Required for each new experiment/dataset
+
+4. **Run complete analysis** (Menu Option 2):
+   - Comprehensive workflow for most datasets
+   - Best starting point for new datasets
+
+## Typical Use Case
+
+**Scenario**: You've performed fluorescence microscopy and want to analyze a specific cellular feature.
+
+### 1. **Data Preparation**
+- Export your data from the microscope as **.tif files**
+- Organize directory structure to match PerCell requirements:
+  ```
+  your_experiment/
+  ├── condition_1/
+  │   └── timepoint_1/
+  │       └── region_1/
+  │           ├── DAPI.tif      # Nuclear stain
+  │           ├── GFP.tif       # Feature of interest
+  │           └── RFP.tif       # Additional channel
+  ```
+- Remove spaces and special characters from all file/folder names
+
+### 2. **Start Analysis**
+- Run `percell` from any terminal
+- **Option 1**: Set directories
+  - Input: Point to your organized microscope data
+  - Output: Specify path for new analysis directory
+- **Option 2**: Run Complete Workflow
+
+### 3. **Data Selection Phase**
+You'll be prompted to select:
+- **Experimental conditions** first layer, typically the experimental condition
+- **Time points** for datasets with multiple timepoints for a given condition or time-lapse microscopy datasets
+- **Regions/fields** technical replicates for a given condition and timepoint
+- **Segmentation channel** (e.g., DAPI for nuclear segmentation)
+- **Analysis channel** (e.g., GFP for your feature of interest)
+
+### 4. **Interactive Analysis**
+
+**First Interactive Step - Cell Segmentation:**
+- Cellpose GUI opens automatically
+- Use the SAM model for automated segmentation or use the manual ROI drawing tool
+- PerCell uses your segmentation to extract single cells
+- Cells are automatically grouped by expression intensity for enhanced intensity-based autothresholding. This is particularly useful for datasets with high variability in intensity from cell to cell
+
+**Second Interactive Step - Feature Thresholding:**
+- ImageJ opens with your grouped cell images
+- **Draw circular ROI** around your feature of interest to guide auto-thresholding
+- PerCell applies automated intensity-based thresholding
+- Creates binary masks for quantitative analysis
+
+### 5. **Results**
+- Individual cell masks and measurements
+- Combined analysis across all cells
+- CSV files with quantitative data
+- Preserved metadata for reproducibility
+
+## Workflow Flexibility and Reanalysis
+
+**If you need to pause and resume**: Use individual menu options (3-8) to continue from where you left off, allowing you to work on long analyses across multiple sessions.
+
+**If you need to correct or refine your analysis**:
+- **Refine thresholding results?** → Use Option 6 (Threshold Grouped Cells) + Option 8 (Analysis)
+- **Analyze different data subsets?** → Use Option 3 (Data Selection) + subsequent steps
+- **Custom analysis sequence needed?** → Use Option 10 (Advanced Workflow Builder)
+
+**Example Reanalysis Scenarios**:
+```
+# Refine thresholding with different ROI selection:
+Option 6 → Option 8
+
+# Reanalyze with different data subset or parameters:
+Option 3 → Option 4 → Option 5 → Option 6 → Option 8
+
+# Custom reanalysis sequence using Advanced Workflow:
+Option 10 → Select: threshold_grouped_cells → analysis
+```
 
 ## Installation
 
-### Quick Installation (Recommended)
-
-After cloning this repository, run a single command to complete the installation:
+### Automatic Installation (Recommended)
 
 ```bash
 # Clone the repository
 git clone https://github.com/marcusjoshm/percell.git
 cd percell
 
-# Run the installation script (choose one method)
+# Single command installation
 ./install
 ```
 
-This single command will:
-- ✅ Create virtual environments (main + Cellpose)
-- ✅ Install all dependencies
-- ✅ Install the package in development mode
-- ✅ Detect software paths (ImageJ/Fiji)
-- ✅ Create configuration files
-- ✅ Verify the installation
+**What the installer does:**
+- ✅ Creates Python virtual environments (main + Cellpose)
+- ✅ Installs all dependencies (NumPy, SciPy, tifffile, etc.)
+- ✅ Installs package in development mode
+- ✅ Detects ImageJ/Fiji installation paths
+- ✅ Creates configuration files
+- ✅ Sets up global `percell` command
+- ✅ Verifies installation
 
-### After Installation
+### Troubleshooting Installation
 
-Once the installation is complete, you can use the tool:
+If `percell` command is not found after installation:
 
 ```bash
-# Option 1: Run from anywhere (recommended)
-percell
-
-# Option 2: Run from project directory with activated environment
-cd ~/percell
-source venv/bin/activate
-percell
+# From the project directory
+./percell/setup/fix_global_install.sh
 ```
 
-**Global Installation Benefits:**
-- ✅ Run `percell` from any directory
+**Common issues:**
+- **Permission denied**: Installation script needs permission to create symlink in `/usr/local/bin`
+- **Command not found**: Virtual environment path may not be correctly linked
+- **Dependencies missing**: Run `pip install -e .` from project directory
+
+## Running PerCell
+
+Once installed, **run PerCell from any directory**:
+
+```bash
+# Interactive menu (recommended)
+percell
+
+# Get help
+percell --help
+
+# Direct command line usage
+percell --input /path/to/data --output /path/to/results --complete-workflow
+```
+
+**Global Command Benefits:**
+- ✅ Works from any terminal location
 - ✅ No need to navigate to project folder
-- ✅ No need to activate virtual environment manually
-- ✅ Works seamlessly across different terminals
+- ✅ No manual virtual environment activation
+- ✅ Consistent across different sessions
 
-**Why development mode?**
-- ✅ Changes to code are immediately reflected (no reinstall needed)
-- ✅ Command-line tool available: `percell`
-- ✅ Proper package imports work
-- ✅ Ideal for development and testing
+## Input Directory Structure
 
-### Troubleshooting Global Installation
+PerCell is designed to analyze **microscope-exported .tif files** and requires a specific hierarchical directory structure for your data:
 
-If the `percell` command is not found globally after installation:
-
-```bash
-# Quick fix - run this script from the project directory
-./percell/setup/fix_global_install.sh
-
-# Or manually create the symlink (replace with your actual path)
-sudo ln -sf /path/to/your/percell/venv/bin/percell /usr/local/bin/percell
-```
-
-**Common Issue**: The package is installed in the virtual environment but the global symbolic link wasn't created. This happens when:
-- You ran `pip install -e .` manually instead of using the installation script
-- The installation script didn't have permission to create the symlink
-- The symlink was accidentally removed
-
-**Symptoms**:
-- `which percell` returns nothing
-- `percell --help` says "command not found"
-- You have to navigate to the project directory and activate the venv to use percell
-
-**Solution**: Run the fix script from the project root directory. It will automatically detect your setup and create the necessary symlink.
-
-```bash
-# From the project root directory (recommended)
-./percell/setup/fix_global_install.sh
-
-# Or from anywhere, specifying the full path
-/path/to/percell/percell/setup/fix_global_install.sh
-```
-
-**Note**: The fix script is self-contained and will automatically find the correct paths regardless of where you run it from.
-
-## Architecture Overview
-
-PerCell is built using a **hexagonal architecture** (also known as ports and adapters pattern) that provides clean separation of concerns and makes the codebase maintainable and extensible.
-
-### Architecture Layers
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    User Interface Layer                     │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
-│  │   CLI Adapter   │  │   GUI Adapter   │  │  API Adapter│  │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                                │
-┌─────────────────────────────────────────────────────────────┐
-│                   Application Layer                         │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
-│  │  Pipeline API   │  │  Configuration  │  │   Progress  │  │
-│  │                 │  │      API        │  │     API     │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
-│  │  Stage Classes  │  │  CLI Services   │  │  Workflow   │  │
-│  │                 │  │                 │  │ Coordinator │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                                │
-┌─────────────────────────────────────────────────────────────┐
-│                     Domain Layer                            │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
-│  │     Models      │  │    Services     │  │   Business  │  │
-│  │                 │  │                 │  │    Logic    │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-                                │
-┌─────────────────────────────────────────────────────────────┐
-│                   Infrastructure Layer                      │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
-│  │ ImageJ Adapter  │  │ File System     │  │ Cellpose    │  │
-│  │                 │  │ Adapter         │  │ Adapter     │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
-│  │ Image Processing│  │  CLI Interface  │  │   Progress  │  │
-│  │ Adapter         │  │ Adapter         │  │   Adapter   │  │
-│  └─────────────────┘  └─────────────────┘  └─────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Key Components
-
-#### **Domain Layer** (`percell/domain/`)
-- **Models**: Core business entities and data structures
-- **Services**: Pure business logic without external dependencies
-  - `DataSelectionService`: Handles data validation and selection
-  - `FileNamingService`: Manages file naming conventions
-  - `IntensityAnalysisService`: Performs intensity-based analysis
-  - `WorkflowOrchestrationService`: Coordinates workflow execution
-
-#### **Application Layer** (`percell/application/`)
-- **Pipeline API**: Main orchestration and workflow management
-- **Configuration API**: Centralized configuration management
-- **Progress API**: Progress tracking and user feedback
-- **Stage Classes**: Individual workflow steps and stages
-- **CLI Services**: Command-line interface logic
-
-#### **Adapters** (`percell/adapters/`)
-- **ImageJ Macro Adapter**: Interfaces with ImageJ/Fiji
-- **Cellpose Subprocess Adapter**: Manages Cellpose integration
-- **Local File System Adapter**: Handles file operations
-- **PIL Image Processing Adapter**: Image manipulation tasks
-- **CLI User Interface Adapter**: Terminal-based user interface
-
-#### **Ports** (`percell/ports/`)
-- **Driving Ports**: Interfaces that the application uses to interact with external systems
-- **Driven Ports**: Interfaces that external systems implement to interact with the application
-
-### Benefits of This Architecture
-
-- **🔧 Maintainability**: Clear separation of concerns makes code easier to understand and modify
-- **🧪 Testability**: Each layer can be tested independently with proper mocking
-- **🔄 Extensibility**: New adapters can be added without changing core business logic
-- **🛡️ Reliability**: Domain logic is isolated from external dependencies
-- **📈 Scalability**: Components can be developed and deployed independently
-
-### Package Structure
-
-```
-percell/
-├── adapters/          # External system integrations
-├── application/       # Application orchestration layer
-├── domain/           # Core business logic
-├── main/             # Application entry points
-├── ports/            # Interface definitions
-├── config/           # Configuration files
-├── bash/             # Shell scripts
-├── macros/           # ImageJ macro files
-└── setup/            # Installation and setup files
-```
-
-## Getting Started
-
-### Input Directory Structure
-
-The workflow requires a specific directory structure to organize your microscopy data. Your input directory should be organized hierarchically as follows:
-
+### Multi-timepoint Experiments
 ```
 input_directory/
-├── condition_1/
-│   ├── timepoint_1/
-│   │   ├── region_1/
-│   │   │   ├── channel_1.tif
+├── condition_1/              # Experimental conditions
+│   ├── timepoint_1/           # Time points
+│   │   ├── region_1/          # Regions/fields
+│   │   │   ├── channel_1.tif  # Individual channels
 │   │   │   ├── channel_2.tif
 │   │   │   └── channel_3.tif
 │   │   └── region_2/
@@ -230,11 +196,7 @@ input_directory/
 │   │       ├── channel_2.tif
 │   │       └── channel_3.tif
 │   └── timepoint_2/
-│       ├── region_1/
-│       │   ├── channel_1.tif
-│       │   ├── channel_2.tif
-│       │   └── channel_3.tif
-│       └── region_2/
+│       └── region_1/
 │           ├── channel_1.tif
 │           ├── channel_2.tif
 │           └── channel_3.tif
@@ -251,504 +213,336 @@ input_directory/
             └── channel_3.tif
 ```
 
-#### Directory Structure Requirements:
-
-**For Multi-timepoint Experiments:**
-1. **Conditions** (top level): Different experimental conditions (e.g., `Control`, `Treatment`, `Dish_1`, `Dish_2`)
-2. **Timepoints** (second level): Time points in your experiment (e.g., `0min`, `30min`, `60min`, `T1`, `T2`)
-3. **Regions** (third level): Different regions or fields of view (e.g., `Region_1`, `Field_1`, `ROI_1`)
-4. **Channels** (files): Individual channel images as `.tif` files
-
-**For Single-timepoint Experiments:**
-1. **Conditions** (top level): Different experimental conditions (e.g., `Control`, `Treatment`, `Dish_1`, `Dish_2`)
-2. **Regions** (second level): Different regions or fields of view (e.g., `Region_1`, `Field_1`, `ROI_1`)
-3. **Channels** (files): Individual channel images as `.tif` files
-
-*Note: For single-timepoint experiments, the timepoint level is automatically filled in by the workflow.*
-
-#### File Naming Requirements:
-
-- **No spaces** in directory or file names (use underscores `_` instead)
-- **No special characters** like `+`, `&`, `%`, etc.
-- **Consistent naming** across conditions, timepoints, and regions
-- **Channel files** should be named descriptively (e.g., `DAPI.tif`, `GFP.tif`, `RFP.tif`)
-
-#### Example Structures:
-
-**Multi-timepoint Experiment:**
+### Single-timepoint Experiments
 ```
-microscopy_data/
-├── Control/
-│   ├── 0min/
-│   │   ├── Region_1/
-│   │   │   ├── DAPI.tif
-│   │   │   ├── GFP.tif
-│   │   │   └── RFP.tif
-│   │   └── Region_2/
-│   │       ├── DAPI.tif
-│   │       ├── GFP.tif
-│   │       └── RFP.tif
-│   └── 30min/
-│       └── Region_1/
-│           ├── DAPI.tif
-│           ├── GFP.tif
-│           └── RFP.tif
-└── Treatment/
-    ├── 0min/
-    │   └── Region_1/
-    │       ├── DAPI.tif
-    │       ├── GFP.tif
-    │       └── RFP.tif
-    └── 30min/
-        └── Region_1/
-            ├── DAPI.tif
-            ├── GFP.tif
-            └── RFP.tif
-```
-
-**Single-timepoint Experiment:**
-```
-microscopy_data/
-├── Control/
-│   ├── Region_1/
-│   │   ├── DAPI.tif
+input_directory/
+├── condition_1/              # Experimental conditions
+│   ├── region_1/              # Regions/fields (no timepoint level)
+│   │   ├── DAPI.tif          # Channel files
 │   │   ├── GFP.tif
 │   │   └── RFP.tif
-│   └── Region_2/
+│   └── region_2/
 │       ├── DAPI.tif
 │       ├── GFP.tif
 │       └── RFP.tif
-└── Treatment/
-    └── Region_1/
+└── condition_2/
+    └── region_1/
         ├── DAPI.tif
         ├── GFP.tif
         └── RFP.tif
 ```
 
-> **Important:** 
-> - Avoid using a `+` when naming files or directories
-> - Ensure all conditions have the same timepoints and regions for consistent analysis
-> - Use descriptive names for channels to identify them during analysis
-> 
-## Modular CLI System
+### File Naming Requirements
 
-PerCell features a modular command-line interface that provides a user-friendly experience. This system allows you to run individual workflow steps or the complete pipeline with an interactive menu, built on the hexagonal architecture for reliability and maintainability.
+**✅ Required:**
+- **No spaces** in file or directory names (use underscores)
+- **No special characters** like `+`, `&`, `%`, etc.
+- **Consistent naming** across all levels
+- **TIFF format** (`.tif` or `.tiff`)
 
-### Quick Start with Modular CLI
+**✅ Examples of good names:**
+- `Control_Treatment`, `DAPI.tif`, `Region_1`, `0min`
 
-**After running `python percell/setup/install.py`, you can use the tool**
+**❌ Examples of bad names:**
+- `Control Treatment`, `DAPI + GFP.tif`, `Region #1`, `0 min`
 
+## Using the Interactive Menu
+
+When you run `percell`, you'll see the colorful interactive menu:
+
+```
+    ███████╗ ████████╗███████╗ ███████╗████████╗██╗      ██╗
+    ██╔═══██╗██╔═════╝██╔═══██╗██╔════╝██╔═════╝██║      ██║
+    ███████╔╝███████╗ ███████╔╝██║     ███████╗ ██║      ██║
+    ██╔════╝ ██╔════╝ ██╔═══██╗██║     ██╔════╝ ██║      ██║
+    ██║      ████████╗██║   ██║███████╗████████╗████████╗████████╗
+    ╚═╝      ╚═══════╝╚═╝   ╚═╝╚══════╝╚═══════╝╚═══════╝╚═══════╝
+
+🔬 Welcome single-cell microscopy analysis user! 🔬
+
+MENU:
+1. Set Input/Output Directories
+2. Run Complete Workflow
+3. Data Selection (conditions, regions, timepoints, channels)
+4. Single-cell Segmentation (Cellpose)
+5. Process Single-cell Data (tracking, resizing, extraction, grouping)
+6. Threshold Grouped Cells (interactive ImageJ thresholding)
+7. Measure Cell Area (measure areas from single-cell ROIs)
+8. Analysis (combine masks, create cell masks, export results)
+9. Cleanup (empty cells and masks directories, preserves grouped/combined data)
+10. Advanced Workflow Builder (custom sequence of steps)
+11. Exit
+```
+
+### Setting Up Your Analysis (Option 1)
+
+**Required for every new dataset** - Configure directories for your microscopy data analysis:
+
+```
+Select an option (1-11): 1
+```
+
+**Input Directory Setup:**
+- Point to the directory containing **microscope-exported .tif files**
+- This is your raw data directory from the microscope
+- Must follow the hierarchical structure (condition/timepoint/region/channel)
+- Example: `/Users/yourname/microscope_data/experiment_2024_01/`
+
+**Output Directory Setup:**
+- Specify the **path for a NEW directory** that will be created by PerCell
+- This directory does not need to exist - PerCell will create it
+- All analysis files, results, and processed data will be saved here
+- Example: `/Users/yourname/analysis_results/experiment_2024_01_analysis/`
+
+**Important Notes:**
+- ✅ Input directory contains your original microscope data (existing)
+- ✅ Output directory will be created by PerCell (new)
+- ✅ Must set directories for each new dataset you analyze
+- ✅ Paths are saved for the current analysis session
+
+## Complete Workflow (Option 2)
+
+**⭐ Best starting point for new datasets** - Comprehensive workflow useful for most fluorescence microscopy analyses.
+
+```
+Select an option (1-11): 2
+```
+
+### What Option 2 Does:
+
+1. **Data Selection** → Interactive selection of:
+   - Experimental conditions to analyze
+   - Time points to include
+   - Regions/fields to process
+   - Channels for segmentation and analysis
+
+2. **Single-cell Segmentation** →
+   - Prepares images for Cellpose
+   - Launches Cellpose and ImageJ for interactive cell segmentation
+   - Saves ROI files for each region
+
+3. **Process Single-cell Data** →
+   - Tracks ROIs across timepoints (if multi-timepoint)
+   - Resizes ROIs to match original image dimensions
+   - Extracts individual cell images
+   - Groups cells by brightness/expression levels
+
+4. **Threshold Grouped Cells** →
+   - Opens ImageJ for interactive thresholding
+   - Apply Gaussian blur and contrast enhancement
+   - Create binary masks using Otsu thresholding
+   - User draws ROIs for representative thresholding areas
+
+5. **Measure Cell Area** →
+   - Measures areas of ROIs in original images
+   - Provides quantitative size analysis
+
+6. **Analysis** →
+   - Combines masks from different groups
+   - Creates individual cell masks
+   - Exports comprehensive results with metadata
+   - Generates CSV files with measurements
+
+### User Interaction Points:
+
+- **Data Selection**: Choose which data to analyze
+- **Segmentation**: Draw cell boundaries in ImageJ/Cellpose
+- **Thresholding**: Draw ROI areas for thresholding and decide on grouping
+
+## Individual Menu Options
+
+**Purpose**: Start analysis from a specific point in the workflow or continue from where you left off. These options allow you to pause and resume long analyses across multiple sessions, or refine specific steps without restarting the entire analysis.
+
+### Option 1: Set Input/Output Directories
+- **Purpose**: Configure directories for microscope data analysis
+- **Use**: **Required for every new dataset** - not just first-time setup
+- **Input Directory**: Path to existing directory with microscope-exported .tif files
+- **Output Directory**: Path for NEW directory that PerCell will create for analysis results
+- **Action**: Configures PerCell for your specific dataset analysis
+- **Notes**:
+  - Input = existing microscope data
+  - Output = new directory PerCell creates
+  - Must be done for each experiment/dataset
+
+### Option 3: Data Selection
+- **Purpose**: Choose specific data subsets for analysis
+- **Use**: Select conditions, timepoints, regions, channels
+- **Required**: Must be run before other analysis steps
+- **Output**: Creates output directory structure
+
+### Option 4: Single-cell Segmentation
+- **Purpose**: Identify individual cells using Cellpose
+- **Use**: Interactive cell boundary drawing
+- **Requirements**: Data selection completed
+- **Output**: ROI files for each region
+
+### Option 5: Process Single-cell Data
+- **Purpose**: Extract and group individual cells
+- **Use**: Automated processing of segmented cells
+- **Requirements**: Segmentation completed
+- **Output**: Individual cell images grouped by brightness
+
+### Option 6: Threshold Grouped Cells
+- **Purpose**: Create binary masks for analysis
+- **Use**: Interactive ImageJ thresholding with user guidance
+- **Requirements**: Cell processing completed
+- **Features**:
+  - Gaussian blur preprocessing
+  - Contrast enhancement
+  - User-guided ROI selection
+  - Otsu thresholding
+
+### Option 7: Measure Cell Area
+- **Purpose**: Quantify cell sizes from ROIs
+- **Use**: Automated area measurements
+- **Requirements**: Segmentation completed
+- **Output**: Area measurements for statistical analysis
+
+### Option 8: Analysis
+- **Purpose**: Final analysis and data export
+- **Use**: Combine all results and generate reports
+- **Requirements**: Previous steps completed
+- **Output**:
+  - Combined masks
+  - Individual cell masks
+  - CSV files with measurements
+  - Metadata-rich results
+
+### Option 9: Cleanup
+- **Purpose**: Free up disk space
+- **Use**: Remove intermediate files while preserving final results
+- **Safety**: Only removes cells and masks directories
+- **Preserves**: Grouped/combined data and analysis results
+
+## Advanced Workflow Builder (Option 10)
+
+**For experienced users** who need custom analysis sequences or want to repeat specific steps.
+
+```
+Select an option (1-11): 10
+```
+
+### How It Works:
+
+1. **Step Selection**: Choose which analysis steps to run
+2. **Custom Sequence**: Define the order of operations
+3. **Flexible Execution**: Skip unnecessary steps or repeat specific analyses
+
+### Available Steps:
+- `data_selection` - Choose data subsets
+- `segmentation` - Cell segmentation with Cellpose
+- `process_single_cell` - Extract and group cells
+- `threshold_grouped_cells` - Interactive thresholding
+- `measure_roi_area` - Cell area measurements
+- `analysis` - Final analysis and export
+- `cleanup` - Disk space management
+
+### Example Custom Workflows:
+
+**Re-run only thresholding and analysis:**
+```
+Steps: threshold_grouped_cells → analysis
+```
+
+**Analyze different data selection:**
+```
+Steps: data_selection → segmentation → process_single_cell → analysis
+```
+
+**Multiple thresholding attempts:**
+```
+Steps: threshold_grouped_cells → analysis → cleanup → threshold_grouped_cells → analysis
+```
+
+### Advantages:
+- **Time Saving**: Skip completed steps
+- **Experimentation**: Try different parameters
+- **Batch Processing**: Analyze multiple datasets
+- **Error Recovery**: Resume from failed steps
+
+## Troubleshooting
+
+### Command Not Found
 ```bash
-# Enter this command in a terminal window. It will work from any working directory.
-percell
-
-```
-
-
-**You'll see the colorful ASCII header and interactive menu:**
-      ```
-    
-     ███████╗ ████████╗███████╗ ███████╗████████╗██╗      ██╗
-     ██╔═══██╗██╔═════╝██╔═══██╗██╔════╝██╔═════╝██║      ██║
-     ███████╔╝███████╗ ███████╔╝██║     ███████╗ ██║      ██║
-     ██╔════╝ ██╔════╝ ██╔═══██╗██║     ██╔════╝ ██║      ██║
-     ██║      ████████╗██║   ██║███████╗████████╗████████╗████████╗
-     ╚═╝      ╚═══════╝╚═╝   ╚═╝╚══════╝╚═══════╝╚═══════╝╚═══════╝
-
-   🔬 Welcome single-cell microscopy analysis user! 🔬
-
-   MENU:
-   1. Set Input/Output Directories
-   2. Run Complete Workflow
-   3. Data Selection (conditions, regions, timepoints, channels)
-   4. Single-cell Segmentation (Cellpose)
-   5. Process Single-cell Data (tracking, resizing, extraction, grouping)
-   6. Threshold Grouped Cells (interactive ImageJ thresholding)
-   7. Measure Cell Area (measure areas from single-cell ROIs)
-   8. Analysis (combine masks, create cell masks, export results)
-   9. Cleanup (empty cells and masks directories, preserves grouped/combined data)
-   10. Advanced Workflow Builder (custom sequence of steps)
-   11. Exit
-   Select an option (1-11):
-   ```
-
-
-
-### Menu Options Explained
-
-#### Option 1: Set Input/Output Directories
-- Updates the configuration file with your input and output paths
-- Does not create any directories (only updates config)
-- Use this to set up your paths before running other options
-
-#### Option 2: Run Complete Workflow ⭐ **Recommended for New Users**
-- Runs all steps in sequence: 3 → 4 → 5 → 6 → 7
-- Handles interactive steps automatically
-- Perfect for running the entire analysis pipeline
-
-#### Option 3: Data Selection
-- Interactive selection of conditions, regions, timepoints, and channels
-- Creates the output directory structure
-- Prepares input data for analysis
-- **Required before running other workflow steps**
-
-#### Option 4: Single-cell Segmentation
-- Bins images for segmentation
-- Launches Cellpose and FIJI for interactive cell segmentation
-- **Requires data selection to be completed first**
-
-#### Option 5: Process Single-cell Data
-- Tracks ROIs across timepoints (if multiple timepoints)
-- Resizes ROIs to match original image dimensions
-- Duplicates ROIs for analysis channels
-- Extracts individual cells
-- **Requires data selection to be completed first**
-
-#### Option 6: Threshold Grouped Cells
-- Groups cells by expression level
-- Interactive ImageJ thresholding for grouped cells
-- **Requires data selection to be completed first**
-
-#### Option 7: Measure Cell Area
-- Measures areas of ROIs in raw images
-- Provides quantitative analysis of cell sizes
-- **Requires data selection to be completed first**
-
-#### Option 8: Analysis
-- Combines masks from different groups
-- Creates individual cell masks
-- Analyzes cell features
-- Includes group metadata in results
-- **Requires data selection to be completed first**
-
-#### Option 9: Cleanup
-- Empties cells and masks directories to free up space
-- Preserves grouped/combined data
-- Useful for managing disk space after analysis
-- **Safe to run after analysis is complete**
-
-#### Option 10: Advanced Workflow Builder
-- Allows custom sequence of workflow steps
-- Provides fine-grained control over the analysis process
-- **For advanced users who need custom workflows**
-
-### Example Workflow
-
-**For a complete analysis:**
-1. Choose Option 2 (Run Complete Workflow)
-2. Follow the prompts for data selection
-3. Complete the interactive segmentation step
-4. Wait for all processing to complete
-
-**For step-by-step analysis:**
-1. Choose Option 1 to set directories
-2. Choose Option 3 for data selection
-3. Choose Option 4 for segmentation
-4. Choose Option 5 for cell processing
-5. Choose Option 6 for thresholding
-6. Choose Option 7 for cell area measurement
-7. Choose Option 8 for analysis
-8. Choose Option 9 for cleanup (optional)
-
-### Benefits of the Modular System
-
-- **User-friendly**: Clear menu with color-coded options
-- **Flexible**: Run individual steps or complete workflow
-- **Error recovery**: Returns to menu after errors
-- **Progress tracking**: Shows which step is currently running
-- **Interactive support**: Proper handling of user input
-
-### Opening Terminal
-
-1. Press Command + Space to open Spotlight Search
-2. Type "Terminal"
-3. Click on the Terminal application
-
-Alternatively you can click on the Terminal app icon located in the doc at the bottom of the screen. It looks like a black square with >_ in the top left corner.
-
-When Terminal opens, you'll see a prompt that looks something like `(base) ➜  ~`
-
-
-## Step 1: Remove Spaces from File Names
-
-Our analysis workflow requires file paths without spaces. Follow these steps to convert spaces in your file names to underscores:
-
-1. Copy and paste the following command into Terminal:
-
-```bash
-cd ~/bash_scripts/
-```
-
-3. Press `Enter`.
-
-2. Next, copy and paste this command:
-
-```bash
-./replace_spaces.sh
-```
-
-3. Drag the folder you want to analyze from Finder into the Terminal window. The file path will appear automatically.
-
-4. Press `Enter`.
-
-5. You will see a prompt that looks like this:
-
-```
-========================================================
-  Space to Underscore Converter - Enhanced Version
-========================================================
-```
-
-Followed by information about the directory you want to modify.
-
-6. At the end, you will see:
-
-```
-Do you want to continue? (y/n)
-```
-
-7. Type `y` and press Enter to run the program.
-
-8. When the process completes successfully, you will see:
-
-```
-[SUCCESS] Operation completed successfully!
-```
-
-This means the program has finished removing spaces from all file names in the directory and you're ready to proceed to the analysis workflow.
-
-## Step 2: Activate the Python Environment
-
-In the same Terminal window:
-
-1. Copy and paste the following commands:
-
-```bash
-cd ~/percell
-venvact
-```
-
-2. Press `Enter`.
-
-3. You should now see `(venv)` at the beginning of the command prompt line. This indicates that the Python virtual environment is activated and the program is ready to run.
-
-Example of how your prompt should look:
-```bash
-(venv) (base) ➜  percell git:(main) ✗
-```
-
-## Step 3: Run the Analysis Workflow
-
-You have two options for running the analysis workflow:
-
-### Option A: Modular CLI (Recommended) ⭐
-
-1. **Run the modular interface**:
-   ```bash
-   percell
-   ```
-
-2. **Choose Option 2 (Run Complete Workflow)** from the menu
-
-3. **Follow the interactive prompts** for data selection and segmentation
-
-This is the recommended approach as it provides a user-friendly experience built on the hexagonal architecture.
-
-### Option B: Direct Command Line
-
-If you prefer direct command-line execution:
-
-1. Copy and paste the following into Terminal:
-
-```bash
-percell --input /path/to/input --output /path/to/output --complete-workflow
-```
-
-2. Replace `/path/to/input` with your actual input directory path
-
-3. Replace `/path/to/output` with your desired output directory path
-
-Your final command should look something like this:
-```bash
-percell --input /Volumes/LEELAB/JL_Data/2025-05-08_export_max --output /Volumes/LEELAB/JL_Data/2025-05-08_analysis_Dish_1_Control_40minWash --complete-workflow
-```
-
-4. Press `Enter` to start the analysis.
-
-5. The script will create an output folder with the name you specified, containing all analysis results.
-
-> **Important:** Remember that the output folder name can be anything you want as long as there are no spaces in it. Use underscores (_) instead of spaces.
-
-## Step 4: Data Analysis Selection
-
-After starting the analysis workflow, you'll need to make selections about your data:
-
-### Selecting Data Type
-
-The program will prompt you to select the type of data you're analyzing:
-
-```
-================================================================================
-MANUAL STEP REQUIRED: select_datatype
-================================================================================
-Select the type of data: single_timepoint or multi_timepoint. You can specify the datatype when running the script with the --datatype option.
-
-Detected datatype based on found timepoints: single_timepoint
-Select data type:
-1. single_timepoint
-2. multi_timepoint
-Enter selection (number or name, press Enter for detected default):
-```
-
-**Important:** 
-- Choose `single_timepoint` (option 1) for immunofluorescence or single time-point live microscopy
-- Choose `multi_timepoint` (option 2) for time-lapse microscopy data only
-
-Make your selection by typing "1" or "2" followed by Enter. If the detected default is correct, you can simply press Enter.
-
-### Selecting Condition
-
-Next, you'll see a prompt to select the experimental condition for analysis:
-
-```
-================================================================================
-MANUAL STEP REQUIRED: select_condition
-================================================================================
-```
-
-"Condition" in this case will be the name of the .lif project file where data was exported. If you exported data from multiple project files, there will be a list of conditions to choose from, otherwise there will only be one. An example of a condition list looks something like this:
-
-```
-Available conditions:
-1. Dish_1_Sec61b_Washout_+_DMSO
-2. Dish_2_Sec61b_Washout_+_Rapa
-3. Dish_3_RTN4_Washout_+_DMSO
-4. Dish_4_RTN4_Washout_+_Rapa
-5. Dish_5_CLIMP63_Washout_+_DMSO
-6. Dish_6_CLIMP63_Washout_+_Rapa
-
-Input options for conditions:
-- Enter conditions as space-separated text (e.g., 'Dish_1_Sec61b_Washout_+_DMSO Dish_6_CLIMP63_Washout_+_Rapa')
-- Enter numbers from the list (e.g., '1 6')
-- Type 'all' to select all conditions
-
-Enter your selection:
-```
-
-Type the number of the project file you would like to analyze. If you want to analyze multiple condition datasets at the same time, type the numbers separated by a space, or type "all" if you want to analyze everything. Then press `Enter`.
-
-### Selecting Timepoints
-
-Next, you'll see a prompt to select timepoints for analysis:
-
-```
-================================================================================
-MANUAL STEP REQUIRED: select_timepoints
-================================================================================
-Available timepoints:
-1. 0min
-2. 30min
-3. 60min
-
-Input options for timepoints:
-- Enter timepoints as space-separated text (e.g., '0min 30min')
-- Enter numbers from the list (e.g., '1 2')
-- Type 'all' to select all timepoints
-
-Enter your selection:
-```
-
-Type the numbers of the timepoints you want to analyze, separated by spaces, or type "all" to analyze all timepoints. Then press `Enter`.
-
-## Tips and Tricks
-
-### Performance Optimization
-- **Batch Processing**: Process multiple conditions simultaneously for faster analysis
-- **Memory Management**: Use the cleanup option to free up disk space after analysis
-- **Parallel Processing**: The hexagonal architecture enables efficient parallel processing
-
-### Data Organization
-- **Consistent Naming**: Use consistent naming conventions across all conditions
-- **Directory Structure**: Follow the recommended directory structure for optimal performance
-- **File Formats**: Use `.tif` files for best compatibility with ImageJ integration
-
-### Troubleshooting Common Issues
-
-#### Installation Issues
-```bash
-# If percell command is not found
+# Solution 1: Re-run installer
+cd percell
+./install
+
+# Solution 2: Fix symlink manually
 ./percell/setup/fix_global_install.sh
+```
 
-# If dependencies are missing
+### Permission Errors
+```bash
+# Ensure you have write access to /usr/local/bin
+ls -la /usr/local/bin/percell
+
+# Alternative: Run with sudo during installation
+sudo ./install
+```
+
+### ImageJ/Fiji Not Found
+- Install ImageJ or Fiji
+- Ensure it's in your system PATH
+- Or specify path in PerCell configuration
+
+### Missing Dependencies
+```bash
+# Reinstall in virtual environment
+cd percell
+source venv/bin/activate
 pip install -e .
 ```
 
-#### Runtime Issues
-- **File Path Issues**: Ensure no spaces in file or directory names
-- **Permission Issues**: Check file permissions for input/output directories
-- **Memory Issues**: Use cleanup option to free up space during long analyses
+### Data Structure Issues
+- Verify directory hierarchy matches requirements
+- Remove spaces from all file/folder names
+- Ensure TIFF format for all images
+- Check that channel files exist in each region
 
-## Technical Documentation
+### Memory Issues
+- Use cleanup option (Menu 9) to free disk space
+- Process smaller data subsets
+- Ensure sufficient disk space for output
 
-### Architecture Benefits
+## Architecture
 
-The hexagonal architecture provides several key advantages:
+PerCell is built with **hexagonal architecture** (ports and adapters) for:
 
-- **Separation of Concerns**: Business logic is isolated from external dependencies
-- **Testability**: Each component can be tested independently
-- **Maintainability**: Changes to one layer don't affect others
-- **Extensibility**: New adapters can be added without modifying core logic
-- **Reliability**: External system failures don't crash the application
+- **🔧 Maintainability**: Clean separation of concerns
+- **🧪 Testability**: Independent component testing
+- **🔄 Extensibility**: Easy addition of new features
+- **🛡️ Reliability**: Isolated business logic
+- **📈 Scalability**: Independent component development
 
-### Development Guidelines
+### Key Components:
 
-#### Adding New Features
-1. **Domain Layer**: Add business logic to domain services
-2. **Application Layer**: Add orchestration logic to application services
-3. **Adapters**: Create new adapters for external system integration
-4. **Ports**: Define interfaces for new external interactions
+- **Domain Layer**: Core business logic (cell analysis, workflow orchestration)
+- **Application Layer**: Pipeline orchestration, configuration management
+- **Adapters**: External tool integration (ImageJ, Cellpose, file systems)
+- **Ports**: Interface definitions for external dependencies
 
-#### Testing Strategy
-- **Unit Tests**: Test domain services in isolation
-- **Integration Tests**: Test adapter implementations
-- **Contract Tests**: Verify port implementations
-- **End-to-End Tests**: Test complete workflows
+### Technology Stack:
 
-### API Reference
+- **Python 3.8+** with scientific libraries (NumPy, SciPy, pandas)
+- **Image Processing**: OpenCV, PIL, scikit-image, tifffile
+- **External Tools**: Cellpose, ImageJ/Fiji
+- **Architecture**: Clean hexagonal design with dependency injection
 
-#### Core APIs
-- **Pipeline API**: `percell.application.pipeline_api`
-- **Configuration API**: `percell.application.config_api`
-- **Progress API**: `percell.application.progress_api`
-- **Logger API**: `percell.application.logger_api`
+## Contributing
 
-#### Domain Services
-- **Data Selection**: `percell.domain.services.data_selection_service`
-- **File Naming**: `percell.domain.services.file_naming_service`
-- **Intensity Analysis**: `percell.domain.services.intensity_analysis_service`
-- **Workflow Orchestration**: `percell.domain.services.workflow_orchestration_service`
-
-#### Adapters
-- **ImageJ Integration**: `percell.adapters.imagej_macro_adapter`
-- **File System**: `percell.adapters.local_filesystem_adapter`
-- **Cellpose Integration**: `percell.adapters.cellpose_subprocess_adapter`
-- **Image Processing**: `percell.adapters.pil_image_processing_adapter`
-
-### Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on:
+We welcome contributions! Please see our contributing guidelines for:
 - Code style and standards
 - Testing requirements
 - Pull request process
 - Architecture principles
 
-### License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### Support
+## Support
 
-For support and questions:
 - **Issues**: [GitHub Issues](https://github.com/marcusjoshm/percell/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/marcusjoshm/percell/discussions)
-- **Documentation**: [Project Wiki](https://github.com/marcusjoshm/percell/wiki)
+- **Documentation**: Additional docs in `/docs` directory
