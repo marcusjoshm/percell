@@ -46,8 +46,10 @@ function ensurePath(path) {
 }
 
 // Configuration from parameters
-cellsDir = ensurePath(input_dir + "/");
-outputDir = ensurePath(output_dir + "/");
+cellsDir = ensurePath(input_dir);
+if (!endsWith(cellsDir, "/")) cellsDir = cellsDir + "/";
+outputDir = ensurePath(output_dir);
+if (!endsWith(outputDir, "/")) outputDir = outputDir + "/";
 needMoreBinsFlag = false;
 binFileCount = 0;
 
@@ -188,12 +190,23 @@ for (d = 0; d < conditionDirs.length; d++) {
                 
                 // Open the image
                 open(imagePath);
-                
-                // Image processing steps
-                run("Enhance Contrast...", "saturated=0.01");
+
+                // Clear any existing ROI that might be embedded in the file
+                run("Select None");
+
+                // Image processing steps - Apply Gaussian blur first for better contrast enhancement
                 run("Gaussian Blur...", "sigma=1.70");
+                run("Enhance Contrast...", "saturated=0.01");
+
+                // Ensure we're working with the correct image
                 imageTitle = getTitle();
                 selectWindow(imageTitle);
+
+                // Convert to appropriate bit depth if needed for consistent processing
+                if (bitDepth() == 16) {
+                    print("Converting 16-bit image to 8-bit for thresholding");
+                    run("8-bit");
+                }
                 
                 // Set the oval selection tool
                 setTool("oval");
@@ -249,12 +262,19 @@ for (d = 0; d < conditionDirs.length; d++) {
                     setMinAndMax(0, 0);
                     run("Apply LUT", "slice");
                 } else {
-                    // Apply Otsu thresholding directly for normal case
-                    setAutoThreshold("Otsu dark 16-bit");
-                    
+                    // Apply Otsu thresholding - use appropriate method for image type
+                    if (bitDepth() == 8) {
+                        setAutoThreshold("Otsu dark");
+                    } else {
+                        setAutoThreshold("Otsu dark 16-bit");
+                    }
+
                     // Convert to mask
                     setOption("BlackBackground", true);
                     run("Convert to Mask");
+
+                    // Ensure mask is properly formatted (binary 8-bit)
+                    run("8-bit");
                 }
                 
                 // Create matching output directory structure with proper path handling

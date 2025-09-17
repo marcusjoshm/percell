@@ -257,3 +257,42 @@ class ValidationResult:
     issues: List[str] = field(default_factory=list)
 
 
+@dataclass(slots=True)
+class ImageMetadata:
+    """Image metadata containing resolution and scale information."""
+
+    x_resolution: Optional[float] = None
+    y_resolution: Optional[float] = None
+    resolution_unit: Optional[int] = None  # 1=none, 2=inch, 3=cm
+    pixel_size_um: Optional[float] = None
+    pixels_per_um: Optional[float] = None
+    imagej_metadata: dict[str, Any] = field(default_factory=dict)
+    additional_metadata: dict[str, Any] = field(default_factory=dict)
+
+    def has_resolution_info(self) -> bool:
+        """Check if metadata contains usable resolution information."""
+        return (self.x_resolution is not None and self.y_resolution is not None) or \
+               (self.pixel_size_um is not None)
+
+    def to_tifffile_kwargs(self) -> dict[str, Any]:
+        """Convert metadata to kwargs suitable for tifffile.imwrite()."""
+        kwargs = {"imagej": True}
+
+        if self.x_resolution is not None and self.y_resolution is not None:
+            kwargs["resolution"] = (self.x_resolution, self.y_resolution)
+
+        if self.resolution_unit is not None:
+            kwargs["resolutionunit"] = self.resolution_unit
+
+        # Add basic metadata for ImageJ compatibility
+        metadata = {"unit": "um"}
+        if self.pixel_size_um is not None:
+            metadata["pixelwidth"] = self.pixel_size_um
+            metadata["pixelheight"] = self.pixel_size_um
+
+        metadata.update(self.imagej_metadata)
+        kwargs["metadata"] = metadata
+
+        return kwargs
+
+

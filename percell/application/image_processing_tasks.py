@@ -17,12 +17,9 @@ import re as _re
 import pandas as pd
 import numpy as np
 
-# Try to import tifffile for preserving metadata when writing TIFF files
-try:
-    import tifffile
-    HAVE_TIFFFILE = True
-except ImportError:
-    HAVE_TIFFFILE = False
+# Import metadata service for centralized metadata handling
+from percell.domain.services.image_metadata_service import ImageMetadataService
+from percell.domain.models import ImageMetadata
 
 
 def _to_optional_set(values: Optional[Iterable[str]]) -> Optional[Set[str]]:
@@ -34,127 +31,43 @@ def _to_optional_set(values: Optional[Iterable[str]]) -> Optional[Set[str]]:
     return s
 
 
-def _extract_tiff_metadata(image_path: Path) -> Optional[dict]:
+# Create a global metadata service instance
+_metadata_service = ImageMetadataService()
+
+def _extract_tiff_metadata(image_path: Path) -> Optional[ImageMetadata]:
     """
-    Extract TIFF metadata from an image file using tifffile.
-    
+    Extract TIFF metadata from an image file using centralized service.
+
     Args:
         image_path (Path): Path to the TIFF image file
-        
+
     Returns:
-        dict or None: Extracted metadata dictionary, or None if extraction fails
+        ImageMetadata or None: Extracted metadata object, or None if extraction fails
     """
-    if not HAVE_TIFFFILE:
-        print(f"Warning: tifffile not available, cannot extract metadata from {image_path}")
-        return None
-        
     try:
-        with tifffile.TiffFile(image_path) as tif:
-            # Try to extract resolution information
-            if hasattr(tif, 'pages') and len(tif.pages) > 0:
-                page = tif.pages[0]
-                if hasattr(page, 'tags'):
-                    # Extract resolution information if available
-                    metadata = {}
-                    
-                    # Extract standard TIFF resolution tags
-                    if 'XResolution' in page.tags:
-                        metadata['XResolution'] = page.tags['XResolution'].value
-                    if 'YResolution' in page.tags:
-                        metadata['YResolution'] = page.tags['YResolution'].value
-                    if 'ResolutionUnit' in page.tags:
-                        metadata['ResolutionUnit'] = page.tags['ResolutionUnit'].value
-                    
-                    # Check for ImageJ metadata
-                    if hasattr(page, 'imagej_tags') and page.imagej_tags:
-                        metadata.update(page.imagej_tags)
-                    
-                    # Also check for ImageJ metadata in the TiffFile object
-                    if hasattr(tif, 'imagej_metadata') and tif.imagej_metadata:
-                        metadata.update(tif.imagej_metadata)
-                    
-                    # Debug: Print what we found
-                    if metadata:
-                        print(f"Extracted metadata from {image_path.name}: {list(metadata.keys())}")
-                        if 'XResolution' in metadata and 'YResolution' in metadata:
-                            print(f"  Resolution: {metadata['XResolution']} x {metadata['YResolution']}")
-                        if 'ResolutionUnit' in metadata:
-                            print(f"  Resolution Unit: {metadata['ResolutionUnit']}")
-                    else:
-                        print(f"No metadata found in {image_path.name}")
-                    
-                    return metadata
-                else:
-                    print(f"No tags found in {image_path.name}")
-            else:
-                print(f"No pages found in {image_path.name}")
+        metadata = _metadata_service.extract_metadata(image_path)
+        return metadata if metadata.has_resolution_info() else None
     except Exception as e:
         print(f"Error extracting metadata from {image_path.name}: {e}")
-    
-    return None
+        return None
 
 
-def _write_tiff_with_metadata(output_path: Path, image: np.ndarray, metadata: Optional[dict] = None) -> bool:
+def _write_tiff_with_metadata(output_path: Path, image: np.ndarray, metadata: Optional[ImageMetadata] = None) -> bool:
     """
-    Write a TIFF image with metadata preservation using tifffile.
-    
+    Write a TIFF image with metadata preservation using centralized service.
+
     Args:
         output_path (Path): Path where to save the image
         image (np.ndarray): Image data to save
-        metadata (dict, optional): Metadata to preserve
-        
+        metadata (ImageMetadata, optional): Metadata to preserve
+
     Returns:
         bool: True if successful, False otherwise
     """
-    if not HAVE_TIFFFILE:
-        print(f"tifffile not available, cannot write metadata to {output_path.name}")
-        return False
-        
     try:
-        # Prepare metadata dictionary
-        metadata_dict = {}
-        
-        # Try to use the original resolution metadata
-        if metadata:
-            print(f"Processing metadata for {output_path.name}: {list(metadata.keys())}")
-            
-            # Check for ImageJ tags
-            if 'unit' in metadata and 'resolution' in metadata:
-                # These are common ImageJ metadata for units and scale
-                resolution = metadata.get('resolution', 1.0)
-                unit = metadata.get('unit', 'µm')
-                metadata_dict['resolution'] = resolution
-                metadata_dict['unit'] = unit
-                print(f"  Found ImageJ metadata: resolution={resolution}, unit={unit}")
-            
-            # Standard TIFF resolution tags
-            if 'XResolution' in metadata and 'YResolution' in metadata:
-                metadata_dict['XResolution'] = metadata['XResolution']
-                metadata_dict['YResolution'] = metadata['YResolution']
-                if 'ResolutionUnit' in metadata:
-                    metadata_dict['ResolutionUnit'] = metadata['ResolutionUnit']
-                print(f"  Found TIFF resolution: X={metadata['XResolution']}, Y={metadata['YResolution']}, Unit={metadata.get('ResolutionUnit', 'None')}")
-        else:
-            print(f"No metadata provided for {output_path.name}")
-        
-        # Prepare resolution tuple for tifffile
-        resolution_tuple = None
-        if 'XResolution' in metadata_dict and 'YResolution' in metadata_dict:
-            resolution_tuple = (metadata_dict['XResolution'], metadata_dict['YResolution'])
-            print(f"  Using resolution tuple: {resolution_tuple}")
-        
-        # Save with metadata
-        tifffile.imwrite(
-            str(output_path), 
-            image, 
-            imagej=True,  # Use ImageJ format
-            resolution=resolution_tuple,
-            metadata={'unit': 'um'}  # Using 'um' instead of 'µm' to avoid encoding issues
-        )
-        print(f"Successfully wrote {output_path.name} with tifffile")
-        return True
+        return _metadata_service.save_image_with_metadata(image, output_path, metadata)
     except Exception as e:
-        print(f"Error writing {output_path.name} with tifffile: {e}")
+        print(f"Error writing {output_path.name} with metadata: {e}")
         return False
 
 
@@ -408,8 +321,8 @@ def combine_masks(
                 try:
                     # Try to write with metadata preservation first
                     print(f"Writing combined mask: {out_path.name}")
-                    if reference_metadata:
-                        print(f"Using metadata: {list(reference_metadata.keys())}")
+                    if reference_metadata and reference_metadata.has_resolution_info():
+                        print(f"Using metadata with resolution info")
                     else:
                         print("No metadata available for writing")
                     
@@ -565,7 +478,11 @@ def group_cells(
                         norm = acc * 0
                     out_img = (norm * 65535).astype(np.uint16)
                     out_path = out_condition / f"{region_dir.name}_bin_{i+1}.tif"
-                    
+
+                    # Ensure clean image data without any ROI information
+                    # The grouped images should be pure intensity data for thresholding
+                    print(f"Saving grouped image: {out_path.name} (shape: {out_img.shape}, dtype: {out_img.dtype})")
+
                     # Try to write with metadata preservation first
                     if not _write_tiff_with_metadata(out_path, out_img, reference_metadata):
                         # Fallback to original imgproc.write_image if tifffile fails

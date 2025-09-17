@@ -16,6 +16,7 @@ from .models import (
     ThresholdParameters,
     FileOperation,
     WorkflowConfig,
+    ImageMetadata,
 )
 
 from .services.file_naming_service import FileNamingService
@@ -24,6 +25,7 @@ from .services.intensity_analysis_service import IntensityAnalysisService
 from .services.workflow_orchestration_service import WorkflowOrchestrationService
 from .services.cell_segmentation_service import CellSegmentationService
 from .services.analysis_aggregation_service import AnalysisAggregationService
+from .services.image_metadata_service import ImageMetadataService
 
 __all__ = [
     # Models
@@ -39,6 +41,7 @@ __all__ = [
     "ThresholdParameters",
     "FileOperation",
     "WorkflowConfig",
+    "ImageMetadata",
     # Services
     "FileNamingService",
     "DataSelectionService",
@@ -46,5 +49,6 @@ __all__ = [
     "WorkflowOrchestrationService",
     "CellSegmentationService",
     "AnalysisAggregationService",
+    "ImageMetadataService",
 ]
 
