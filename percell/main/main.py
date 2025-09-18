@@ -60,11 +60,12 @@ def main():
             print("You can set software paths in the configuration file.")
             print()
         
+        # Parse command line arguments once
+        parser = build_parser()
+        args = parser.parse_args()
+
         while True:
             try:
-                # Parse command line arguments each iteration
-                parser = build_parser()
-                args = parser.parse_args()
                 # Initialize UI adapter
                 ui = CLIUserInterfaceAdapter()
                 # Show menu if needed
@@ -174,6 +175,18 @@ def main():
                     # Small delay to let user read the output
                     import time
                     time.sleep(2)
+
+                # Reset workflow flags for next menu interaction
+                args.data_selection = False
+                args.segmentation = False
+                args.process_single_cell = False
+                args.threshold_grouped_cells = False
+                args.measure_roi_area = False
+                args.analysis = False
+                args.cleanup = False
+                args.complete_workflow = False
+                if hasattr(args, 'advanced_workflow'):
+                    delattr(args, 'advanced_workflow')
 
                 # Check if we should return to configuration menu
                 if getattr(args, 'return_to_config', False):
