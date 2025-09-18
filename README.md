@@ -38,12 +38,12 @@
    percell
    ```
 
-3. **Set Input/Output directories for your dataset** (Menu Option 1):
+3. **Set Input/Output directories for your dataset** (Configuration → I/O):
    - Input: Point to your microscope-exported .tif files
    - Output: Specify path for new analysis directory (PerCell creates it)
    - Required for each new experiment/dataset
 
-4. **Run complete analysis** (Menu Option 2):
+4. **Run complete analysis** (Workflows → Default Workflow):
    - Comprehensive workflow for most datasets
    - Best starting point for new datasets
 
@@ -67,10 +67,10 @@
 
 ### 2. **Start Analysis**
 - Run `percell` from any terminal
-- **Option 1**: Set directories
+- **Configuration → I/O**: Set directories
   - Input: Point to your organized microscope data
   - Output: Specify path for new analysis directory
-- **Option 2**: Run Complete Workflow
+- **Workflows → Default Workflow**: Run Complete Workflow
 
 ### 3. **Data Selection Phase**
 You'll be prompted to select:
@@ -102,23 +102,23 @@ You'll be prompted to select:
 
 ## Workflow Flexibility and Reanalysis
 
-**If you need to pause and resume**: Use individual menu options (3-8) to continue from where you left off, allowing you to work on long analyses across multiple sessions.
+**If you need to pause and resume**: Use individual menu options through their respective categories to continue from where you left off, allowing you to work on long analyses across multiple sessions.
 
 **If you need to correct or refine your analysis**:
-- **Refine thresholding results?** → Use Option 6 (Threshold Grouped Cells) + Option 8 (Analysis)
-- **Analyze different data subsets?** → Use Option 3 (Data Selection) + subsequent steps
-- **Custom analysis sequence needed?** → Use Option 10 (Advanced Workflow Builder)
+- **Refine thresholding results?** → Use Analysis → Threshold Grouped Cells + Analysis → Particle Analysis
+- **Analyze different data subsets?** → Use Configuration → Data Selection + subsequent steps
+- **Custom analysis sequence needed?** → Use Workflows → Advanced Workflow Builder
 
 **Example Reanalysis Scenarios**:
 ```
 # Refine thresholding with different ROI selection:
-Option 6 → Option 8
+Analysis → Threshold Grouped Cells → Analysis → Particle Analysis
 
 # Reanalyze with different data subset or parameters:
-Option 3 → Option 4 → Option 5 → Option 6 → Option 8
+Configuration → Data Selection → Segmentation → Cellpose → Processing → Single-Cell Data Processing → Analysis → Threshold Grouped Cells → Analysis → Particle Analysis
 
 # Custom reanalysis sequence using Advanced Workflow:
-Option 10 → Select: threshold_grouped_cells → analysis
+Workflows → Advanced Workflow Builder → Select: threshold_grouped_cells → analysis
 ```
 
 ## Installation
@@ -248,7 +248,7 @@ input_directory/
 
 ## Using the Interactive Menu
 
-When you run `percell`, you'll see the colorful interactive menu:
+When you run `percell`, you'll see the colorful multi-layer interactive menu system:
 
 ```
     ███████╗ ████████╗███████╗ ███████╗████████╗██╗      ██╗
@@ -260,26 +260,79 @@ When you run `percell`, you'll see the colorful interactive menu:
 
 🔬 Welcome single-cell microscopy analysis user! 🔬
 
-MENU:
-1. Set Input/Output Directories
-2. Run Complete Workflow
-3. Data Selection (conditions, regions, timepoints, channels)
-4. Single-cell Segmentation (Cellpose)
-5. Process Single-cell Data (tracking, resizing, extraction, grouping)
-6. Threshold Grouped Cells (interactive ImageJ thresholding)
-7. Measure Cell Area (measure areas from single-cell ROIs)
-8. Analysis (combine masks, create cell masks, export results)
-9. Cleanup (empty cells and masks directories, preserves grouped/combined data)
-10. Advanced Workflow Builder (custom sequence of steps)
-11. Exit
+MAIN MENU:
+1.  Configuration - Set input/output directories and data selection
+2.  Workflows - Run complete or custom analysis workflows
+3.  Segmentation - Cellpose SAM
+4.  Processing - Data processing for downstream analysis
+5.  Tracking - Track cells across time points
+6.  Visualization - Create visualizations and plots
+7.  Analysis - Semi-automated thresholding, cell area, and particle analysis
+8.  Plugins - Extend functionality with plugins
+9.  Utilities - Cleanup and maintenance tools
+10. Exit - Quit the application
 ```
 
-### Setting Up Your Analysis (Option 1)
+### Navigation and Menu Structure
 
-**Required for every new dataset** - Configure directories for your microscopy data analysis:
+The new multi-layer menu system organizes functionality into logical categories for better usability:
+
+#### Main Menu Categories
+
+**1. Configuration Menu**
+```
+CONFIGURATION MENU:
+1. I/O - Set input/output directories
+2. Data Selection - Select conditions, timepoints, regions, and channels for analysis
+3. Current Configuration - View current input/output directories and data selection
+4. Back to Main Menu
+```
+
+**2. Workflows Menu**
+```
+WORKFLOWS MENU:
+1. Default Workflow - Complete sequence of steps from segmentation to particle analysis
+2. Advanced Workflow Builder - Select specific steps to include in a custom workflow
+3. Back to Main Menu
+```
+
+**3. Segmentation Menu**
+```
+SEGMENTATION MENU:
+1. Cellpose - Single-cell segmentation using Cellpose SAM GUI
+2. Back to Main Menu
+```
+
+**4. Processing Menu**
+```
+PROCESSING MENU:
+1. Single-Cell Data Processing - Tracking, resizing, extraction, grouping
+2. Back to Main Menu
+```
+
+**5. Analysis Menu**
+```
+ANALYSIS MENU:
+1. Threshold Grouped Cells - interactive Otsu autothresholding of intensity grouped cell data with imageJ
+2. Measure Cell Area - Measure area of cells in ROIs using imageJ
+3. Particle Analysis - Analyze particles in segmented images using imageJ
+4. Back to Main Menu
+```
+
+**6. Utilities Menu**
+```
+UTILITIES MENU:
+1. Cleanup - Delete intermediate files (individual cells and masks) to save space
+2. Back to Main Menu
+```
+
+### Setting Up Your Analysis (Configuration → I/O)
+
+**Required for every new dataset** - Navigate to Configuration menu and select I/O:
 
 ```
-Select an option (1-11): 1
+Select an option (1-10): 1  # Configuration
+Select an option (1-4): 1   # I/O Setup
 ```
 
 **Input Directory Setup:**
@@ -300,15 +353,16 @@ Select an option (1-11): 1
 - ✅ Must set directories for each new dataset you analyze
 - ✅ Paths are saved for the current analysis session
 
-## Complete Workflow (Option 2)
+## Complete Workflow (Workflows → Default Workflow)
 
 **⭐ Best starting point for new datasets** - Comprehensive workflow useful for most fluorescence microscopy analyses.
 
 ```
-Select an option (1-11): 2
+Select an option (1-10): 2  # Workflows
+Select an option (1-3): 1   # Default Workflow
 ```
 
-### What Option 2 Does:
+### What the Default Workflow Does:
 
 1. **Data Selection** → Interactive selection of:
    - Experimental conditions to analyze
@@ -351,9 +405,11 @@ Select an option (1-11): 2
 
 ## Individual Menu Options
 
-**Purpose**: Start analysis from a specific point in the workflow or continue from where you left off. These options allow you to pause and resume long analyses across multiple sessions, or refine specific steps without restarting the entire analysis.
+**Purpose**: Access specific analysis steps through their respective menu categories. The multi-layer menu system allows you to start analysis from a specific point in the workflow or continue from where you left off, enabling you to pause and resume long analyses across multiple sessions, or refine specific steps without restarting the entire analysis.
 
-### Option 1: Set Input/Output Directories
+### Configuration Menu Options
+
+#### Configuration → I/O
 - **Purpose**: Configure directories for microscope data analysis
 - **Use**: **Required for every new dataset** - not just first-time setup
 - **Input Directory**: Path to existing directory with microscope-exported .tif files
@@ -364,25 +420,36 @@ Select an option (1-11): 2
   - Output = new directory PerCell creates
   - Must be done for each experiment/dataset
 
-### Option 3: Data Selection
+#### Configuration → Data Selection
 - **Purpose**: Choose specific data subsets for analysis
 - **Use**: Select conditions, timepoints, regions, channels
 - **Required**: Must be run before other analysis steps
 - **Output**: Creates output directory structure
 
-### Option 4: Single-cell Segmentation
+#### Configuration → Current Configuration
+- **Purpose**: View current settings
+- **Use**: Display configured directories and data selection
+- **Output**: Shows current input/output paths and selected data
+
+### Segmentation Menu Options
+
+#### Segmentation → Cellpose
 - **Purpose**: Identify individual cells using Cellpose
 - **Use**: Interactive cell boundary drawing
 - **Requirements**: Data selection completed
 - **Output**: ROI files for each region
 
-### Option 5: Process Single-cell Data
+### Processing Menu Options
+
+#### Processing → Single-Cell Data Processing
 - **Purpose**: Extract and group individual cells
 - **Use**: Automated processing of segmented cells
 - **Requirements**: Segmentation completed
 - **Output**: Individual cell images grouped by brightness
 
-### Option 6: Threshold Grouped Cells
+### Analysis Menu Options
+
+#### Analysis → Threshold Grouped Cells
 - **Purpose**: Create binary masks for analysis
 - **Use**: Interactive ImageJ thresholding with user guidance
 - **Requirements**: Cell processing completed
@@ -392,13 +459,13 @@ Select an option (1-11): 2
   - User-guided ROI selection
   - Otsu thresholding
 
-### Option 7: Measure Cell Area
+#### Analysis → Measure Cell Area
 - **Purpose**: Quantify cell sizes from ROIs
 - **Use**: Automated area measurements
 - **Requirements**: Segmentation completed
 - **Output**: Area measurements for statistical analysis
 
-### Option 8: Analysis
+#### Analysis → Particle Analysis
 - **Purpose**: Final analysis and data export
 - **Use**: Combine all results and generate reports
 - **Requirements**: Previous steps completed
@@ -408,18 +475,21 @@ Select an option (1-11): 2
   - CSV files with measurements
   - Metadata-rich results
 
-### Option 9: Cleanup
+### Utilities Menu Options
+
+#### Utilities → Cleanup
 - **Purpose**: Free up disk space
 - **Use**: Remove intermediate files while preserving final results
 - **Safety**: Only removes cells and masks directories
 - **Preserves**: Grouped/combined data and analysis results
 
-## Advanced Workflow Builder (Option 10)
+## Advanced Workflow Builder (Workflows → Advanced Workflow Builder)
 
 **For experienced users** who need custom analysis sequences or want to repeat specific steps.
 
 ```
-Select an option (1-11): 10
+Select an option (1-10): 2  # Workflows
+Select an option (1-3): 2   # Advanced Workflow Builder
 ```
 
 ### How It Works:
