@@ -319,7 +319,14 @@ ANALYSIS MENU:
 4. Back to Main Menu
 ```
 
-**6. Utilities Menu**
+**6. Plugins Menu**
+```
+PLUGINS MENU:
+1. Advanced Image Processing - Microscopy image preprocessing workflow
+2. Back to Main Menu
+```
+
+**7. Utilities Menu**
 ```
 UTILITIES MENU:
 1. Cleanup - Delete intermediate files (individual cells and masks) to save space
@@ -474,6 +481,33 @@ Select an option (1-3): 1   # Default Workflow
   - Individual cell masks
   - CSV files with measurements
   - Metadata-rich results
+
+### Plugins Menu Options
+
+#### Plugins → Advanced Image Processing
+- **Purpose**: Comprehensive microscopy image preprocessing workflow
+- **Use**: Process raw microscopy data before cell analysis
+- **Features**:
+  - **Metadata extraction** and analysis from TIFF files
+  - **Z-stack creation** from individual z-plane images (if z-series data detected)
+  - **Maximum intensity projections** from z-stacks (if z-series data detected)
+  - **Multi-channel image merging** into ImageJ-compatible composites (if multi-channel data detected)
+  - **Directory structure preservation** - mirrors input experiment organization
+  - **Intelligent processing** - only creates directories and runs processes for detected data types
+- **Input**: Raw microscopy TIFF files with naming patterns (e.g., `name_z00_ch00.tif`)
+- **Output**: Organized directory structure with:
+  - `z-stacks/` - Multi-page TIFF stacks per channel
+  - `max_projections/` - Maximum intensity projections in timepoint subdirectories
+  - `merged/` - Channel-merged composite images
+  - `stitched/` - Created only if tile-scan data detected
+  - `time_lapse/` - Created only if time-series data detected
+- **Data Detection**: Automatically detects and reports:
+  - Z-series data (multiple z-planes)
+  - Multi-channel data (multiple channels)
+  - Time-series data (multiple timepoints)
+  - Tile-scan data (multiple tiles/sites)
+- **Interactive**: Prompts for input/output directories with validation
+- **Navigation**: Returns to main menu after completion
 
 ### Utilities Menu Options
 

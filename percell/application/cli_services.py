@@ -294,10 +294,8 @@ def show_plugins_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Option
     ui.info("")
     ui.info(colorize("PLUGINS MENU:", Colors.bold))
     ui.info("")
-    ui.info(colorize("(No plugins available yet)", Colors.reset))
-    ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
-    ui.info("")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Advanced Image Processing', Colors.yellow)}{colorize(' - Microscopy image preprocessing workflow', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
     ui.info("")
     ui.info("")
     ui.info("")
@@ -308,8 +306,20 @@ def show_plugins_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Option
     ui.info("")
     ui.info("")
 
-    choice = ui.prompt("Select an option (1): ").strip().lower()
+    choice = ui.prompt("Select an option (1-2): ").strip().lower()
     if choice == "1":
+        # Import and run the advanced image processing plugin
+        try:
+            from percell.plugins.advanced_image_processing import show_advanced_image_processing_plugin
+            result = show_advanced_image_processing_plugin(ui, args)
+            # If plugin returns args, go to main menu; otherwise stay in plugins menu
+            if result is not None:
+                return show_menu(ui, args)
+        except ImportError as e:
+            ui.error(f"Failed to load advanced image processing plugin: {e}")
+            ui.prompt("Press Enter to continue...")
+        return show_plugins_menu(ui, args)
+    elif choice == "2":
         return show_menu(ui, args)
     return show_plugins_menu(ui, args)
 
