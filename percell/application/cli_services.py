@@ -74,7 +74,7 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
         return show_menu(ui, args)
     elif choice == "2":
         setattr(args, "data_selection", True)
-        setattr(args, "return_to_config", True)
+        setattr(args, "return_to_main", True)
         return args
     elif choice == "3":
         # Display current configuration
