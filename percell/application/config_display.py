@@ -93,5 +93,5 @@ def display_current_configuration(ui: UserInterfacePort, config: Config, args_in
     ui.info("")
     ui.info("=" * 50)
     ui.info("")
-    ui.info("Press Enter to return to Configuration menu...")
+    ui.info("Press Enter to return to main menu...")
     ui.prompt("")
