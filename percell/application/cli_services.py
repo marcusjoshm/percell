@@ -355,8 +355,8 @@ def show_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argpa
     ui.info("")
     ui.info(colorize("1. Configuration", Colors.reset))
     ui.info(colorize("2. Workflows", Colors.yellow))
-    ui.info(colorize("3. Processing", Colors.yellow))
-    ui.info(colorize("4. Segmentation", Colors.yellow))
+    ui.info(colorize("3. Segmentation", Colors.yellow))
+    ui.info(colorize("4. Processing", Colors.yellow))
     ui.info(colorize("5. Tracking", Colors.yellow))
     ui.info(colorize("6. Visualization", Colors.yellow))
     ui.info(colorize("7. Analysis", Colors.yellow))
@@ -371,9 +371,9 @@ def show_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argpa
     elif choice == "2":
         return show_workflows_menu(ui, args)
     elif choice == "3":
-        return show_processing_menu(ui, args)
-    elif choice == "4":
         return show_segmentation_menu(ui, args)
+    elif choice == "4":
+        return show_processing_menu(ui, args)
     elif choice == "5":
         return show_tracking_menu(ui, args)
     elif choice == "6":
