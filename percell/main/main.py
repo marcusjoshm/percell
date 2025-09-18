@@ -165,13 +165,27 @@ def main():
                 else:
                     # For non-interactive stages, show completion message
                     print("\n" + "="*80)
-                    print("Pipeline completed. Returning to main menu...")
+                    if getattr(args, 'return_to_config', False):
+                        print("Process completed. Returning to menu...")
+                    else:
+                        print("Pipeline completed. Returning to main menu...")
                     print("="*80 + "\n")
-                    
+
                     # Small delay to let user read the output
                     import time
                     time.sleep(2)
-                
+
+                # Check if we should return to configuration menu
+                if getattr(args, 'return_to_config', False):
+                    # Clear the flags and show configuration menu
+                    delattr(args, 'return_to_config')
+                    args.data_selection = False
+                    from percell.application.cli_services import show_configuration_menu
+                    args = show_configuration_menu(ui, args)
+                    if args is None:
+                        return 0
+                    continue
+
             except KeyboardInterrupt:
                 print("\nPipeline interrupted by user")
                 return 1

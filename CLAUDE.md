@@ -17,7 +17,15 @@ This project uses:
 - pytest for testing
 - Type checking with mypy
 
+**IMPORTANT**: Always activate the virtual environment before running any Python scripts:
+```bash
+source .venv/bin/activate  # On macOS/Linux
+# or
+.venv\Scripts\activate     # On Windows
+```
+
 ## Common Commands
+- **Activate virtual environment**: `source .venv/bin/activate`
 - **Testing**: `pytest tests/`
 - **Type checking**: `mypy percell/`
 - **Install in development mode**: `pip install -e .`
