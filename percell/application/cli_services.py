@@ -71,7 +71,7 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
                 args.input = ui.prompt("Enter input directory path: ").strip()
             if not getattr(args, "output", None):
                 args.output = ui.prompt("Enter output directory path: ").strip()
-        return show_configuration_menu(ui, args)
+        return show_menu(ui, args)
     elif choice == "2":
         setattr(args, "data_selection", True)
         setattr(args, "return_to_config", True)
@@ -99,7 +99,7 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
             ui.error(f"Error displaying configuration: {e}")
             ui.prompt("Press Enter to continue...")
 
-        return show_configuration_menu(ui, args)
+        return show_menu(ui, args)
     elif choice == "4":
         return show_menu(ui, args)
     return show_configuration_menu(ui, args)
@@ -320,7 +320,7 @@ def show_utilities_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Opti
     ui.info("")
     ui.info(colorize("UTILITIES MENU:", Colors.bold))
     ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Cleanup', Colors.reset)}{colorize(' - Delete intermediate files (individual cells and masks) to save space', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Cleanup', Colors.reset)}{colorize(' - Delete individual cells and masks to save space', Colors.reset)}")
     ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
     ui.info("")
     ui.info("")
