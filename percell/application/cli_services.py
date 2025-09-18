@@ -32,8 +32,8 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
     ui.info("")
     ui.info(colorize("1. Set Input/Output Directories", Colors.yellow))
     ui.info(colorize("2. Data Selection (conditions, regions, timepoints, channels)", Colors.yellow))
-    ui.info(colorize("3. Back to Main Menu", Colors.red))
-    ui.info("")
+    ui.info(colorize("3. Check Current Configuration", Colors.blue))
+    ui.info(colorize("4. Back to Main Menu", Colors.red))
     ui.info("")
     ui.info("")
     ui.info("")
@@ -44,7 +44,7 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
     ui.info("")
     ui.info("")
 
-    choice = ui.prompt("Select an option (1-3): ").strip().lower()
+    choice = ui.prompt("Select an option (1-4): ").strip().lower()
     if choice == "1":
         # Use interactive directory setup with recent paths and defaults
         try:
@@ -77,6 +77,30 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
         setattr(args, "return_to_config", True)
         return args
     elif choice == "3":
+        # Display current configuration
+        try:
+            from percell.application.config_display import display_current_configuration
+            from percell.application.paths_api import get_path
+
+            try:
+                config_path = str(get_path("config_default"))
+            except Exception:
+                config_path = "percell/config/config.json"
+
+            from percell.application.config_api import Config
+            config = Config(config_path)
+
+            # Pass current args input/output if available
+            current_input = getattr(args, 'input', None)
+            current_output = getattr(args, 'output', None)
+
+            display_current_configuration(ui, config, current_input, current_output)
+        except Exception as e:
+            ui.error(f"Error displaying configuration: {e}")
+            ui.prompt("Press Enter to continue...")
+
+        return show_configuration_menu(ui, args)
+    elif choice == "4":
         return show_menu(ui, args)
     return show_configuration_menu(ui, args)
 
