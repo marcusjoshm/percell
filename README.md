@@ -322,7 +322,7 @@ ANALYSIS MENU:
 **6. Plugins Menu**
 ```
 PLUGINS MENU:
-1. Advanced Image Processing - Microscopy image preprocessing workflow
+1. Auto Image Preprocessing - auto preprocessing for downstream analysis
 2. Back to Main Menu
 ```
 
@@ -484,7 +484,7 @@ Select an option (1-3): 1   # Default Workflow
 
 ### Plugins Menu Options
 
-#### Plugins → Advanced Image Processing
+#### Plugins → Auto Image Preprocessing
 - **Purpose**: Comprehensive microscopy image preprocessing workflow
 - **Use**: Process raw microscopy data before cell analysis
 - **Features**:

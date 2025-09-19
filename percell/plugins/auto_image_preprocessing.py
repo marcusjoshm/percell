@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Advanced Image Processing Plugin for Percell
+Auto Image Preprocessing Plugin for Percell
 
 This plugin provides comprehensive microscopy image processing functionality including:
 - Interactive directory selection with validation
@@ -539,10 +539,10 @@ def merge_channels_from_max_projections(max_proj_dir: Path, output_dir: Path, ui
     return results
 
 
-def run_advanced_image_processing_workflow(ui: UserInterfacePort) -> None:
-    """Run the comprehensive advanced image processing workflow."""
+def run_auto_image_preprocessing_workflow(ui: UserInterfacePort) -> None:
+    """Run the comprehensive auto image preprocessing workflow."""
 
-    ui.info("🔬 Advanced Image Processing Workflow")
+    ui.info("🔬 Auto Image Preprocessing Workflow")
     ui.info("=" * 60)
     ui.info("")
     ui.info("This comprehensive workflow provides:")
@@ -591,7 +591,7 @@ def run_advanced_image_processing_workflow(ui: UserInterfacePort) -> None:
         return
 
     ui.info("")
-    ui.info("🚀 Starting advanced image processing workflow...")
+    ui.info("🚀 Starting auto image preprocessing workflow...")
     ui.info("")
 
     try:
@@ -718,7 +718,7 @@ def run_advanced_image_processing_workflow(ui: UserInterfacePort) -> None:
             ui.info("")
 
         # Final summary
-        ui.info("✅ Advanced image processing completed!")
+        ui.info("✅ Auto image preprocessing completed!")
         ui.info(f"📁 Results saved to: {output_dir}")
         ui.info("")
         ui.info("📋 Processing summary:")
@@ -740,10 +740,10 @@ def run_advanced_image_processing_workflow(ui: UserInterfacePort) -> None:
         ui.error(f"Details: {traceback.format_exc()}")
 
 
-def show_advanced_image_processing_plugin(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
-    """Show the Advanced Image Processing plugin interface."""
+def show_auto_image_preprocessing_plugin(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
+    """Show the Auto Image Preprocessing plugin interface."""
 
-    run_advanced_image_processing_workflow(ui)
+    run_auto_image_preprocessing_workflow(ui)
 
     ui.prompt("Press Enter to return to main menu...")
     return args

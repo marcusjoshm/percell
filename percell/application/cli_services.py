@@ -31,10 +31,10 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
     ui.info(colorize("CONFIGURATION MENU:", Colors.bold))
     ui.info("")
     ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('I/O', Colors.yellow)} {colorize('- Set input/output directories', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Data Selection', Colors.yellow)} {colorize('- Select data for analysis', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Analysis Parameters', Colors.yellow)} {colorize('- Select conditions, timepoints, channels, etc. for', Colors.reset)}")
+    ui.info(f"   {colorize('processing and analysis', Colors.reset)}")
     ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset} {colorize('Current Configuration', Colors.yellow)} {colorize('- View current analysis configuration', Colors.reset)}")
     ui.info(f"{Colors.bold}{Colors.white}4.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
-    ui.info("")
     ui.info("")
     ui.info("")
     ui.info("")
@@ -294,7 +294,7 @@ def show_plugins_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Option
     ui.info("")
     ui.info(colorize("PLUGINS MENU:", Colors.bold))
     ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Advanced Image Processing', Colors.yellow)}{colorize(' - Microscopy image preprocessing workflow', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Auto Image Preprocessing', Colors.yellow)}{colorize(' - auto preprocessing for downstream analysis', Colors.reset)}")
     ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
     ui.info("")
     ui.info("")
@@ -308,15 +308,15 @@ def show_plugins_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Option
 
     choice = ui.prompt("Select an option (1-2): ").strip().lower()
     if choice == "1":
-        # Import and run the advanced image processing plugin
+        # Import and run the auto image preprocessing plugin
         try:
-            from percell.plugins.advanced_image_processing import show_advanced_image_processing_plugin
-            result = show_advanced_image_processing_plugin(ui, args)
+            from percell.plugins.auto_image_preprocessing import show_auto_image_preprocessing_plugin
+            result = show_auto_image_preprocessing_plugin(ui, args)
             # If plugin returns args, go to main menu; otherwise stay in plugins menu
             if result is not None:
                 return show_menu(ui, args)
         except ImportError as e:
-            ui.error(f"Failed to load advanced image processing plugin: {e}")
+            ui.error(f"Failed to load auto image preprocessing plugin: {e}")
             ui.prompt("Press Enter to continue...")
         return show_plugins_menu(ui, args)
     elif choice == "2":
@@ -362,13 +362,13 @@ def show_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argpa
     ui.info(colorize("              🔬 Welcome single-cell microscopy analysis user! 🔬               ", Colors.bold))
     ui.info("")
     ui.info(colorize("MAIN MENU:", Colors.bold))
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset}  {colorize('Configuration', Colors.yellow)} {colorize('- Set input/output directories and data selection', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset}  {colorize('Workflows', Colors.yellow)} {colorize('- Run complete or custom analysis workflows', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset}  {colorize('Segmentation', Colors.yellow)} {colorize('- Cellpose SAM', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset}  {colorize('Configuration', Colors.yellow)} {colorize('- Set input/output directories and analysis parameters', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset}  {colorize('Workflows', Colors.yellow)} {colorize('- Pre-built and custom analysis workflows', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset}  {colorize('Segmentation', Colors.yellow)} {colorize('- Single-cell segmentation tools', Colors.reset)}")
     ui.info(f"{Colors.bold}{Colors.white}4.{Colors.reset}  {colorize('Processing', Colors.yellow)} {colorize('- Data processing for downstream analysis', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}5.{Colors.reset}  {colorize('Tracking', Colors.yellow)} {colorize('- Track cells across time points', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}6.{Colors.reset}  {colorize('Visualization', Colors.yellow)} {colorize('- Create visualizations and plots', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}7.{Colors.reset}  {colorize('Analysis', Colors.yellow)} {colorize('- Semi-automated thresholding, cell area, and particle analysis', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}5.{Colors.reset}  {colorize('Tracking', Colors.yellow)} {colorize('- Single-cell tracking tools', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}6.{Colors.reset}  {colorize('Visualization', Colors.yellow)} {colorize('- Image and mask visualization tools', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}7.{Colors.reset}  {colorize('Analysis', Colors.yellow)} {colorize('- Semi-automated thresholding and image analysis tools', Colors.reset)}")
     ui.info(f"{Colors.bold}{Colors.white}8.{Colors.reset}  {colorize('Plugins', Colors.yellow)} {colorize('- Extend functionality with plugins', Colors.reset)}")
     ui.info(f"{Colors.bold}{Colors.white}9.{Colors.reset}  {colorize('Utilities', Colors.yellow)} {colorize('- Cleanup and maintenance tools', Colors.reset)}")
     ui.info(f"{Colors.bold}{Colors.white}10.{Colors.reset} {colorize('Exit', Colors.red)} {colorize('- Quit the application', Colors.reset)}")
