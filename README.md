@@ -1,6 +1,6 @@
 # PerCell
 
-<img src="percell/art/percell_terminal_window.png?v=2" width="900" title="Percell Terminal Interface" alt="Percell Terminal Interface" align="center">
+<img src="percell/art/percell_terminal_window.png?v=3" width="900" title="Percell Terminal Interface" alt="Percell Terminal Interface" align="center">
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![repo size](https://img.shields.io/github/repo-size/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/)
@@ -106,7 +106,7 @@ You'll be prompted to select:
 
 **If you need to correct or refine your analysis**:
 - **Refine thresholding results?** → Use Analysis → Threshold Grouped Cells + Analysis → Particle Analysis
-- **Analyze different data subsets?** → Use Configuration → Data Selection + subsequent steps
+- **Analyze different data subsets?** → Use Configuration → Analysis Parameters + subsequent steps
 - **Custom analysis sequence needed?** → Use Workflows → Advanced Workflow Builder
 
 **Example Reanalysis Scenarios**:
@@ -115,7 +115,7 @@ You'll be prompted to select:
 Analysis → Threshold Grouped Cells → Analysis → Particle Analysis
 
 # Reanalyze with different data subset or parameters:
-Configuration → Data Selection → Segmentation → Cellpose → Processing → Single-Cell Data Processing → Analysis → Threshold Grouped Cells → Analysis → Particle Analysis
+Configuration → Analysis Parameters → Segmentation → Cellpose → Processing → Single-Cell Data Processing → Analysis → Threshold Grouped Cells → Analysis → Particle Analysis
 
 # Custom reanalysis sequence using Advanced Workflow:
 Workflows → Advanced Workflow Builder → Select: threshold_grouped_cells → analysis
@@ -261,13 +261,13 @@ When you run `percell`, you'll see the colorful multi-layer interactive menu sys
 🔬 Welcome single-cell microscopy analysis user! 🔬
 
 MAIN MENU:
-1.  Configuration - Set input/output directories and data selection
-2.  Workflows - Run complete or custom analysis workflows
-3.  Segmentation - Cellpose SAM
+1.  Configuration - Set input/output directories and analysis parameters
+2.  Workflows - Pre-built and custom analysis workflows
+3.  Segmentation - Single-cell segmentation tools
 4.  Processing - Data processing for downstream analysis
-5.  Tracking - Track cells across time points
-6.  Visualization - Create visualizations and plots
-7.  Analysis - Semi-automated thresholding, cell area, and particle analysis
+5.  Tracking - Single-cell tracking tools
+6.  Visualization - Image and mask visualization tools
+7.  Analysis - Semi-automated thresholding and image analysis tools
 8.  Plugins - Extend functionality with plugins
 9.  Utilities - Cleanup and maintenance tools
 10. Exit - Quit the application
@@ -283,8 +283,9 @@ The new multi-layer menu system organizes functionality into logical categories 
 ```
 CONFIGURATION MENU:
 1. I/O - Set input/output directories
-2. Data Selection - Select conditions, timepoints, regions, and channels for analysis
-3. Current Configuration - View current input/output directories and data selection
+2. Analysis Parameters - Select conditions, timepoints, channels, etc. for
+   processing and analysis
+3. Current Configuration - View current analysis configuration
 4. Back to Main Menu
 ```
 
@@ -371,7 +372,7 @@ Select an option (1-3): 1   # Default Workflow
 
 ### What the Default Workflow Does:
 
-1. **Data Selection** → Interactive selection of:
+1. **Analysis Parameters** → Interactive selection of:
    - Experimental conditions to analyze
    - Time points to include
    - Regions/fields to process
@@ -406,7 +407,7 @@ Select an option (1-3): 1   # Default Workflow
 
 ### User Interaction Points:
 
-- **Data Selection**: Choose which data to analyze
+- **Analysis Parameters**: Choose which data to analyze
 - **Segmentation**: Draw cell boundaries in ImageJ/Cellpose
 - **Thresholding**: Draw ROI areas for thresholding and decide on grouping
 
@@ -427,7 +428,7 @@ Select an option (1-3): 1   # Default Workflow
   - Output = new directory PerCell creates
   - Must be done for each experiment/dataset
 
-#### Configuration → Data Selection
+#### Configuration → Analysis Parameters
 - **Purpose**: Choose specific data subsets for analysis
 - **Use**: Select conditions, timepoints, regions, channels
 - **Required**: Must be run before other analysis steps
