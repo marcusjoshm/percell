@@ -31,8 +31,8 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
     ui.info(colorize("CONFIGURATION MENU:", Colors.bold))
     ui.info("")
     ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('I/O', Colors.yellow)} {colorize('- Set input/output directories', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Analysis Parameters', Colors.yellow)} {colorize('- Select conditions, timepoints, channels, etc. for', Colors.reset)}")
-    ui.info(f"   {colorize('processing and analysis', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Data Selection', Colors.yellow)} {colorize('- Select parameters (conditions, timepoints, channels, etc.)', Colors.reset)}")
+    ui.info(f"   {colorize('for processing and analysis', Colors.reset)}")
     ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset} {colorize('Current Configuration', Colors.yellow)} {colorize('- View current analysis configuration', Colors.reset)}")
     ui.info(f"{Colors.bold}{Colors.white}4.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
     ui.info("")
@@ -233,10 +233,9 @@ def show_visualization_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
     ui.info("")
     ui.info(colorize("VISUALIZATION MENU:", Colors.bold))
     ui.info("")
-    ui.info(colorize("(No visualization options available yet)", Colors.reset))
-    ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
-    ui.info("")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Interactive Visualization', Colors.yellow)} {colorize('- Display raw images, masks, and overlays with LUT', Colors.reset)}")
+    ui.info(f"   {colorize('controls', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
     ui.info("")
     ui.info("")
     ui.info("")
@@ -247,8 +246,17 @@ def show_visualization_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
     ui.info("")
     ui.info("")
 
-    choice = ui.prompt("Select an option (1): ").strip().lower()
+
+    choice = ui.prompt("Select an option (1-2): ").strip().lower()
     if choice == "1":
+        try:
+            _run_combined_visualization(ui, args)
+        except Exception as e:
+            ui.error(f"Error running visualization: {e}")
+            ui.prompt("Press Enter to continue...")
+        # Return to main menu after visualization
+        return show_menu(ui, args)
+    elif choice == "2":
         return show_menu(ui, args)
     return show_visualization_menu(ui, args)
 
@@ -440,5 +448,106 @@ def validate_args(args: argparse.Namespace, ui: Optional[UserInterfacePort] = No
                 ui.info(f"Using default output directory: {default_output}")
         else:
             raise ValueError("Output directory is required unless using --interactive")
+
+
+def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace) -> None:
+    """Run the combined visualization feature."""
+    from percell.application.visualization_service import VisualizationService
+    from percell.application.config_api import Config
+    from percell.application.paths_api import get_path
+    from percell.domain.models import DatasetSelection
+    from pathlib import Path
+
+    # Get current configuration
+    try:
+        config_path = str(get_path("config_default"))
+    except Exception:
+        config_path = "percell/config/config.json"
+
+    config = Config(config_path)
+
+    # Get directories
+    input_dir = getattr(args, 'input', None) or config.get("directories.input", "")
+    output_dir = getattr(args, 'output', None) or config.get("directories.output", "")
+
+    if not input_dir:
+        input_dir = ui.prompt("Enter input directory path: ").strip()
+    if not output_dir:
+        output_dir = ui.prompt("Enter output directory path: ").strip()
+
+    # Look for raw data in output/raw_data first, then fall back to input directory
+    output_raw_data_dir = Path(output_dir) / "raw_data"
+    input_raw_data_dir = Path(input_dir)
+
+    if output_raw_data_dir.exists():
+        raw_data_dir = output_raw_data_dir
+        ui.info(f"Using processed raw data: {raw_data_dir}")
+    elif input_raw_data_dir.exists():
+        raw_data_dir = input_raw_data_dir
+        ui.info(f"Using original input data: {raw_data_dir}")
+    else:
+        ui.error(f"No raw data found in {output_raw_data_dir} or {input_raw_data_dir}")
+        return
+
+    # Look for masks in combined_masks first, then fall back to masks
+    combined_masks_dir = Path(output_dir) / "combined_masks"
+    masks_dir = Path(output_dir) / "masks"
+
+    if combined_masks_dir.exists():
+        masks_dir = combined_masks_dir
+        ui.info(f"Using combined masks: {masks_dir}")
+    elif masks_dir.exists():
+        ui.info(f"Using individual masks: {masks_dir}")
+    else:
+        ui.info(f"No masks found in {combined_masks_dir} or {masks_dir}")
+        ui.info("Will show raw images only")
+
+    # Get data selection configuration from config but be flexible with conditions
+    config_conditions = config.get("data_selection.selected_conditions", [])
+    config_timepoints = config.get("data_selection.selected_timepoints", [])
+    config_regions = config.get("data_selection.selected_regions", [])
+    config_channels = config.get("data_selection.analysis_channels", [])
+
+    # For visualization, let's be more flexible and discover what's actually available
+    from percell.domain.services.data_selection_service import DataSelectionService
+    data_service = DataSelectionService()
+    all_files = data_service.scan_available_data(raw_data_dir)
+    available_conditions, available_timepoints, available_regions = data_service.parse_conditions_timepoints_regions(all_files)
+
+    ui.info(f"Available conditions: {available_conditions}")
+    ui.info(f"Available timepoints: {available_timepoints}")
+    ui.info(f"Available regions: {available_regions}")
+
+    # Use config selections if they match available data, otherwise use all available
+    use_conditions = config_conditions if any(c in available_conditions for c in config_conditions) else available_conditions
+    use_timepoints = config_timepoints if any(t in available_timepoints for t in config_timepoints) else available_timepoints
+    use_regions = config_regions if any(r in available_regions for r in config_regions) else available_regions
+
+    selection = DatasetSelection(
+        root=raw_data_dir,
+        conditions=use_conditions,
+        timepoints=use_timepoints,
+        regions=use_regions,
+        channels=config_channels
+    )
+
+    ui.info(f"Creating interactive visualization for {len(selection.conditions or ['all'])} conditions...")
+    ui.info("Use the sliders to adjust intensity range (similar to ImageJ brightness/contrast)")
+    ui.info("Green overlay at 70% transparency")
+
+    # Create visualization
+    viz_service = VisualizationService(ui)
+    success = viz_service.display_combined_visualization(
+        raw_data_dir, masks_dir, selection, overlay_alpha=0.7
+    )
+
+    if success:
+        ui.info("Visualization created successfully!")
+    else:
+        ui.error("Failed to create visualization")
+
+    ui.prompt("Press Enter to continue...")
+
+
 
 
