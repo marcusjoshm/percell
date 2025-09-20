@@ -25,6 +25,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from percell.ports.driving.user_interface_port import UserInterfacePort
+from percell.domain.services.image_metadata_service import ImageMetadataService
+from percell.domain.models import ImageMetadata
 
 # Direct imports - these are required dependencies
 import numpy as np
@@ -214,6 +216,7 @@ def merge_channels_imagej(input_dir: Path, output_dir: Path, ui: UserInterfacePo
     Based on original merge_channels_tiff.py logic.
     """
     results = {'merged_files': [], 'errors': []}
+    metadata_service = ImageMetadataService()
 
     # Find all channel 0 files (try both ch0 and ch00 patterns)
     # Be specific to avoid confusion between ch0 and ch00
@@ -254,6 +257,9 @@ def merge_channels_imagej(input_dir: Path, output_dir: Path, ui: UserInterfacePo
         ui.info(f"  Merging: {ch0_file.name} + {ch1_file.name}")
 
         try:
+            # Extract metadata from the first channel file
+            original_metadata = metadata_service.extract_metadata(ch0_file)
+
             # Read both channel images using tifffile
             img_ch0 = tifffile.imread(ch0_file)
             img_ch1 = tifffile.imread(ch1_file)
@@ -276,26 +282,21 @@ def merge_channels_imagej(input_dir: Path, output_dir: Path, ui: UserInterfacePo
                 ui.error(f"    ❌ Unexpected image shape {img_ch0.shape}")
                 continue
 
-            # Create metadata dictionary for ImageJ
-            metadata = {'axes': axes}
+            # Preserve original metadata and add axes info
+            original_metadata.imagej_metadata['axes'] = axes
 
-            # Save as ImageJ-compatible TIFF
-            try:
-                tifffile.imwrite(
-                    output_path,
-                    merged_stack,
-                    imagej=True,
-                    metadata=metadata,
-                    compression='lzw'
-                )
-            except (KeyError, ImportError):
-                # LZW compression not available, save without compression
-                tifffile.imwrite(
-                    output_path,
-                    merged_stack,
-                    imagej=True,
-                    metadata=metadata
-                )
+            # Save as ImageJ-compatible TIFF with preserved metadata
+            success = metadata_service.save_image_with_metadata(
+                merged_stack, output_path, original_metadata
+            )
+
+            if not success:
+                # Fallback to basic saving
+                try:
+                    tifffile.imwrite(output_path, merged_stack, imagej=True,
+                                   compression='lzw')
+                except (KeyError, ImportError):
+                    tifffile.imwrite(output_path, merged_stack, imagej=True)
 
             results['merged_files'].append(str(output_path))
             ui.info(f"    ✅ Created: {output_name}")
@@ -310,6 +311,7 @@ def merge_channels_imagej(input_dir: Path, output_dir: Path, ui: UserInterfacePo
 def create_z_stacks_structured(input_dir: Path, output_dir: Path, ui: UserInterfacePort, metadata: Dict):
     """Create Z-stacks from individual z-plane images with proper directory structure."""
     results = {'stacks_created': [], 'errors': []}
+    metadata_service = ImageMetadataService()
 
     ui.info("🔍 Processing image groups for z-stack creation...")
 
@@ -372,6 +374,10 @@ def create_z_stacks_structured(input_dir: Path, output_dir: Path, ui: UserInterf
                     z_files.sort(key=lambda x: x[0])  # Sort by z-plane
 
                     try:
+                        # Extract metadata from the first z-plane file
+                        first_z_file = z_files[0][1]
+                        original_metadata = metadata_service.extract_metadata(first_z_file)
+
                         # Read all z-planes
                         z_stack = []
                         for z_plane, z_file in z_files:
@@ -390,8 +396,15 @@ def create_z_stacks_structured(input_dir: Path, output_dir: Path, ui: UserInterf
                         output_name = f"{prefix}_ch{channel}.tif"
                         output_path = exp_output_dir / output_name
 
-                        # Save z-stack
-                        tifffile.imwrite(output_path, z_stack_array, imagej=True)
+                        # Save z-stack with preserved metadata
+                        success = metadata_service.save_image_with_metadata(
+                            z_stack_array, output_path, original_metadata
+                        )
+
+                        if not success:
+                            # Fallback to basic saving
+                            tifffile.imwrite(output_path, z_stack_array, imagej=True)
+
                         results['stacks_created'].append(str(output_path))
 
                     except Exception as e:
@@ -404,6 +417,7 @@ def create_z_stacks_structured(input_dir: Path, output_dir: Path, ui: UserInterf
 def create_max_projections_structured(input_dir: Path, output_dir: Path, ui: UserInterfacePort, metadata: Dict):
     """Create maximum intensity projections from z-stack TIFF files with proper directory structure."""
     results = {'projections_created': [], 'errors': []}
+    metadata_service = ImageMetadataService()
 
     ui.info("🔍 Creating maximum intensity projections...")
 
@@ -431,6 +445,9 @@ def create_max_projections_structured(input_dir: Path, output_dir: Path, ui: Use
             ui.info(f"  Processing: {tiff_file.name}")
 
             try:
+                # Extract metadata from the z-stack file
+                original_metadata = metadata_service.extract_metadata(tiff_file)
+
                 # Read the multi-page TIFF
                 with tifffile.TiffFile(tiff_file) as tif:
                     images = tif.asarray()
@@ -455,21 +472,18 @@ def create_max_projections_structured(input_dir: Path, output_dir: Path, ui: Use
                 output_name = f"MAX_{z_name}.tif"
                 output_path = exp_max_dir / output_name
 
-                # Save the maximum projection
-                try:
-                    tifffile.imwrite(
-                        output_path,
-                        max_projection,
-                        imagej=True,
-                        compression='lzw'
-                    )
-                except (KeyError, ImportError):
-                    # LZW compression not available, save without compression
-                    tifffile.imwrite(
-                        output_path,
-                        max_projection,
-                        imagej=True
-                    )
+                # Save the maximum projection with preserved metadata
+                success = metadata_service.save_image_with_metadata(
+                    max_projection, output_path, original_metadata
+                )
+
+                if not success:
+                    # Fallback to basic saving
+                    try:
+                        tifffile.imwrite(output_path, max_projection, imagej=True,
+                                       compression='lzw')
+                    except (KeyError, ImportError):
+                        tifffile.imwrite(output_path, max_projection, imagej=True)
 
                 results['projections_created'].append(str(output_path))
                 ui.info(f"    ✅ Created: {output_name}")
@@ -523,6 +537,7 @@ def determine_grid_dimensions(num_tiles: int, aspect_ratio_hint: Tuple[int, int]
 def stitch_tiles_structured(input_dir: Path, output_dir: Path, ui: UserInterfacePort, metadata: Dict) -> Dict:
     """Stitch tile-scan images using snake pattern with user prompts for grid dimensions."""
     results = {'stitched_files': [], 'errors': []}
+    metadata_service = ImageMetadataService()
 
     ui.info("🧩 Stitching tile-scan images...")
 
@@ -615,11 +630,17 @@ def stitch_tiles_structured(input_dir: Path, output_dir: Path, ui: UserInterface
 
                         # Load tiles and arrange according to snake pattern
                         tile_dict = {}
+                        first_tile_file = None
                         for site, tile_file in tile_files:
                             img = tifffile.imread(tile_file)
                             tile_dict[site] = img
+                            if first_tile_file is None:
+                                first_tile_file = tile_file
 
                         if tile_dict:
+                            # Extract metadata from the first tile
+                            original_metadata = metadata_service.extract_metadata(first_tile_file)
+
                             # Get tile dimensions
                             sample_tile = next(iter(tile_dict.values()))
                             tile_height, tile_width = sample_tile.shape[:2]
@@ -656,8 +677,15 @@ def stitch_tiles_structured(input_dir: Path, output_dir: Path, ui: UserInterface
                             output_name = f"stitched_{image_name}{suffix}.tif"
                             output_path = exp_output_dir / output_name
 
-                            # Save stitched image with ImageJ compatibility
-                            tifffile.imwrite(output_path, stitched, imagej=True)
+                            # Save stitched image with preserved metadata
+                            success = metadata_service.save_image_with_metadata(
+                                stitched, output_path, original_metadata
+                            )
+
+                            if not success:
+                                # Fallback to basic saving
+                                tifffile.imwrite(output_path, stitched, imagej=True)
+
                             results['stitched_files'].append(str(output_path))
                             ui.info(f"    ✅ Created: {output_name} ({grid_w}x{grid_h} snake pattern)")
 
@@ -671,6 +699,7 @@ def stitch_tiles_structured(input_dir: Path, output_dir: Path, ui: UserInterface
 def merge_channels_from_max_projections(max_proj_dir: Path, output_dir: Path, ui: UserInterfacePort, metadata: Dict):
     """Merge channels from MAX projection files (like original workflow)."""
     results = {'merged_files': [], 'errors': []}
+    metadata_service = ImageMetadataService()
 
     ui.info("🔍 Merging channels from MAX projections...")
 
@@ -707,6 +736,9 @@ def merge_channels_from_max_projections(max_proj_dir: Path, output_dir: Path, ui
             ui.info(f"  Merging: {ch0_file.name} + {ch1_file.name}")
 
             try:
+                # Extract metadata from the first channel file
+                original_metadata = metadata_service.extract_metadata(ch0_file)
+
                 # Read both channel images
                 img_ch0 = tifffile.imread(ch0_file)
                 img_ch1 = tifffile.imread(ch1_file)
@@ -720,8 +752,8 @@ def merge_channels_from_max_projections(max_proj_dir: Path, output_dir: Path, ui
                 merged_stack = np.stack([img_ch0, img_ch1], axis=0)
                 axes = 'CYX'
 
-                # Create metadata dictionary for ImageJ
-                metadata_dict = {'axes': axes}
+                # Preserve original metadata and add axes info
+                original_metadata.imagej_metadata['axes'] = axes
 
                 # Generate output filename following original pattern: Merged_MAX_z-stack_stitched_name.tif
                 # Remove channel info from filename
@@ -729,23 +761,18 @@ def merge_channels_from_max_projections(max_proj_dir: Path, output_dir: Path, ui
                 output_name = f"Merged_MAX_z-stack_{base_name}.tif"
                 output_path = exp_output_dir / output_name
 
-                # Save as ImageJ-compatible TIFF
-                try:
-                    tifffile.imwrite(
-                        output_path,
-                        merged_stack,
-                        imagej=True,
-                        metadata=metadata_dict,
-                        compression='lzw'
-                    )
-                except (KeyError, ImportError):
-                    # LZW compression not available, save without compression
-                    tifffile.imwrite(
-                        output_path,
-                        merged_stack,
-                        imagej=True,
-                        metadata=metadata_dict
-                    )
+                # Save as ImageJ-compatible TIFF with preserved metadata
+                success = metadata_service.save_image_with_metadata(
+                    merged_stack, output_path, original_metadata
+                )
+
+                if not success:
+                    # Fallback to basic saving
+                    try:
+                        tifffile.imwrite(output_path, merged_stack, imagej=True,
+                                       compression='lzw')
+                    except (KeyError, ImportError):
+                        tifffile.imwrite(output_path, merged_stack, imagej=True)
 
                 results['merged_files'].append(str(output_path))
                 ui.info(f"    ✅ Created: {output_name}")
