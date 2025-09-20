@@ -89,8 +89,13 @@ class DataSelectionStage(StageBase):
             # Step 5: Save selections to config
             self.logger.info("Saving data selections...")
             self._save_selections_to_config()
-            
-            # Step 6: Copy selected files to output
+
+            # Step 6: Create selected condition directories
+            self.logger.info("Creating directories for selected conditions...")
+            if not self._create_selected_condition_directories():
+                return False
+
+            # Step 7: Copy selected files to output
             self.logger.info("Copying selected files to output directory...")
             if not self._copy_selected_files():
                 return False
@@ -141,7 +146,49 @@ class DataSelectionStage(StageBase):
         except Exception as e:
             self.logger.error(f"Error setting up output structure: {e}")
             return False
-    
+
+    def _create_selected_condition_directories(self) -> bool:
+        """Create raw_data subdirectories only for selected conditions."""
+        try:
+            self.logger.info("Creating directories for selected conditions...")
+
+            selected_conditions = self.selected_conditions
+            if not selected_conditions:
+                self.logger.warning("No conditions selected, skipping directory creation")
+                return True
+
+            # Get directory timepoints for creating subdirectory structure
+            directory_timepoints = self.experiment_metadata.get('directory_timepoints', [])
+
+            for condition in selected_conditions:
+                condition_input_dir = self.input_dir / condition
+                condition_output_dir = self.output_dir / "raw_data" / condition
+
+                self.logger.info(f"Creating directory structure for condition: {condition}")
+
+                if not condition_input_dir.exists():
+                    self.logger.warning(f"Condition directory not found in input: {condition_input_dir}")
+                    continue
+
+                # Create condition directory in raw_data
+                condition_output_dir.mkdir(parents=True, exist_ok=True)
+                self.logger.info(f"Created: {condition_output_dir}")
+
+                # Create subdirectories for timepoints if they exist in the input
+                for timepoint_dir in condition_input_dir.iterdir():
+                    if timepoint_dir.is_dir():
+                        timepoint_name = timepoint_dir.name
+                        timepoint_output_dir = condition_output_dir / timepoint_name
+                        timepoint_output_dir.mkdir(parents=True, exist_ok=True)
+                        self.logger.info(f"Created: {timepoint_output_dir}")
+
+            self.logger.info("Directory creation for selected conditions completed")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error creating selected condition directories: {e}")
+            return False
+
     def _copy_selected_files(self) -> bool:
         """Copy only the selected files to the output directory after data selection."""
         try:

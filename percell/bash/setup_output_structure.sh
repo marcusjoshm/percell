@@ -45,32 +45,10 @@ mkdir -p "$OUTPUT_DIR"/{analysis,cells,combined_masks,grouped_cells,grouped_mask
 
 echo -e "${GREEN}Base directory structure created${NC}"
 
-# Create raw_data subdirectories based on input structure (but don't copy files yet)
-echo -e "${BLUE}Creating raw_data subdirectories...${NC}"
+# Note: raw_data subdirectories will be created later based on user selections
+echo -e "${BLUE}Base raw_data directory created. Condition subdirectories will be created based on user selections.${NC}"
 
-condition_count=0
-for condition_dir in "$INPUT_DIR"/*; do
-    if [ -d "$condition_dir" ]; then
-        condition_name=$(basename "$condition_dir")
-        echo -e "${BLUE}Creating directory for condition: $condition_name${NC}"
-        
-        # Create condition directory in raw_data
-        mkdir -p "$OUTPUT_DIR/raw_data/$condition_name"
-        
-        # Create subdirectories for timepoints if they exist
-        for timepoint_dir in "$condition_dir"/*; do
-            if [ -d "$timepoint_dir" ]; then
-                timepoint_name=$(basename "$timepoint_dir")
-                mkdir -p "$OUTPUT_DIR/raw_data/$condition_name/$timepoint_name"
-                echo -e "${GREEN}  Created subdirectory: $condition_name/$timepoint_name${NC}"
-            fi
-        done
-        
-        condition_count=$((condition_count + 1))
-    fi
-done
-
-echo -e "${GREEN}Output directory structure setup completed (created $condition_count condition directories)${NC}"
+echo -e "${GREEN}Output directory structure setup completed${NC}"
 
 # Print final directory structure for verification
 echo -e "${BLUE}Final output directory structure:${NC}"
