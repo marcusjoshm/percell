@@ -317,8 +317,10 @@ def create_z_stacks_structured(input_dir: Path, output_dir: Path, ui: UserInterf
         # Create experiment subdirectory in z-stacks output
         if folder_rel != '.':
             exp_output_dir = output_dir / folder_rel
+            exp_input_dir = input_dir / folder_rel
         else:
             exp_output_dir = output_dir
+            exp_input_dir = input_dir
         exp_output_dir.mkdir(parents=True, exist_ok=True)
 
         for image_name, group_data in folder_data['image_groups'].items():
@@ -327,11 +329,35 @@ def create_z_stacks_structured(input_dir: Path, output_dir: Path, ui: UserInterf
             if z_planes['count'] > 1:
                 ui.info(f"  📚 Creating z-stack for: {image_name}")
 
+                # Find all files in the current input directory that match this image group
+                # If input_dir is stitched directory, look for stitched files
+                # Otherwise use original metadata files
+                is_stitched_input = 'stitched' in str(input_dir).lower()
+
+                if is_stitched_input:
+                    # Find stitched files for this image group
+                    pattern_files = []
+                    for pattern in ('*.tif', '*.tiff'):
+                        pattern_files.extend(exp_input_dir.glob(pattern))
+
+                    # Filter to files matching this image name
+                    relevant_files = []
+                    for f in pattern_files:
+                        if f.name.startswith(f'stitched_{image_name}'):
+                            relevant_files.append(f)
+                else:
+                    # Use original metadata files
+                    relevant_files = [Path(file_path_str) for file_path_str in group_data['files']]
+
                 # Group files by channel and timepoint
                 files_by_ch_t = {}
-                for file_path_str in group_data['files']:
-                    file_path = Path(file_path_str)
-                    parsed = MicroscopyMetadataExtractor(input_dir).parse_filename(file_path.name)
+                for file_path in relevant_files:
+                    if is_stitched_input:
+                        # Parse stitched filename
+                        parsed = MicroscopyMetadataExtractor(input_dir).parse_filename(file_path.name)
+                    else:
+                        # Use original parsing
+                        parsed = MicroscopyMetadataExtractor(input_dir).parse_filename(file_path.name)
 
                     channel = parsed['channel'] if parsed['channel'] is not None else 0
                     timepoint = parsed['timepoint'] if parsed['timepoint'] is not None else 0
@@ -355,8 +381,13 @@ def create_z_stacks_structured(input_dir: Path, output_dir: Path, ui: UserInterf
                         # Stack along z-axis
                         z_stack_array = np.stack(z_stack, axis=0)
 
-                        # Generate output filename (like original: z-stack_name_ch0.tif)
-                        output_name = f"z-stack_{image_name}_ch{channel}.tif"
+                        # Generate output filename following original pattern
+                        if is_stitched_input:
+                            prefix = f"z-stack_stitched_{image_name}"
+                        else:
+                            prefix = f"z-stack_{image_name}"
+
+                        output_name = f"{prefix}_ch{channel}.tif"
                         output_path = exp_output_dir / output_name
 
                         # Save z-stack
@@ -380,10 +411,10 @@ def create_max_projections_structured(input_dir: Path, output_dir: Path, ui: Use
     for folder_rel in metadata['folders'].keys():
         if folder_rel != '.':
             exp_z_dir = input_dir / folder_rel
-            exp_max_dir = output_dir / folder_rel / 'timepoint_1'  # Like original
+            exp_max_dir = output_dir / folder_rel
         else:
             exp_z_dir = input_dir
-            exp_max_dir = output_dir / 'timepoint_1'
+            exp_max_dir = output_dir
 
         if not exp_z_dir.exists():
             continue
@@ -418,10 +449,10 @@ def create_max_projections_structured(input_dir: Path, output_dir: Path, ui: Use
                     ui.error(f"    ❌ Unexpected dimensions: {images.shape}")
                     continue
 
-                # Create output filename (like original: MAX_z-stack_name_ch0_t00.tif)
-                # Parse the z-stack filename to get proper naming
+                # Create output filename following original pattern: MAX_z-stack_stitched_name_ch0.tif
+                # Parse the z-stack filename to get proper naming (remove _t00 suffix)
                 z_name = tiff_file.name.replace('.tif', '').replace('.tiff', '')
-                output_name = f"MAX_{z_name}_t00.tif"
+                output_name = f"MAX_{z_name}.tif"
                 output_path = exp_max_dir / output_name
 
                 # Save the maximum projection
@@ -450,6 +481,193 @@ def create_max_projections_structured(input_dir: Path, output_dir: Path, ui: Use
     return results
 
 
+def create_snake_pattern(width: int, height: int) -> np.ndarray:
+    """Create snake pattern for tile arrangement (row-wise serpentine)."""
+    grid = np.zeros((height, width), dtype=int)
+    site = 0
+
+    for row in range(height):
+        if row % 2 == 0:
+            # Even rows: left to right
+            for col in range(width):
+                grid[row, col] = site
+                site += 1
+        else:
+            # Odd rows: right to left
+            for col in range(width - 1, -1, -1):
+                grid[row, col] = site
+                site += 1
+
+    return grid
+
+
+def determine_grid_dimensions(num_tiles: int, aspect_ratio_hint: Tuple[int, int] = (5, 4)) -> Tuple[int, int]:
+    """Determine optimal grid dimensions based on number of tiles."""
+    best_w, best_h = 1, num_tiles
+    min_diff = float('inf')
+
+    for h in range(1, num_tiles + 1):
+        if num_tiles % h == 0:
+            w = num_tiles // h
+            current_ratio = w / h
+            hint_ratio = aspect_ratio_hint[0] / aspect_ratio_hint[1]
+            diff = abs(current_ratio - hint_ratio)
+
+            if diff < min_diff:
+                min_diff = diff
+                best_w, best_h = w, h
+
+    return best_w, best_h
+
+
+def stitch_tiles_structured(input_dir: Path, output_dir: Path, ui: UserInterfacePort, metadata: Dict) -> Dict:
+    """Stitch tile-scan images using snake pattern with user prompts for grid dimensions."""
+    results = {'stitched_files': [], 'errors': []}
+
+    ui.info("🧩 Stitching tile-scan images...")
+
+    # Build grid dimension prompts for each tile-scan group
+    grid_dims_map = {}
+
+    for folder_rel, folder_data in metadata['folders'].items():
+        for image_name, group_data in folder_data['image_groups'].items():
+            tiles_info = group_data['dimensions']['tiles']
+
+            if tiles_info['count'] > 1:
+                # Prompt user for grid dimensions for this tile-scan
+                label = f"{folder_rel}/{image_name}" if folder_rel != '.' else image_name
+                num_tiles = tiles_info['count']
+
+                # Auto-detect as default
+                auto_w, auto_h = determine_grid_dimensions(num_tiles)
+
+                ui.info(f"  📏 Tile-scan detected: {label} ({num_tiles} tiles)")
+                ui.info(f"     Auto-detected grid: {auto_w}x{auto_h}")
+
+                grid_input = ui.prompt(f"Enter grid dimensions 'W H' for {label} (or press Enter for auto {auto_w}x{auto_h}): ").strip()
+
+                if grid_input:
+                    try:
+                        parts = grid_input.split()
+                        if len(parts) == 2:
+                            w, h = int(parts[0]), int(parts[1])
+                            if w * h == num_tiles:
+                                grid_dims_map[f"{folder_rel}:{image_name}"] = (w, h)
+                                ui.info(f"     Using custom grid: {w}x{h}")
+                            else:
+                                ui.info(f"     Invalid grid {w}x{h} (total={w*h}, need {num_tiles}). Using auto.")
+                                grid_dims_map[f"{folder_rel}:{image_name}"] = (auto_w, auto_h)
+                        else:
+                            ui.info(f"     Invalid format. Using auto grid: {auto_w}x{auto_h}")
+                            grid_dims_map[f"{folder_rel}:{image_name}"] = (auto_w, auto_h)
+                    except ValueError:
+                        ui.info(f"     Invalid input. Using auto grid: {auto_w}x{auto_h}")
+                        grid_dims_map[f"{folder_rel}:{image_name}"] = (auto_w, auto_h)
+                else:
+                    grid_dims_map[f"{folder_rel}:{image_name}"] = (auto_w, auto_h)
+
+    ui.info("")
+
+    # Process stitching
+    for folder_rel, folder_data in metadata['folders'].items():
+        # Create experiment subdirectory in stitched output
+        if folder_rel != '.':
+            exp_output_dir = output_dir / folder_rel
+        else:
+            exp_output_dir = output_dir
+        exp_output_dir.mkdir(parents=True, exist_ok=True)
+
+        for image_name, group_data in folder_data['image_groups'].items():
+            tiles_info = group_data['dimensions']['tiles']
+
+            if tiles_info['count'] > 1:
+                ui.info(f"  📚 Stitching tiles for: {image_name}")
+
+                # Get grid dimensions
+                grid_key = f"{folder_rel}:{image_name}"
+                grid_w, grid_h = grid_dims_map.get(grid_key, determine_grid_dimensions(tiles_info['count']))
+
+                ui.info(f"     Using {grid_w}x{grid_h} snake pattern grid")
+
+                # Group files by channel, z-plane, and timepoint
+                files_by_ch_z_t = {}
+                for file_path_str in group_data['files']:
+                    file_path = Path(file_path_str)
+                    parsed = MicroscopyMetadataExtractor(input_dir).parse_filename(file_path.name)
+
+                    channel = parsed['channel'] if parsed['channel'] is not None else 0
+                    z_plane = parsed['z_plane'] if parsed['z_plane'] is not None else 0
+                    timepoint = parsed['timepoint'] if parsed['timepoint'] is not None else 0
+                    site = parsed['site'] if parsed['site'] is not None else 0
+
+                    key = (channel, z_plane, timepoint)
+                    if key not in files_by_ch_z_t:
+                        files_by_ch_z_t[key] = []
+                    files_by_ch_z_t[key].append((site, file_path))
+
+                # Stitch each channel/z-plane/timepoint combination
+                for (channel, z_plane, timepoint), tile_files in files_by_ch_z_t.items():
+                    tile_files.sort(key=lambda x: x[0])  # Sort by site number
+
+                    try:
+                        # Create snake pattern grid
+                        snake_grid = create_snake_pattern(grid_w, grid_h)
+
+                        # Load tiles and arrange according to snake pattern
+                        tile_dict = {}
+                        for site, tile_file in tile_files:
+                            img = tifffile.imread(tile_file)
+                            tile_dict[site] = img
+
+                        if tile_dict:
+                            # Get tile dimensions
+                            sample_tile = next(iter(tile_dict.values()))
+                            tile_height, tile_width = sample_tile.shape[:2]
+
+                            # Create stitched image
+                            stitched_height = grid_h * tile_height
+                            stitched_width = grid_w * tile_width
+
+                            if len(sample_tile.shape) == 2:
+                                stitched = np.zeros((stitched_height, stitched_width), dtype=sample_tile.dtype)
+                            else:
+                                stitched = np.zeros((stitched_height, stitched_width, sample_tile.shape[2]), dtype=sample_tile.dtype)
+
+                            # Place tiles according to snake pattern
+                            for row in range(grid_h):
+                                for col in range(grid_w):
+                                    site = snake_grid[row, col]
+                                    if site in tile_dict:
+                                        y_start = row * tile_height
+                                        y_end = y_start + tile_height
+                                        x_start = col * tile_width
+                                        x_end = x_start + tile_width
+                                        stitched[y_start:y_end, x_start:x_end] = tile_dict[site]
+
+                            # Generate output filename following original convention
+                            # Original pattern: stitched_A549 Control_z0_ch0.tif
+                            suffix_parts = []
+                            suffix_parts.append(f"z{z_plane}")
+                            suffix_parts.append(f"ch{channel}")
+                            if timepoint != 0:
+                                suffix_parts.append(f"t{timepoint}")
+
+                            suffix = "_" + "_".join(suffix_parts)
+                            output_name = f"stitched_{image_name}{suffix}.tif"
+                            output_path = exp_output_dir / output_name
+
+                            # Save stitched image with ImageJ compatibility
+                            tifffile.imwrite(output_path, stitched, imagej=True)
+                            results['stitched_files'].append(str(output_path))
+                            ui.info(f"    ✅ Created: {output_name} ({grid_w}x{grid_h} snake pattern)")
+
+                    except Exception as e:
+                        ui.error(f"    ❌ Error stitching: {e}")
+                        results['errors'].append({'image_name': image_name, 'channel': channel, 'z_plane': z_plane, 'timepoint': timepoint, 'error': str(e)})
+
+    return results
+
+
 def merge_channels_from_max_projections(max_proj_dir: Path, output_dir: Path, ui: UserInterfacePort, metadata: Dict):
     """Merge channels from MAX projection files (like original workflow)."""
     results = {'merged_files': [], 'errors': []}
@@ -459,10 +677,10 @@ def merge_channels_from_max_projections(max_proj_dir: Path, output_dir: Path, ui
     # Process each experiment directory
     for folder_rel in metadata['folders'].keys():
         if folder_rel != '.':
-            exp_max_dir = max_proj_dir / folder_rel / 'timepoint_1'
+            exp_max_dir = max_proj_dir / folder_rel
             exp_output_dir = output_dir / folder_rel
         else:
-            exp_max_dir = max_proj_dir / 'timepoint_1'
+            exp_max_dir = max_proj_dir
             exp_output_dir = output_dir
 
         if not exp_max_dir.exists():
@@ -505,9 +723,9 @@ def merge_channels_from_max_projections(max_proj_dir: Path, output_dir: Path, ui
                 # Create metadata dictionary for ImageJ
                 metadata_dict = {'axes': axes}
 
-                # Generate output filename (like original: Merged_MAX_z-stack_name.tif)
-                # Remove channel info and timepoint info from filename
-                base_name = ch0_file.name.replace('MAX_z-stack_', '').replace('_ch0_t00.tif', '')
+                # Generate output filename following original pattern: Merged_MAX_z-stack_stitched_name.tif
+                # Remove channel info from filename
+                base_name = ch0_file.name.replace('MAX_z-stack_', '').replace('_ch0.tif', '')
                 output_name = f"Merged_MAX_z-stack_{base_name}.tif"
                 output_path = exp_output_dir / output_name
 
@@ -666,10 +884,8 @@ def run_auto_image_preprocessing_workflow(ui: UserInterfacePort) -> None:
                         exp_dir = proc_dir / folder_rel
                         exp_dir.mkdir(parents=True, exist_ok=True)
 
-                        # Create timepoint subdirectories for max_projections (like original)
-                        if proc_name == 'max_projections':
-                            timepoint_dir = exp_dir / 'timepoint_1'
-                            timepoint_dir.mkdir(exist_ok=True)
+                        # Create experiment subdirectories
+                        pass
 
             ui.info("✅ Processing directories created")
         else:
@@ -678,41 +894,50 @@ def run_auto_image_preprocessing_workflow(ui: UserInterfacePort) -> None:
 
         total_outputs = 0
 
-        # Step 4a: Z-series processing
-        if has_z_series:
-            ui.info("Step 4a: Processing Z-series data...")
+        # Step 4: Process workflow in original order
+        current_source_dir = input_dir
 
-            # Look for existing z-stack files first
-            ui.info("🔍 Searching for z-stack files...")
-            z_files = list(input_dir.rglob("*z-stack*.tif")) + list(input_dir.rglob("*zstack*.tif"))
-            if z_files:
-                ui.info(f"📚 Found {len(z_files)} existing z-stack files")
-            else:
-                ui.info("ℹ️  No z-stack files found")
-
-            # Create z-stacks from metadata (maintaining directory structure)
-            if 'z_stacks' in processing_dirs:
-                z_results = create_z_stacks_structured(input_dir, processing_dirs['z_stacks'], ui, metadata)
-                total_outputs += len(z_results['stacks_created'])
-
-                # Create maximum intensity projections from z-stacks (maintaining directory structure)
-                if z_results['stacks_created'] and 'max_projections' in processing_dirs:
-                    ui.info("🔍 Creating maximum intensity projections from z-stacks...")
-                    max_results = create_max_projections_structured(processing_dirs['z_stacks'], processing_dirs['max_projections'], ui, metadata)
-                    total_outputs += len(max_results['projections_created'])
+        # Step 4a: Tile-scan stitching (first step if tile-scan data exists)
+        if has_tile_scan:
+            ui.info("Step 4a: Processing tile-scan data...")
+            stitch_results = stitch_tiles_structured(current_source_dir, processing_dirs['stitched'], ui, metadata)
+            total_outputs += len(stitch_results['stitched_files'])
+            # Update source for next step
+            current_source_dir = processing_dirs['stitched']
             ui.info("")
 
-        # Step 4b: Multi-channel processing (merge MAX projections, not original files)
-        if has_multichannel and 'merged' in processing_dirs:
-            ui.info("Step 4b: Processing multi-channel data...")
-            ui.info("🔍 Merging channels from MAX projections...")
+        # Step 4b: Z-series processing (create z-stacks from stitched or original files)
+        if has_z_series:
+            ui.info("Step 4b: Processing Z-series data...")
 
-            # Merge channels from max projections (like original workflow)
-            if has_z_series and 'max_results' in locals() and 'max_projections' in processing_dirs:
-                merge_results = merge_channels_from_max_projections(processing_dirs['max_projections'], processing_dirs['merged'], ui, metadata)
+            # Create z-stacks from current source (stitched files if tile-scan, otherwise original)
+            if 'z_stacks' in processing_dirs:
+                z_results = create_z_stacks_structured(current_source_dir, processing_dirs['z_stacks'], ui, metadata)
+                total_outputs += len(z_results['stacks_created'])
+                # Update source for next step
+                current_source_dir = processing_dirs['z_stacks']
+
+                # Create maximum intensity projections from z-stacks
+                if z_results['stacks_created'] and 'max_projections' in processing_dirs:
+                    ui.info("🔍 Creating maximum intensity projections from z-stacks...")
+                    max_results = create_max_projections_structured(current_source_dir, processing_dirs['max_projections'], ui, metadata)
+                    total_outputs += len(max_results['projections_created'])
+                    # Update source for next step (prefer MAX projections)
+                    current_source_dir = processing_dirs['max_projections']
+            ui.info("")
+
+        # Step 4c: Multi-channel processing (merge from current processing step)
+        if has_multichannel and 'merged' in processing_dirs:
+            ui.info("Step 4c: Processing multi-channel data...")
+            ui.info("🔍 Merging channels...")
+
+            # Merge channels from the current processing step
+            if has_z_series and 'max_projections' in processing_dirs and current_source_dir == processing_dirs['max_projections']:
+                # Merge from MAX projections (preferred)
+                merge_results = merge_channels_from_max_projections(current_source_dir, processing_dirs['merged'], ui, metadata)
             else:
-                # Fallback: merge from original files if no z-series
-                merge_results = merge_channels_imagej(input_dir, processing_dirs['merged'], ui)
+                # Merge from current source (stitched files or original files)
+                merge_results = merge_channels_imagej(current_source_dir, processing_dirs['merged'], ui)
 
             total_outputs += len(merge_results['merged_files'])
             ui.info("")
@@ -722,6 +947,10 @@ def run_auto_image_preprocessing_workflow(ui: UserInterfacePort) -> None:
         ui.info(f"📁 Results saved to: {output_dir}")
         ui.info("")
         ui.info("📋 Processing summary:")
+        if has_tile_scan and 'stitch_results' in locals():
+            ui.info(f"  - tile_stitching created: {len(stitch_results['stitched_files'])} files")
+            if stitch_results['errors']:
+                ui.info(f"  - tile_stitching errors: {len(stitch_results['errors'])} groups")
         if has_z_series and 'z_results' in locals():
             ui.info(f"  - z_stacks created: {len(z_results['stacks_created'])} files")
             if 'max_results' in locals():
