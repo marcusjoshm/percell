@@ -24,17 +24,19 @@ def _any_stage_selected(args: argparse.Namespace) -> bool:
     )
 
 
-def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
+def show_configuration_menu(
+    ui: UserInterfacePort, args: argparse.Namespace
+) -> Optional[argparse.Namespace]:
     """Show configuration submenu."""
     show_header(ui)
     ui.info("")
     ui.info(colorize("CONFIGURATION MENU:", Colors.bold))
     ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('I/O', Colors.yellow)} {colorize('- Set input/output directories', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Data Selection', Colors.yellow)} {colorize('- Select parameters (conditions, timepoints, channels, etc.)', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('I/O', Colors.yellow)} {colorize('- Set input/output directories', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Data Selection', Colors.yellow)} {colorize('- Select parameters (conditions, timepoints, channels, etc.)', Colors.reset)}")  # noqa: E501
     ui.info(f"   {colorize('for processing and analysis', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset} {colorize('Current Configuration', Colors.yellow)} {colorize('- View current analysis configuration', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}4.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
+    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset} {colorize('Current Configuration', Colors.yellow)} {colorize('- View current analysis configuration', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}4.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")  # noqa: E501
     ui.info("")
     ui.info("")
     ui.info("")
@@ -50,7 +52,9 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
         try:
             # Resolve config path similar to validate_args
             from percell.application.directory_setup import load_config
-            from percell.application.directory_setup import set_default_directories
+            from percell.application.directory_setup import (
+                set_default_directories,
+            )
             from percell.application.paths_api import get_path
 
             try:
@@ -59,7 +63,9 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
                 config_path = "percell/config/config.json"
 
             config = load_config(config_path)
-            input_path, output_path = set_default_directories(config, config_path)
+            input_path, output_path = set_default_directories(
+                config, config_path
+            )
 
             # Reflect selections back into args
             args.input = input_path
@@ -70,7 +76,9 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
             if not getattr(args, "input", None):
                 args.input = ui.prompt("Enter input directory path: ").strip()
             if not getattr(args, "output", None):
-                args.output = ui.prompt("Enter output directory path: ").strip()
+                args.output = ui.prompt(
+                    "Enter output directory path: "
+                ).strip()
         return show_menu(ui, args)
     elif choice == "2":
         setattr(args, "data_selection", True)
@@ -79,7 +87,9 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
     elif choice == "3":
         # Display current configuration
         try:
-            from percell.application.config_display import display_current_configuration
+            from percell.application.config_display import (
+                display_current_configuration,
+            )
             from percell.application.paths_api import get_path
 
             try:
@@ -94,7 +104,9 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
             current_input = getattr(args, 'input', None)
             current_output = getattr(args, 'output', None)
 
-            display_current_configuration(ui, config, current_input, current_output)
+            display_current_configuration(
+                ui, config, current_input, current_output
+            )
         except Exception as e:
             ui.error(f"Error displaying configuration: {e}")
             ui.prompt("Press Enter to continue...")
@@ -105,15 +117,17 @@ def show_configuration_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
     return show_configuration_menu(ui, args)
 
 
-def show_workflows_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
+def show_workflows_menu(
+    ui: UserInterfacePort, args: argparse.Namespace
+) -> Optional[argparse.Namespace]:
     """Show workflows submenu."""
     show_header(ui)
     ui.info("")
     ui.info(colorize("WORKFLOWS MENU:", Colors.bold))
     ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Default Workflow', Colors.yellow)} {colorize('- Current default analysis workflow', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Advanced Workflow Builder', Colors.yellow)} {colorize('- Build custom analysis workflow', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Default Workflow', Colors.yellow)} {colorize('- Current default analysis workflow', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Advanced Workflow Builder', Colors.yellow)} {colorize('- Build custom analysis workflow', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")  # noqa: E501
     ui.info("")
     ui.info("")
     ui.info("")
@@ -143,14 +157,16 @@ def show_workflows_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Opti
     return show_workflows_menu(ui, args)
 
 
-def show_processing_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
+def show_processing_menu(
+    ui: UserInterfacePort, args: argparse.Namespace
+) -> Optional[argparse.Namespace]:
     """Show processing submenu."""
     show_header(ui)
     ui.info("")
     ui.info(colorize("PROCESSING MENU:", Colors.bold))
     ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Single-Cell Data Processing', Colors.yellow)}{colorize(' - Tracking, resizing, extraction, grouping', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Single-Cell Data Processing', Colors.yellow)}{colorize(' - Tracking, resizing, extraction, grouping', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")  # noqa: E501
     ui.info("")
     ui.info("")
     ui.info("")
@@ -172,14 +188,17 @@ def show_processing_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Opt
     return show_processing_menu(ui, args)
 
 
-def show_segmentation_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
+def show_segmentation_menu(
+    ui: UserInterfacePort, 
+    args: argparse.Namespace
+) -> Optional[argparse.Namespace]:
     """Show segmentation submenu."""
     show_header(ui)
     ui.info("")
     ui.info(colorize("SEGMENTATION MENU:", Colors.bold))
     ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Cellpose', Colors.yellow)}{colorize(' - Single-cell segmentation using Cellpose SAM GUI', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Cellpose', Colors.yellow)}{colorize(' - Single-cell segmentation using Cellpose SAM GUI', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")  # noqa: E501
     ui.info("")
     ui.info("")
     ui.info("")
@@ -201,7 +220,10 @@ def show_segmentation_menu(ui: UserInterfacePort, args: argparse.Namespace) -> O
     return show_segmentation_menu(ui, args)
 
 
-def show_tracking_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
+def show_tracking_menu(
+    ui: UserInterfacePort, 
+    args: argparse.Namespace
+) -> Optional[argparse.Namespace]:
     """Show tracking submenu."""
     show_header(ui)
     ui.info("")
@@ -209,7 +231,7 @@ def show_tracking_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optio
     ui.info("")
     ui.info(colorize("(No tracking options available yet)", Colors.reset))
     ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")  # noqa: E501
     ui.info("")
     ui.info("")
     ui.info("")
@@ -227,16 +249,19 @@ def show_tracking_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optio
     return show_tracking_menu(ui, args)
 
 
-def show_visualization_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
+def show_visualization_menu(
+    ui: UserInterfacePort, 
+    args: argparse.Namespace
+) -> Optional[argparse.Namespace]:
     """Show visualization submenu."""
     show_header(ui)
     ui.info("")
     ui.info(colorize("VISUALIZATION MENU:", Colors.bold))
     ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Interactive Visualization', Colors.yellow)} {colorize('- Display raw images, masks, and overlays with LUT', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Interactive Visualization', Colors.yellow)} {colorize('- Display raw images, masks, and overlays with LUT', Colors.reset)}")  # noqa: E501
     ui.info(f"   {colorize('controls', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Napari Viewer', Colors.yellow)} {colorize('- Launch Napari for advanced image visualization and analysis', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Napari Viewer', Colors.yellow)} {colorize('- Launch Napari for advanced image visualization and analysis', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")  # noqa: E501
     ui.info("")
     ui.info("")
     ui.info("")
@@ -245,7 +270,6 @@ def show_visualization_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
     ui.info("")
     ui.info("")
     ui.info("")
-
 
     choice = ui.prompt("Select an option (1-3): ").strip().lower()
     if choice == "1":
@@ -269,16 +293,18 @@ def show_visualization_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
     return show_visualization_menu(ui, args)
 
 
-def show_analysis_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
+def show_analysis_menu(
+    ui: UserInterfacePort, args: argparse.Namespace
+) -> Optional[argparse.Namespace]:
     """Show analysis submenu."""
     show_header(ui)
     ui.info("")
     ui.info(colorize("ANALYSIS MENU:", Colors.bold))
     ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Threshold Grouped Cells', Colors.yellow)}{colorize(' - interactive Otsu autothresholding using imageJ', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Measure Cell Area', Colors.yellow)}{colorize(' - Measure area of cells in ROIs using imageJ', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset} {colorize('Particle Analysis', Colors.yellow)}{colorize(' - Analyze particles in segmented images using imageJ', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}4.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Threshold Grouped Cells', Colors.yellow)}{colorize(' - interactive Otsu autothresholding using imageJ', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Measure Cell Area', Colors.yellow)}{colorize(' - Measure area of cells in ROIs using imageJ', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset} {colorize('Particle Analysis', Colors.yellow)}{colorize(' - Analyze particles in segmented images using imageJ', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}4.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")  # noqa: E501
     ui.info("")
     ui.info("")
     ui.info("")
@@ -304,14 +330,17 @@ def show_analysis_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optio
     return show_analysis_menu(ui, args)
 
 
-def show_plugins_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
+def show_plugins_menu(
+    ui: UserInterfacePort, 
+    args: argparse.Namespace
+) -> Optional[argparse.Namespace]:
     """Show plugins submenu."""
     show_header(ui)
     ui.info("")
     ui.info(colorize("PLUGINS MENU:", Colors.bold))
     ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Auto Image Preprocessing', Colors.yellow)}{colorize(' - auto preprocessing for downstream analysis', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Auto Image Preprocessing', Colors.yellow)}{colorize(' - auto preprocessing for downstream analysis', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")  # noqa: E501
     ui.info("")
     ui.info("")
     ui.info("")
@@ -326,9 +355,12 @@ def show_plugins_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Option
     if choice == "1":
         # Import and run the auto image preprocessing plugin
         try:
-            from percell.plugins.auto_image_preprocessing import show_auto_image_preprocessing_plugin
+            from percell.plugins.auto_image_preprocessing import (
+                show_auto_image_preprocessing_plugin,
+            )
             result = show_auto_image_preprocessing_plugin(ui, args)
-            # If plugin returns args, go to main menu; otherwise stay in plugins menu
+            # If plugin returns args, go to main menu; 
+            # otherwise stay in plugins menu
             if result is not None:
                 return show_menu(ui, args)
         except ImportError as e:
@@ -340,14 +372,17 @@ def show_plugins_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Option
     return show_plugins_menu(ui, args)
 
 
-def show_utilities_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
+def show_utilities_menu(
+    ui: UserInterfacePort, 
+    args: argparse.Namespace
+) -> Optional[argparse.Namespace]:
     """Show utilities submenu."""
     show_header(ui)
     ui.info("")
     ui.info(colorize("UTILITIES MENU:", Colors.bold))
     ui.info("")
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Cleanup', Colors.yellow)}{colorize(' - Delete individual cells and masks to save space', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Cleanup', Colors.yellow)}{colorize(' - Delete individual cells and masks to save space', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")  # noqa: E501
     ui.info("")
     ui.info("")
     ui.info("")
@@ -369,25 +404,28 @@ def show_utilities_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Opti
     return show_utilities_menu(ui, args)
 
 
-def show_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
+def show_menu(
+    ui: UserInterfacePort, 
+    args: argparse.Namespace
+) -> Optional[argparse.Namespace]:
     if _any_stage_selected(args):
         return args
 
     show_header(ui)
     ui.info("")
-    ui.info(colorize("              🔬 Welcome single-cell microscopy analysis user! 🔬               ", Colors.bold))
+    ui.info(colorize("              🔬 Welcome single-cell microscopy analysis user! 🔬               ", Colors.bold))  # noqa: E501
     ui.info("")
     ui.info(colorize("MAIN MENU:", Colors.bold))
-    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset}  {colorize('Configuration', Colors.yellow)} {colorize('- Set input/output directories and analysis parameters', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset}  {colorize('Workflows', Colors.yellow)} {colorize('- Pre-built and custom analysis workflows', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset}  {colorize('Segmentation', Colors.yellow)} {colorize('- Single-cell segmentation tools', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}4.{Colors.reset}  {colorize('Processing', Colors.yellow)} {colorize('- Data processing for downstream analysis', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}5.{Colors.reset}  {colorize('Tracking', Colors.yellow)} {colorize('- Single-cell tracking tools', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}6.{Colors.reset}  {colorize('Visualization', Colors.yellow)} {colorize('- Image and mask visualization tools', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}7.{Colors.reset}  {colorize('Analysis', Colors.yellow)} {colorize('- Semi-automated thresholding and image analysis tools', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}8.{Colors.reset}  {colorize('Plugins', Colors.yellow)} {colorize('- Extend functionality with plugins', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}9.{Colors.reset}  {colorize('Utilities', Colors.yellow)} {colorize('- Cleanup and maintenance tools', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}10.{Colors.reset} {colorize('Exit', Colors.red)} {colorize('- Quit the application', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset}  {colorize('Configuration', Colors.yellow)} {colorize('- Set input/output directories and analysis parameters', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset}  {colorize('Workflows', Colors.yellow)} {colorize('- Pre-built and custom analysis workflows', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset}  {colorize('Segmentation', Colors.yellow)} {colorize('- Single-cell segmentation tools', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}4.{Colors.reset}  {colorize('Processing', Colors.yellow)} {colorize('- Data processing for downstream analysis', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}5.{Colors.reset}  {colorize('Tracking', Colors.yellow)} {colorize('- Single-cell tracking tools', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}6.{Colors.reset}  {colorize('Visualization', Colors.yellow)} {colorize('- Image and mask visualization tools', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}7.{Colors.reset}  {colorize('Analysis', Colors.yellow)} {colorize('- Semi-automated thresholding and image analysis tools', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}8.{Colors.reset}  {colorize('Plugins', Colors.yellow)} {colorize('- Extend functionality with plugins', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}9.{Colors.reset}  {colorize('Utilities', Colors.yellow)} {colorize('- Cleanup and maintenance tools', Colors.reset)}")  # noqa: E501
+    ui.info(f"{Colors.bold}{Colors.white}10.{Colors.reset} {colorize('Exit', Colors.red)} {colorize('- Quit the application', Colors.reset)}")  # noqa: E501
     ui.info("")
     ui.info("")
 
@@ -415,7 +453,10 @@ def show_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argpa
     return show_menu(ui, args)
 
 
-def validate_args(args: argparse.Namespace, ui: Optional[UserInterfacePort] = None) -> None:
+def validate_args(
+    args: argparse.Namespace, 
+    ui: Optional[UserInterfacePort] = None
+) -> None:
     """Validate args and fill defaults from config if available.
 
     Raises:
@@ -441,24 +482,34 @@ def validate_args(args: argparse.Namespace, ui: Optional[UserInterfacePort] = No
     except Exception:
         pass
 
-    if not getattr(args, "input", None) and not getattr(args, "interactive", False):
+    if not getattr(args, "input", None) and not getattr(
+        args, "interactive", False
+    ):
         if default_input:
             args.input = default_input
             if ui:
                 ui.info(f"Using default input directory: {default_input}")
         else:
-            raise ValueError("Input directory is required unless using --interactive")
+            raise ValueError(
+                "Input directory is required unless using --interactive"
+            )
 
-    if not getattr(args, "output", None) and not getattr(args, "interactive", False):
+    if not getattr(args, "output", None) and not getattr(
+        args, "interactive", False
+    ):
         if default_output:
             args.output = default_output
             if ui:
                 ui.info(f"Using default output directory: {default_output}")
         else:
-            raise ValueError("Output directory is required unless using --interactive")
+            raise ValueError(
+                "Output directory is required unless using --interactive"
+            )
 
 
-def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace) -> None:
+def _run_combined_visualization(
+    ui: UserInterfacePort, args: argparse.Namespace
+) -> None:
     """Run the combined visualization feature."""
     from percell.application.visualization_service import VisualizationService
     from percell.application.config_api import Config
@@ -475,15 +526,20 @@ def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace)
     config = Config(config_path)
 
     # Get directories
-    input_dir = getattr(args, 'input', None) or config.get("directories.input", "")
-    output_dir = getattr(args, 'output', None) or config.get("directories.output", "")
+    input_dir = (
+        getattr(args, 'input', None) or config.get("directories.input", "")
+    )
+    output_dir = (
+        getattr(args, 'output', None) or config.get("directories.output", "")
+    )
 
     if not input_dir:
         input_dir = ui.prompt("Enter input directory path: ").strip()
     if not output_dir:
         output_dir = ui.prompt("Enter output directory path: ").strip()
 
-    # Look for raw data in output/raw_data first, then fall back to input directory
+    # Look for raw data in output/raw_data first, 
+    # then fall back to input directory
     output_raw_data_dir = Path(output_dir) / "raw_data"
     input_raw_data_dir = Path(input_dir)
 
@@ -494,7 +550,12 @@ def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace)
         raw_data_dir = input_raw_data_dir
         ui.info(f"Using original input data: {raw_data_dir}")
     else:
-        ui.error(f"No raw data found in {output_raw_data_dir} or {input_raw_data_dir}")
+        ui.error(
+            (
+                f"No raw data found in {output_raw_data_dir} or "
+                f"{input_raw_data_dir}"
+            )
+        )
         return
 
     # Look for masks in combined_masks first, then fall back to masks
@@ -510,26 +571,45 @@ def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace)
         ui.info(f"No masks found in {combined_masks_dir} or {masks_dir}")
         ui.info("Will show raw images only")
 
-    # Get data selection configuration from config but be flexible with conditions
+    # Get data selection configuration from config but be 
+    # flexible with conditions
     config_conditions = config.get("data_selection.selected_conditions", [])
     config_timepoints = config.get("data_selection.selected_timepoints", [])
     config_regions = config.get("data_selection.selected_regions", [])
     config_channels = config.get("data_selection.analysis_channels", [])
 
-    # For visualization, let's be more flexible and discover what's actually available
-    from percell.domain.services.data_selection_service import DataSelectionService
+    # For visualization, let's be more flexible and 
+    # discover what's actually available
+    from percell.domain.services.data_selection_service import (
+        DataSelectionService,
+    )
     data_service = DataSelectionService()
     all_files = data_service.scan_available_data(raw_data_dir)
-    available_conditions, available_timepoints, available_regions = data_service.parse_conditions_timepoints_regions(all_files)
+    available_conditions, available_timepoints, available_regions = (
+        data_service.parse_conditions_timepoints_regions(all_files)
+    )
 
     ui.info(f"Available conditions: {available_conditions}")
     ui.info(f"Available timepoints: {available_timepoints}")
     ui.info(f"Available regions: {available_regions}")
 
-    # Use config selections if they match available data, otherwise use all available
-    use_conditions = config_conditions if any(c in available_conditions for c in config_conditions) else available_conditions
-    use_timepoints = config_timepoints if any(t in available_timepoints for t in config_timepoints) else available_timepoints
-    use_regions = config_regions if any(r in available_regions for r in config_regions) else available_regions
+    # Use config selections if they match available data,
+    # otherwise use all available
+    use_conditions = (
+        config_conditions
+        if any(c in available_conditions for c in config_conditions)
+        else available_conditions
+    )
+    use_timepoints = (
+        config_timepoints
+        if any(t in available_timepoints for t in config_timepoints)
+        else available_timepoints
+    )
+    use_regions = (
+        config_regions
+        if any(r in available_regions for r in config_regions)
+        else available_regions
+    )
 
     selection = DatasetSelection(
         root=raw_data_dir,
@@ -539,8 +619,14 @@ def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace)
         channels=config_channels
     )
 
-    ui.info(f"Creating interactive visualization for {len(selection.conditions or ['all'])} conditions...")
-    ui.info("Use the sliders to adjust intensity range (similar to ImageJ brightness/contrast)")
+    ui.info(
+        f"Creating interactive visualization for "
+        f"{len(selection.conditions or ['all'])} conditions..."
+    )
+    ui.info(
+        "Use the sliders to adjust intensity range "
+        "(similar to ImageJ brightness/contrast)"
+    )
     ui.info("Green overlay at 70% transparency")
 
     # Create visualization
@@ -557,9 +643,14 @@ def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace)
     ui.prompt("Press Enter to continue...")
 
 
-def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
+def _run_napari_viewer(
+    ui: UserInterfacePort, 
+    args: argparse.Namespace
+) -> None:
     """Run the Napari viewer feature."""
-    from percell.adapters.napari_subprocess_adapter import NapariSubprocessAdapter
+    from percell.adapters.napari_subprocess_adapter import (
+        NapariSubprocessAdapter,
+    )
     from percell.application.config_api import Config
     from percell.application.paths_api import get_path
     from pathlib import Path
@@ -573,15 +664,20 @@ def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
     config = Config(config_path)
 
     # Get directories
-    input_dir = getattr(args, 'input', None) or config.get("directories.input", "")
-    output_dir = getattr(args, 'output', None) or config.get("directories.output", "")
+    input_dir = (
+        getattr(args, 'input', None) or config.get("directories.input", "")
+    )
+    output_dir = (
+        getattr(args, 'output', None) or config.get("directories.output", "")
+    )
 
     if not input_dir:
         input_dir = ui.prompt("Enter input directory path: ").strip()
     if not output_dir:
         output_dir = ui.prompt("Enter output directory path: ").strip()
 
-    # Look for raw data in output/raw_data first, then fall back to input directory
+    # Look for raw data in output/raw_data first,
+    # then fall back to input directory
     output_raw_data_dir = Path(output_dir) / "raw_data"
     input_raw_data_dir = Path(input_dir)
 
@@ -592,7 +688,12 @@ def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
         raw_data_dir = input_raw_data_dir
         ui.info(f"Using original input data: {raw_data_dir}")
     else:
-        ui.error(f"No raw data found in {output_raw_data_dir} or {input_raw_data_dir}")
+        ui.error(
+            (
+                f"No raw data found in {output_raw_data_dir} or "
+                f"{input_raw_data_dir}"
+            )
+        )
         return
 
     # Look for masks in combined_masks first, then fall back to masks
@@ -616,16 +717,23 @@ def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
     selected_timepoints = config.get("data_selection.selected_timepoints", [])
     selected_channels = config.get("data_selection.analysis_channels", [])
 
-
     # If no specific channels selected, inform user
     if not selected_channels:
-        ui.info("No analysis channels configured. Loading all available image files.")
+        ui.info(
+            "No analysis channels configured. "
+            "Loading all available image files."
+        )
         for ext in ['*.tif', '*.tiff', '*.png', '*.jpg', '*.jpeg']:
             found_files = list(raw_data_dir.glob(f"**/{ext}"))
             image_files.extend(found_files)
     else:
         # Load only files matching selected channels
-        ui.info(f"Loading files for configured analysis channels: {selected_channels}")
+        ui.info(
+            (
+                f"Loading files for configured analysis channels: "
+                f"{selected_channels}"
+            )
+        )
         for ext in ['*.tif', '*.tiff', '*.png', '*.jpg', '*.jpeg']:
             all_files = list(raw_data_dir.glob(f"**/{ext}"))
             for file_path in all_files:
@@ -636,7 +744,8 @@ def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
                         # Also check conditions and timepoints if specified
                         include_file = True
                         if selected_conditions:
-                            # More flexible condition matching - check if the base condition name is in the file
+                            # More flexible condition matching - check if the base 
+                            # condition name is in the file
                             # Extract base condition name (e.g., "A549" from "A549_As_treated")
                             include_file = False
                             for condition in selected_conditions:
@@ -721,5 +830,3 @@ def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
         masks=mask_files if mask_files else None,
         working_dir=raw_data_dir
     )
-
-
