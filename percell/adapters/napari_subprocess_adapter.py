@@ -40,34 +40,35 @@ class NapariSubprocessAdapter(NapariIntegrationPort):
             working_dir: Directory to start napari in (for file browser)
         """
         try:
-            cmd = [str(self._python), "-m", "napari"]
+            # Use custom napari launcher script for mask preprocessing
+            launcher_script = Path(__file__).parent / "napari_launcher.py"
+            cmd = [str(self._python), str(launcher_script)]
 
-            # Add all image files as separate image layers
+            # Add image files
             if images:
-                for img in images:
-                    if img.exists():
-                        cmd.append(str(img))
-                        logger.info(f"Adding image layer: {img.name}")
+                existing_images = [str(img) for img in images if img.exists()]
+                if existing_images:
+                    cmd.extend(["--images"] + existing_images)
 
-            # Add all mask files as separate image layers (not labels)
+            # Add mask files
             if masks:
-                for mask in masks:
-                    if mask.exists():
-                        cmd.append(str(mask))
-                        logger.info(f"Adding mask layer: {mask.name}")
+                existing_masks = [str(mask) for mask in masks if mask.exists()]
+                if existing_masks:
+                    cmd.extend(["--masks"] + existing_masks)
+
+            # Add working directory
+            if working_dir:
+                cmd.extend(["--working-dir", str(working_dir)])
 
             # Change to working directory if specified
             cwd = str(working_dir) if working_dir else None
 
-            logger.info("Launching Napari viewer with command: %s", " ".join(cmd))
-            logger.info("Working directory: %s", cwd)
-            logger.info("Total files to load: images=%d, masks=%d",
-                       len(images) if images else 0, len(masks) if masks else 0)
+            logger.info("Launching Napari viewer")
 
             # Allow interactive session to inherit terminal IO
             result = subprocess.run(cmd, stdin=sys.stdin, stdout=sys.stdout,
                                   stderr=sys.stderr, cwd=cwd)
-            logger.info("Napari subprocess completed with return code: %d", result.returncode)
+            logger.info("Napari viewer closed")
 
         except Exception as exc:
             logger.error("Error launching Napari viewer: %s", exc)

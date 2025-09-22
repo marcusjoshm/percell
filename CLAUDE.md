@@ -19,13 +19,13 @@ This project uses:
 
 **IMPORTANT**: Always activate the virtual environment before running any Python scripts:
 ```bash
-source .venv/bin/activate  # On macOS/Linux
+source venv/bin/activate  # On macOS/Linux
 # or
-.venv\Scripts\activate     # On Windows
+venv\Scripts\activate     # On Windows
 ```
 
 ## Common Commands
-- **Activate virtual environment**: `source .venv/bin/activate`
+- **Activate virtual environment**: `source venv/bin/activate`
 - **Testing**: `pytest tests/`
 - **Type checking**: `mypy percell/`
 - **Install in development mode**: `pip install -e .`

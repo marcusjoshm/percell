@@ -616,32 +616,23 @@ def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
     selected_timepoints = config.get("data_selection.selected_timepoints", [])
     selected_channels = config.get("data_selection.analysis_channels", [])
 
-    # Debug: Show configuration values
-    ui.info(f"Debug: Selected conditions: {selected_conditions}")
-    ui.info(f"Debug: Selected timepoints: {selected_timepoints}")
-    ui.info(f"Debug: Selected channels: {selected_channels}")
-    ui.info(f"Debug: Raw data directory: {raw_data_dir}")
 
     # If no specific channels selected, inform user
     if not selected_channels:
         ui.info("No analysis channels configured. Loading all available image files.")
         for ext in ['*.tif', '*.tiff', '*.png', '*.jpg', '*.jpeg']:
             found_files = list(raw_data_dir.glob(f"**/{ext}"))
-            ui.info(f"Debug: Found {len(found_files)} files with extension {ext}")
             image_files.extend(found_files)
     else:
         # Load only files matching selected channels
         ui.info(f"Loading files for configured analysis channels: {selected_channels}")
         for ext in ['*.tif', '*.tiff', '*.png', '*.jpg', '*.jpeg']:
             all_files = list(raw_data_dir.glob(f"**/{ext}"))
-            ui.info(f"Debug: Found {len(all_files)} files with extension {ext}")
             for file_path in all_files:
                 file_name = file_path.name.lower()
-                ui.info(f"Debug: Checking file: {file_name}")
                 # Check if file matches any selected channels
                 for channel in selected_channels:
                     if channel.lower() in file_name:
-                        ui.info(f"Debug: File {file_name} matches channel {channel}")
                         # Also check conditions and timepoints if specified
                         include_file = True
                         if selected_conditions:
@@ -658,13 +649,10 @@ def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
                                 if base_condition in file_name:
                                     include_file = True
                                     break
-                            ui.info(f"Debug: Condition check result: {include_file} (looking for: {selected_conditions})")
                         if selected_timepoints and include_file:
                             include_file = any(str(tp).lower() in file_name
                                              for tp in selected_timepoints)
-                            ui.info(f"Debug: Timepoint check result: {include_file}")
                         if include_file:
-                            ui.info(f"Debug: Adding file to image_files: {file_path}")
                             image_files.append(file_path)
                             break
 
