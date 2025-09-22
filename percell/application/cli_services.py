@@ -235,8 +235,8 @@ def show_visualization_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
     ui.info("")
     ui.info(f"{Colors.bold}{Colors.white}1.{Colors.reset} {colorize('Interactive Visualization', Colors.yellow)} {colorize('- Display raw images, masks, and overlays with LUT', Colors.reset)}")
     ui.info(f"   {colorize('controls', Colors.reset)}")
-    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
-    ui.info("")
+    ui.info(f"{Colors.bold}{Colors.white}2.{Colors.reset} {colorize('Napari Viewer', Colors.yellow)} {colorize('- Launch Napari for advanced image visualization and analysis', Colors.reset)}")
+    ui.info(f"{Colors.bold}{Colors.white}3.{Colors.reset} {colorize('Back to Main Menu', Colors.red)}")
     ui.info("")
     ui.info("")
     ui.info("")
@@ -247,7 +247,7 @@ def show_visualization_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
     ui.info("")
 
 
-    choice = ui.prompt("Select an option (1-2): ").strip().lower()
+    choice = ui.prompt("Select an option (1-3): ").strip().lower()
     if choice == "1":
         try:
             _run_combined_visualization(ui, args)
@@ -257,6 +257,14 @@ def show_visualization_menu(ui: UserInterfacePort, args: argparse.Namespace) -> 
         # Return to main menu after visualization
         return show_menu(ui, args)
     elif choice == "2":
+        try:
+            _run_napari_viewer(ui, args)
+        except Exception as e:
+            ui.error(f"Error running Napari viewer: {e}")
+            ui.prompt("Press Enter to continue...")
+        # Return to main menu after napari
+        return show_menu(ui, args)
+    elif choice == "3":
         return show_menu(ui, args)
     return show_visualization_menu(ui, args)
 
@@ -549,5 +557,181 @@ def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace)
     ui.prompt("Press Enter to continue...")
 
 
+def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
+    """Run the Napari viewer feature."""
+    from percell.adapters.napari_subprocess_adapter import NapariSubprocessAdapter
+    from percell.application.config_api import Config
+    from percell.application.paths_api import get_path
+    from pathlib import Path
+
+    # Get current configuration
+    try:
+        config_path = str(get_path("config_default"))
+    except Exception:
+        config_path = "percell/config/config.json"
+
+    config = Config(config_path)
+
+    # Get directories
+    input_dir = getattr(args, 'input', None) or config.get("directories.input", "")
+    output_dir = getattr(args, 'output', None) or config.get("directories.output", "")
+
+    if not input_dir:
+        input_dir = ui.prompt("Enter input directory path: ").strip()
+    if not output_dir:
+        output_dir = ui.prompt("Enter output directory path: ").strip()
+
+    # Look for raw data in output/raw_data first, then fall back to input directory
+    output_raw_data_dir = Path(output_dir) / "raw_data"
+    input_raw_data_dir = Path(input_dir)
+
+    if output_raw_data_dir.exists():
+        raw_data_dir = output_raw_data_dir
+        ui.info(f"Using processed raw data: {raw_data_dir}")
+    elif input_raw_data_dir.exists():
+        raw_data_dir = input_raw_data_dir
+        ui.info(f"Using original input data: {raw_data_dir}")
+    else:
+        ui.error(f"No raw data found in {output_raw_data_dir} or {input_raw_data_dir}")
+        return
+
+    # Look for masks in combined_masks first, then fall back to masks
+    combined_masks_dir = Path(output_dir) / "combined_masks"
+    masks_dir = Path(output_dir) / "masks"
+
+    masks_found = None
+    if combined_masks_dir.exists():
+        masks_found = combined_masks_dir
+        ui.info(f"Found combined masks: {masks_found}")
+    elif masks_dir.exists():
+        masks_found = masks_dir
+        ui.info(f"Found individual masks: {masks_found}")
+    else:
+        ui.info("No masks found - will launch Napari with images only")
+
+    # Get raw data files matching configuration
+    image_files = []
+    mask_files = []
+    selected_conditions = config.get("data_selection.selected_conditions", [])
+    selected_timepoints = config.get("data_selection.selected_timepoints", [])
+    selected_channels = config.get("data_selection.analysis_channels", [])
+
+    # Debug: Show configuration values
+    ui.info(f"Debug: Selected conditions: {selected_conditions}")
+    ui.info(f"Debug: Selected timepoints: {selected_timepoints}")
+    ui.info(f"Debug: Selected channels: {selected_channels}")
+    ui.info(f"Debug: Raw data directory: {raw_data_dir}")
+
+    # If no specific channels selected, inform user
+    if not selected_channels:
+        ui.info("No analysis channels configured. Loading all available image files.")
+        for ext in ['*.tif', '*.tiff', '*.png', '*.jpg', '*.jpeg']:
+            found_files = list(raw_data_dir.glob(f"**/{ext}"))
+            ui.info(f"Debug: Found {len(found_files)} files with extension {ext}")
+            image_files.extend(found_files)
+    else:
+        # Load only files matching selected channels
+        ui.info(f"Loading files for configured analysis channels: {selected_channels}")
+        for ext in ['*.tif', '*.tiff', '*.png', '*.jpg', '*.jpeg']:
+            all_files = list(raw_data_dir.glob(f"**/{ext}"))
+            ui.info(f"Debug: Found {len(all_files)} files with extension {ext}")
+            for file_path in all_files:
+                file_name = file_path.name.lower()
+                ui.info(f"Debug: Checking file: {file_name}")
+                # Check if file matches any selected channels
+                for channel in selected_channels:
+                    if channel.lower() in file_name:
+                        ui.info(f"Debug: File {file_name} matches channel {channel}")
+                        # Also check conditions and timepoints if specified
+                        include_file = True
+                        if selected_conditions:
+                            # More flexible condition matching - check if the base condition name is in the file
+                            # Extract base condition name (e.g., "A549" from "A549_As_treated")
+                            include_file = False
+                            for condition in selected_conditions:
+                                # Try exact match first
+                                if condition.lower() in file_name:
+                                    include_file = True
+                                    break
+                                # Try partial match with base condition name
+                                base_condition = condition.split('_')[0].lower()
+                                if base_condition in file_name:
+                                    include_file = True
+                                    break
+                            ui.info(f"Debug: Condition check result: {include_file} (looking for: {selected_conditions})")
+                        if selected_timepoints and include_file:
+                            include_file = any(str(tp).lower() in file_name
+                                             for tp in selected_timepoints)
+                            ui.info(f"Debug: Timepoint check result: {include_file}")
+                        if include_file:
+                            ui.info(f"Debug: Adding file to image_files: {file_path}")
+                            image_files.append(file_path)
+                            break
+
+    # Get corresponding combined mask files that match the same criteria
+    if masks_found and selected_channels:
+        ui.info(f"Looking for combined masks matching analysis channels: {selected_channels}")
+        for ext in ['*.tif', '*.tiff', '*.png']:
+            all_masks = masks_found.glob(f"**/{ext}")
+            for mask_path in all_masks:
+                mask_name = mask_path.name.lower()
+                # Check if mask matches any selected channels
+                for channel in selected_channels:
+                    if channel.lower() in mask_name:
+                        # Also check conditions and timepoints if specified
+                        include_mask = True
+                        if selected_conditions:
+                            # More flexible condition matching for masks
+                            include_mask = False
+                            for condition in selected_conditions:
+                                # Try exact match first
+                                if condition.lower() in mask_name:
+                                    include_mask = True
+                                    break
+                                # Try partial match with base condition name
+                                base_condition = condition.split('_')[0].lower()
+                                if base_condition in mask_name:
+                                    include_mask = True
+                                    break
+                        if selected_timepoints and include_mask:
+                            include_mask = any(str(tp).lower() in mask_name
+                                             for tp in selected_timepoints)
+                        if include_mask:
+                            mask_files.append(mask_path)
+                            break
+    elif masks_found:
+        # If no channels specified, load all masks
+        for ext in ['*.tif', '*.tiff', '*.png']:
+            mask_files.extend(masks_found.glob(f"**/{ext}"))
+
+    ui.info(f"Found {len(image_files)} raw data files to load as separate layers")
+    for img in image_files:
+        ui.info(f"  Image: {img}")
+    if mask_files:
+        ui.info(f"Found {len(mask_files)} combined mask files to load as separate layers")
+        for mask in mask_files:
+            ui.info(f"  Mask: {mask}")
+
+    # Use the virtual environment python
+    try:
+        import sys
+        python_path = Path(sys.executable)
+        ui.info(f"Using Python interpreter: {python_path}")
+    except Exception:
+        python_path = Path("python")
+
+    # Create napari adapter and launch
+    napari_adapter = NapariSubprocessAdapter(python_path)
+
+    ui.info("Launching Napari viewer...")
+    ui.info("Each raw data file and combined mask will be loaded as a separate layer.")
+    ui.info("Napari will open in a new window. Close the window when finished.")
+
+    # Launch napari with all raw data files and combined masks as separate layers
+    napari_adapter.launch_viewer(
+        images=image_files if image_files else None,
+        masks=mask_files if mask_files else None,
+        working_dir=raw_data_dir
+    )
 
 

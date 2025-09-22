@@ -1,0 +1,37 @@
+# Core dependencies for Napari
+numpy>=1.24.2
+scipy>=1.10.1
+scikit-image>=0.19.1
+pandas>=1.3.3
+tifffile>=2022.7.28
+matplotlib>=3.4.0
+
+# Napari and its dependencies
+napari[all]>=0.6.0
+vispy>=0.15.2
+psygnal>=0.10.0
+magicgui>=0.7.0
+qtpy>=2.3.1
+superqt>=0.7.4
+
+# PyQt5 for GUI (napari supports PyQt5)
+PyQt5>=5.15.8
+PyQt5-sip>=12.15
+PyQt5-Qt5>=5.15.2
+
+# Image processing and data handling
+zarr>=2.12.0
+dask[array]>=2021.10.0
+pooch>=1.6.0
+pint>=0.17
+psutil>=5.9.0
+
+# Console and plugin support
+napari-console>=0.1.1
+napari-plugin-engine>=0.1.9
+napari-svg>=0.1.8
+npe2>=0.7.9
+triangle>=20230923
+
+# Additional scientific computing
+numba>=0.57.1
