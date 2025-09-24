@@ -710,104 +710,98 @@ def _run_napari_viewer(
     else:
         ui.info("No masks found - will launch Napari with images only")
 
-    # Get raw data files matching configuration
-    image_files = []
-    mask_files = []
-    selected_conditions = config.get("data_selection.selected_conditions", [])
-    selected_timepoints = config.get("data_selection.selected_timepoints", [])
-    selected_channels = config.get("data_selection.analysis_channels", [])
+    # Use data selection service to get files based on configuration
+    from percell.domain.models import DatasetSelection
+    from percell.domain.services.data_selection_service import DataSelectionService
 
-    # If no specific channels selected, inform user
-    if not selected_channels:
-        ui.info(
-            "No analysis channels configured. "
-            "Loading all available image files."
-        )
-        for ext in ['*.tif', '*.tiff', '*.png', '*.jpg', '*.jpeg']:
-            found_files = list(raw_data_dir.glob(f"**/{ext}"))
-            image_files.extend(found_files)
+    data_service = DataSelectionService()
+
+    # Get data selection configuration from config
+    config_conditions = config.get("data_selection.selected_conditions", [])
+    config_timepoints = config.get("data_selection.selected_timepoints", [])
+    config_regions = config.get("data_selection.selected_regions", [])
+    config_channels = config.get("data_selection.analysis_channels", [])
+
+    # Create data selection using the same approach as visualization
+    selection = DatasetSelection(
+        root=raw_data_dir,
+        conditions=config_conditions,
+        timepoints=config_timepoints,
+        regions=config_regions,
+        channels=config_channels
+    )
+
+    # For visualization, be flexible and discover what's actually available
+    all_files = data_service.scan_available_data(raw_data_dir)
+    available_conditions, available_timepoints, available_regions = (
+        data_service.parse_conditions_timepoints_regions(all_files)
+    )
+
+    ui.info(f"Available conditions: {available_conditions}")
+    ui.info(f"Available timepoints: {available_timepoints}")
+    ui.info(f"Available regions: {available_regions}")
+
+    # Use config selections if they match available data, otherwise use all available
+    use_conditions = (
+        config_conditions
+        if config_conditions and any(c in available_conditions for c in config_conditions)
+        else available_conditions
+    )
+    use_timepoints = (
+        config_timepoints
+        if config_timepoints and any(t in available_timepoints for t in config_timepoints)
+        else available_timepoints
+    )
+    use_regions = (
+        config_regions
+        if config_regions and any(r in available_regions for r in config_regions)
+        else available_regions
+    )
+
+    # Create flexible selection
+    flexible_selection = DatasetSelection(
+        root=raw_data_dir,
+        conditions=use_conditions,
+        timepoints=use_timepoints,
+        regions=use_regions,
+        channels=config_channels
+    )
+
+    # Get files using flexible selection
+    image_files = data_service.generate_file_lists(flexible_selection)
+
+    if image_files:
+        ui.info(f"Found {len(image_files)} files matching selection criteria:")
+        ui.info(f"  Using conditions: {use_conditions or 'all'}")
+        ui.info(f"  Using timepoints: {use_timepoints or 'all'}")
+        ui.info(f"  Using regions: {use_regions or 'all'}")
+        ui.info(f"  Using channels: {config_channels or 'all'}")
     else:
-        # Load only files matching selected channels
-        ui.info(
-            (
-                f"Loading files for configured analysis channels: "
-                f"{selected_channels}"
-            )
-        )
-        for ext in ['*.tif', '*.tiff', '*.png', '*.jpg', '*.jpeg']:
-            all_files = list(raw_data_dir.glob(f"**/{ext}"))
-            for file_path in all_files:
-                file_name = file_path.name.lower()
-                # Check if file matches any selected channels
-                for channel in selected_channels:
-                    if channel.lower() in file_name:
-                        # Also check conditions and timepoints if specified
-                        include_file = True
-                        if selected_conditions:
-                            # More flexible condition matching - check if the base 
-                            # condition name is in the file
-                            # Extract base condition name (e.g., "A549" from "A549_As_treated")
-                            include_file = False
-                            for condition in selected_conditions:
-                                # Try exact match first
-                                if condition.lower() in file_name:
-                                    include_file = True
-                                    break
-                                # Try partial match with base condition name
-                                base_condition = condition.split('_')[0].lower()
-                                if base_condition in file_name:
-                                    include_file = True
-                                    break
-                        if selected_timepoints and include_file:
-                            include_file = any(str(tp).lower() in file_name
-                                             for tp in selected_timepoints)
-                        if include_file:
-                            image_files.append(file_path)
-                            break
+        ui.info("No files found - this shouldn't happen with flexible selection")
 
-    # Get corresponding combined mask files that match the same criteria
-    if masks_found and selected_channels:
-        ui.info(f"Looking for combined masks matching analysis channels: {selected_channels}")
-        for ext in ['*.tif', '*.tiff', '*.png']:
-            all_masks = masks_found.glob(f"**/{ext}")
-            for mask_path in all_masks:
-                mask_name = mask_path.name.lower()
-                # Check if mask matches any selected channels
-                for channel in selected_channels:
-                    if channel.lower() in mask_name:
-                        # Also check conditions and timepoints if specified
-                        include_mask = True
-                        if selected_conditions:
-                            # More flexible condition matching for masks
-                            include_mask = False
-                            for condition in selected_conditions:
-                                # Try exact match first
-                                if condition.lower() in mask_name:
-                                    include_mask = True
-                                    break
-                                # Try partial match with base condition name
-                                base_condition = condition.split('_')[0].lower()
-                                if base_condition in mask_name:
-                                    include_mask = True
-                                    break
-                        if selected_timepoints and include_mask:
-                            include_mask = any(str(tp).lower() in mask_name
-                                             for tp in selected_timepoints)
-                        if include_mask:
-                            mask_files.append(mask_path)
-                            break
-    elif masks_found:
-        # If no channels specified, load all masks
-        for ext in ['*.tif', '*.tiff', '*.png']:
-            mask_files.extend(masks_found.glob(f"**/{ext}"))
+    # Find corresponding mask files using correspondence mapping (like visualization service)
+    mask_files = []
+    if masks_found and image_files:
+        from percell.application.visualization_service import VisualizationService
+        viz_service = VisualizationService(ui)
+        mask_mapping = viz_service._find_corresponding_masks(image_files, masks_found)
 
-    ui.info(f"Found {len(image_files)} raw data files to load as separate layers")
-    for img in image_files:
-        ui.info(f"  Image: {img}")
+        # Extract the mask files from the mapping
+        for idx, mask_file in mask_mapping.items():
+            if mask_file and mask_file.exists():
+                mask_files.append(mask_file)
+
+    if image_files:
+        ui.info(f"Loading {len(image_files)} raw data files as separate layers")
+        for img in image_files:
+            ui.info(f"  Image: {img}")
+
     if mask_files:
-        ui.info(f"Found {len(mask_files)} combined mask files to load as separate layers")
+        ui.info(f"Loading {len(mask_files)} mask files as separate layers")
         for mask in mask_files:
             ui.info(f"  Mask: {mask}")
+    elif masks_found:
+        ui.info("No mask files found matching selection criteria")
 
     # Use the virtual environment python
     try:
@@ -821,10 +815,10 @@ def _run_napari_viewer(
     napari_adapter = NapariSubprocessAdapter(python_path)
 
     ui.info("Launching Napari viewer...")
-    ui.info("Each raw data file and combined mask will be loaded as a separate layer.")
+    ui.info("Selected files will be loaded as separate layers based on your data selection configuration.")
     ui.info("Napari will open in a new window. Close the window when finished.")
 
-    # Launch napari with all raw data files and combined masks as separate layers
+    # Launch napari with selected files based on data selection configuration
     napari_adapter.launch_viewer(
         images=image_files if image_files else None,
         masks=mask_files if mask_files else None,
