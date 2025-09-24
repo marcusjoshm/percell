@@ -5,7 +5,7 @@ torchvision>=0.7.0
 torchaudio>=0.6.0
 
 # Cellpose and its dependencies
-cellpose[gui]>=4.0.4
+cellpose[gui]-=4.0.4
 scipy>=1.7.0
 natsort>=8.0.0
 tifffile>=2021.0.0
