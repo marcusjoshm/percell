@@ -23,27 +23,38 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
         # Prefer -batch for headless macro execution
         cmd: List[str] = [str(self._exe), "-batch", str(macro_path)]
         if args:
-            # ImageJ -batch takes only a single string parameter; join args appropriately if needed
-            # Many macros handle a single arg; callers can pre-serialize if required
+            # ImageJ -batch takes only a single string parameter;
+            # join args appropriately if needed
+            # Many macros handle a single arg; 
+            # callers can pre-serialize if required
             cmd.append(" ".join(args))
 
         try:
             # Start process with piped stdout to stream lines
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
             title = f"ImageJ: {Path(macro_path).stem}"
             print(title)
 
             # Phase 1: stream lines until we know total, printing logs
             total: Optional[int] = None
             while True:
-                line = process.stdout.readline() if process.stdout else ""
+                line = (
+                    process.stdout.readline() if process.stdout else ""
+                )
                 if not line:
                     if process.poll() is not None:
                         break
                     continue
                 stripped = line.strip()
                 print(line.rstrip())
-                # Generic TOTAL detector, e.g. RESIZE_TOTAL: N, EXTRACT_TOTAL: N, CREATE_TOTAL: N, ANALYZE_TOTAL: N, MEASURE_TOTAL: N
+                # Generic TOTAL detector, e.g. RESIZE_TOTAL: N,
+                # EXTRACT_TOTAL: N,
+                # CREATE_TOTAL: N, ANALYZE_TOTAL: N, MEASURE_TOTAL: N
                 m_total = re.match(r"^[A-Z_]+_TOTAL:\s*(\d+)$", stripped)
                 if m_total:
                     try:
@@ -52,12 +63,17 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
                         total = None
                     break
 
-            # Phase 2: if we have a total, open a determinate bar while still printing logs
+            # Phase 2: if we have a total, open a determinate bar
+            # while still printing logs
             if total and total > 0 and process.poll() is None:
-                with progress_bar(total=total, title=title, manual=True) as update:
+                with progress_bar(
+                    total=total, title=title, manual=True
+                ) as update:
                     progressed = 0
                     while True:
-                        line = process.stdout.readline() if process.stdout else ""
+                        line = (
+                            process.stdout.readline() if process.stdout else ""
+                        )
                         if not line:
                             if process.poll() is not None:
                                 break
@@ -98,5 +114,3 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
                 return completed.returncode
             except Exception:
                 return 1
-
-
