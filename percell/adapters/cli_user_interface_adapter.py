@@ -15,5 +15,3 @@ class CLIUserInterfaceAdapter(UserInterfacePort):
 
     def error(self, message: str) -> None:
         print(message)
-
-
