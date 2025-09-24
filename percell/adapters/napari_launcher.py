@@ -43,7 +43,11 @@ def main():
             img_file = Path(img_path)
             if img_file.exists():
                 img = io.imread(img_file)
-                viewer.add_image(img, name=img_file.name)
+                viewer.add_image(
+                    img,
+                    name=img_file.name,
+                    colormap='viridis'
+                )
 
     # Load masks with zero-to-NaN conversion
     if args.masks:
@@ -54,15 +58,18 @@ def main():
                 viewer.add_image(
                     mask,
                     name=f"mask_{mask_file.name}",
-                    opacity=0.7,
+                    opacity=1.0,
                     blending='additive',
-                    colormap='yellow'
+                    colormap='gray'
                 )
 
     # Change working directory if specified
     if args.working_dir:
         import os
         os.chdir(args.working_dir)
+
+    # Reset view to fit all loaded layers to screen
+    viewer.reset_view()
 
     # Start the napari event loop
     napari.run()
