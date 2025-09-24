@@ -20,5 +20,21 @@ if ! command -v python3.11 &> /dev/null; then
     exit 1
 fi
 
+# Show available options
+if [[ "$1" == "--help" || "$1" == "-h" ]]; then
+    echo "Usage: ./install [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --verbose, -v         Enable verbose output during installation"
+    echo "  --skip-cellpose       Skip Cellpose virtual environment setup"
+    echo "  --skip-config         Skip configuration file creation"
+    echo "  --force               Force reinstallation even if environments exist"
+    echo "  --help, -h            Show this help message"
+    echo ""
+    exit 0
+fi
+
 # Run the Python installation script with Python 3.11
+echo "Starting installation with options: $@"
+echo ""
 python3.11 percell/setup/install.py "$@" 

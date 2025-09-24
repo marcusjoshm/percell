@@ -103,27 +103,37 @@ def install_requirements(venv_name: str, requirements_file: str) -> bool:
     """Install requirements in a virtual environment."""
     venv_path = Path(venv_name)
     python_path = get_venv_python(venv_name)
-    
+
     if not venv_path.exists():
         print_error(f"Virtual environment '{venv_name}' does not exist")
         return False
-    
+
     try:
         print_status(f"Installing requirements from {requirements_file}...")
-        
-        # Upgrade pip
-        subprocess.run([str(python_path), "-m", "pip", "install", "--upgrade", "pip"], 
-                      check=True, capture_output=True)
-        
-        # Install requirements with verbose output for debugging
-        result = subprocess.run([str(python_path), "-m", "pip", "install", "-r", requirements_file], 
-                              capture_output=True, text=True)
-        
+
+        # Upgrade pip with verbose output
+        print_status("Upgrading pip...")
+        pip_upgrade_result = subprocess.run([str(python_path), "-m", "pip", "install", "--upgrade", "pip"],
+                      capture_output=True, text=True, check=True)
+        if pip_upgrade_result.stdout:
+            print(f"  {pip_upgrade_result.stdout.strip()}")
+
+        # Count requirements for progress tracking
+        with open(requirements_file, 'r') as f:
+            requirements_lines = [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
+            req_count = len(requirements_lines)
+
+        print_status(f"Installing {req_count} requirements with verbose output...")
+
+        # Install requirements with verbose output and progress
+        result = subprocess.run([str(python_path), "-m", "pip", "install", "-v", "-r", requirements_file],
+                              text=True)
+
         if result.returncode != 0:
             print_error(f"Failed to install requirements from {requirements_file}")
-            print_error(f"Error output: {result.stderr}")
+            print_error("Installation failed - check the output above for details")
             return False
-        
+
         print_status(f"Requirements installed successfully in '{venv_name}'")
         return True
     except subprocess.CalledProcessError as e:
@@ -135,12 +145,21 @@ def install_requirements(venv_name: str, requirements_file: str) -> bool:
 def install_package_development_mode(venv_name: str = "venv") -> bool:
     """Install the package in development mode."""
     python_path = get_venv_python(venv_name)
-    
+
     try:
-        print_status("Installing package in development mode...")
-        subprocess.run([str(python_path), "-m", "pip", "install", "-e", "."], 
-                      check=True, capture_output=True)
-        print_status("Package installed in development mode successfully")
+        print_status("Installing percell package in development mode...")
+        print_status("This will install all dependencies from pyproject.toml...")
+
+        # Install with verbose output
+        result = subprocess.run([str(python_path), "-m", "pip", "install", "-v", "-e", "."],
+                      text=True)
+
+        if result.returncode != 0:
+            print_error("Failed to install percell package in development mode")
+            print_error("Installation failed - check the output above for details")
+            return False
+
+        print_status("Percell package installed in development mode successfully")
         return True
     except subprocess.CalledProcessError as e:
         print_error(f"Failed to install package: {e}")
@@ -300,34 +319,45 @@ def create_config_file() -> bool:
 def verify_installation(venv_name: str = "venv") -> bool:
     """Verify the installation by testing imports."""
     python_path = get_venv_python(venv_name)
-    
+
     try:
         print_status("Verifying installation...")
-        
+
         # Test basic imports
         test_imports = [
-            "import numpy",
-            "import pandas", 
-            "import percell"
+            ("numpy", "import numpy; print(f'NumPy {numpy.__version__}')"),
+            ("pandas", "import pandas; print(f'Pandas {pandas.__version__}')"),
+            ("napari", "import napari; print(f'Napari {napari.__version__}')"),
+            ("percell", "import percell; print('Percell package imported successfully')")
         ]
-        
-        for import_statement in test_imports:
-            result = subprocess.run([str(python_path), "-c", import_statement], 
+
+        for import_name, import_statement in test_imports:
+            print_status(f"Testing {import_name} import...")
+            result = subprocess.run([str(python_path), "-c", import_statement],
                                   capture_output=True, text=True)
             if result.returncode != 0:
-                print_error(f"Failed to import: {import_statement}")
+                print_error(f"Failed to import {import_name}")
+                if result.stderr:
+                    print_error(f"Error: {result.stderr.strip()}")
                 return False
-        
-        print_status("Basic imports verified successfully")
-        
+            else:
+                if result.stdout:
+                    print(f"  ✓ {result.stdout.strip()}")
+
+        print_status("All imports verified successfully")
+
         # Test command-line tool
-        result = subprocess.run([str(python_path), "-m", "percell.main.main", "--help"], 
+        print_status("Testing percell command-line tool...")
+        result = subprocess.run([str(python_path), "-m", "percell.main.main", "--help"],
                               capture_output=True, text=True)
         if result.returncode == 0:
             print_status("Command-line tool verified successfully")
+            print("  ✓ Percell CLI is working")
         else:
             print_warning("Command-line tool test failed")
-        
+            if result.stderr:
+                print_warning(f"Error: {result.stderr.strip()}")
+
         return True
     except Exception as e:
         print_error(f"Verification failed: {e}")
@@ -382,18 +412,26 @@ def print_usage_instructions():
 def main():
     """Main installation function."""
     parser = argparse.ArgumentParser(description="Install Percell")
-    parser.add_argument("--skip-cellpose", action="store_true", 
+    parser.add_argument("--skip-cellpose", action="store_true",
                        help="Skip Cellpose virtual environment setup")
-    parser.add_argument("--skip-config", action="store_true", 
+    parser.add_argument("--skip-config", action="store_true",
                        help="Skip configuration file creation")
-    parser.add_argument("--force", action="store_true", 
+    parser.add_argument("--force", action="store_true",
                        help="Force reinstallation even if environments exist")
-    
+    parser.add_argument("--verbose", "-v", action="store_true",
+                       help="Enable verbose output during installation")
+
     args = parser.parse_args()
     
     print("Percell Installation Script")
     print("="*50)
-    
+
+    if args.verbose:
+        print_status("Verbose mode enabled - showing detailed installation progress")
+        print_status(f"Current working directory: {Path.cwd()}")
+        print_status(f"Python executable: {sys.executable}")
+        print("")
+
     # Check Python version
     if not check_python_version():
         sys.exit(1)
