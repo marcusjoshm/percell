@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import subprocess
+import logging
 from pathlib import Path
 import re
 from typing import List, Optional
 
 from ..ports.driven.imagej_integration_port import ImageJIntegrationPort
 from percell.application.progress_api import progress_bar, spinner
+from percell.domain.exceptions import ImageJError, FileSystemError
+
+logger = logging.getLogger(__name__)
 
 
 class ImageJMacroAdapter(ImageJIntegrationPort):
@@ -59,7 +63,8 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
                 if m_total:
                     try:
                         total = int(m_total.group(1))
-                    except Exception:
+                    except (ValueError, IndexError) as e:
+                        logger.warning(f"Failed to parse ImageJ total count: {e}")
                         total = None
                     break
 
@@ -94,7 +99,8 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
                                 else:
                                     update(1)
                                     progressed += 1
-                            except Exception:
+                            except (ValueError, IndexError) as e:
+                                logger.debug(f"Failed to parse ImageJ progress: {e}")
                                 update(1)
                                 progressed += 1
                     # ensure bar completes if macro finished early without full markers
@@ -104,13 +110,26 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
 
             # Finalize
             process.wait()
-            return process.returncode
-        except FileNotFoundError:
-            return 1
-        except Exception:
-            # Fallback to simple run if streaming fails
-            try:
-                completed = subprocess.run(cmd, capture_output=True, text=True)
-                return completed.returncode
-            except Exception:
-                return 1
+            return_code = process.returncode
+
+            if return_code != 0:
+                error_msg = f"ImageJ macro execution failed with return code {return_code}"
+                logger.error(error_msg)
+                raise ImageJError(error_msg, return_code)
+
+            return return_code
+
+        except FileNotFoundError as e:
+            error_msg = f"ImageJ executable not found: {self._exe}"
+            logger.error(error_msg)
+            raise FileSystemError(error_msg) from e
+
+        except subprocess.SubprocessError as e:
+            error_msg = f"ImageJ subprocess error: {e}"
+            logger.error(error_msg)
+            raise ImageJError(error_msg) from e
+
+        except OSError as e:
+            error_msg = f"System error running ImageJ: {e}"
+            logger.error(error_msg)
+            raise ImageJError(error_msg) from e

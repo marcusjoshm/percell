@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(git add:*)",
-      "Read(//Users/joshuamarcus/image_metadata/**)"
+      "Read(//Users/joshuamarcus/image_metadata/**)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(python -m pytest tests/unit/application/test_configuration_service.py -v)",
+      "Bash(python -m pytest tests/integration/test_configuration_manager.py -v)",
+      "Bash(python -m pytest tests/unit/domain/test_configuration_service_refactored.py::TestConfigurationServiceErrorHandling::test_load_io_error -v)"
     ],
     "deny": [],
     "ask": []

@@ -10,6 +10,7 @@ from percell.ports.driven.cellpose_integration_port import (
     CellposeIntegrationPort,
 )
 from percell.domain.models import SegmentationParameters
+from percell.domain.exceptions import CellposeError, FileSystemError
 
 
 logger = logging.getLogger(__name__)
@@ -49,8 +50,10 @@ class CellposeSubprocessAdapter(CellposeIntegrationPort):
                 subprocess.run(
                     cmd, stdin=sys.stdin, stdout=sys.stdout, stderr=sys.stderr
                 )
-            except Exception as exc:
-                logger.error("Error launching Cellpose GUI: %s", exc)
+            except (subprocess.SubprocessError, OSError) as exc:
+                error_msg = f"Error launching Cellpose GUI: {exc}"
+                logger.error(error_msg)
+                raise CellposeError(error_msg) from exc
             return []
 
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -68,7 +71,8 @@ class CellposeSubprocessAdapter(CellposeIntegrationPort):
                     tmp_img = tmpdir_path / img.name
                     try:
                         shutil.copy2(img, tmp_img)
-                    except Exception:
+                    except (OSError, IOError):
+                        # Fall back to basic copy if metadata copy fails
                         shutil.copy(img, tmp_img)
 
                     cmd = [
