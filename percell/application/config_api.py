@@ -2,21 +2,47 @@ from __future__ import annotations
 
 """Application-level configuration API.
 
+⚠️ DEPRECATED: This module is deprecated and will be removed in version 2.0.
+
+Use instead:
+    from percell.domain.services.configuration_service import (
+        ConfigurationService,
+        create_configuration_service
+    )
+    from percell.domain.exceptions import ConfigurationError
+
+See migration guide: docs/CONFIGURATION_MIGRATION_GUIDE.md
+
 Exposes: Config, ConfigError, create_default_config, validate_software_paths,
 detect_software_paths
 """
 
 import json
+import warnings
 from pathlib import Path
 from typing import Any, Dict
 
 
 class ConfigError(Exception):
+    """⚠️ DEPRECATED: Use ConfigurationError from percell.domain.exceptions instead."""
     pass
 
 
 class Config:
+    """⚠️ DEPRECATED: Use ConfigurationService from percell.domain.services.configuration_service instead.
+
+    This class will be removed in version 2.0.
+    See docs/CONFIGURATION_MIGRATION_GUIDE.md for migration instructions.
+    """
+
     def __init__(self, config_path: str):
+        warnings.warn(
+            "Config is deprecated and will be removed in version 2.0. "
+            "Use percell.domain.services.configuration_service.ConfigurationService instead. "
+            "See docs/CONFIGURATION_MIGRATION_GUIDE.md",
+            DeprecationWarning,
+            stacklevel=2
+        )
         self.config_path = Path(config_path)
         self.config_data: Dict[str, Any] = {}
         self.load()
@@ -103,6 +129,18 @@ class Config:
 
 
 def create_default_config(config_path: str) -> Config:
+    """⚠️ DEPRECATED: This function will be removed in version 2.0.
+
+    Use create_configuration_service() with create_if_missing=True instead,
+    then populate defaults manually. See docs/CONFIGURATION_MIGRATION_GUIDE.md
+    """
+    warnings.warn(
+        "create_default_config() is deprecated and will be removed in version 2.0. "
+        "Use create_configuration_service() and populate defaults manually. "
+        "See docs/CONFIGURATION_MIGRATION_GUIDE.md",
+        DeprecationWarning,
+        stacklevel=2
+    )
     default = {
         "imagej_path": "",
         "cellpose_path": "",

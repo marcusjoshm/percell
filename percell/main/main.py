@@ -11,13 +11,67 @@ import argparse
 from pathlib import Path
 
 # Import from the package (no sys.path manipulation needed!)
-from percell.application.config_api import Config, ConfigError, create_default_config
+from percell.domain.services.configuration_service import (
+    ConfigurationService,
+    create_configuration_service
+)
+from percell.domain.exceptions import ConfigurationError
 from percell.application.logger_api import PipelineLogger
 from percell.application.pipeline_api import Pipeline
 from percell.main.bootstrap import bootstrap
 from percell.adapters.cli_user_interface_adapter import CLIUserInterfaceAdapter
 from percell.application.cli_services import show_menu, validate_args
 from percell.application.cli_parser import build_parser
+
+
+def _populate_default_config(config: ConfigurationService) -> None:
+    """Populate configuration with default values if empty."""
+    defaults = {
+        "imagej_path": "",
+        "cellpose_path": "",
+        "python_path": sys.executable,
+        "fiji_path": "",
+        "analysis.default_bins": 5,
+        "analysis.segmentation_model": "cyto",
+        "analysis.cell_diameter": 100,
+        "analysis.niter_dynamics": 250,
+        "analysis.flow_threshold": 0.4,
+        "analysis.cellprob_threshold": 0,
+        "output.create_subdirectories": True,
+        "output.save_intermediate": True,
+        "output.compression": "lzw",
+        "output.overwrite": False,
+        "directories.input": "",
+        "directories.output": "",
+        "data_selection.selected_datatype": None,
+        "data_selection.selected_conditions": [],
+        "data_selection.selected_timepoints": [],
+        "data_selection.selected_regions": [],
+        "data_selection.segmentation_channel": None,
+        "data_selection.analysis_channels": [],
+    }
+
+    for key, value in defaults.items():
+        if not config.has(key):
+            config.set(key, value)
+
+    # Initialize nested structures that might not exist
+    if not config.has("directories.recent_inputs"):
+        config.set("directories.recent_inputs", [])
+    if not config.has("directories.recent_outputs"):
+        config.set("directories.recent_outputs", [])
+    if not config.has("data_selection.experiment_metadata"):
+        config.set("data_selection.experiment_metadata", {
+            "conditions": [],
+            "regions": [],
+            "timepoints": [],
+            "channels": [],
+            "region_to_channels": {},
+            "datatype_inferred": None,
+            "directory_timepoints": [],
+        })
+
+    config.save()
 
 
 def main():
@@ -31,31 +85,31 @@ def main():
         from percell.application.paths_api import get_path_str, path_exists
         try:
             config_path = get_path_str("config_default")
-            if path_exists("config_default"):
-                config = Config(config_path)
-            else:
-                print(f"Configuration file not found: {config_path}")
-                print("Creating default configuration...")
-                config = create_default_config(config_path)
         except KeyError:
             # Fallback to relative path if path system fails
             config_path = "percell/config/config.json"
-            print(f"Configuration file not found: {config_path}")
+
+        # Create/load configuration using new service
+        config = create_configuration_service(config_path, create_if_missing=True)
+
+        # Populate with defaults if new/empty
+        if not config.has("python_path"):
+            print(f"Configuration file not found or empty: {config_path}")
             print("Creating default configuration...")
-            config = create_default_config(config_path)
-        
+            _populate_default_config(config)
+
         # Initialize DI container (adapters/services)
         try:
             container = bootstrap(config_path)
         except Exception as e:
             print(f"Warning: Failed to initialize DI container: {e}")
             container = None
-        
+
         # Validate configuration (but don't exit on missing software paths)
-        try:
-            config.validate()
-        except ConfigError as e:
-            print(f"Configuration warning: {e}")
+        required_keys = ["python_path"]
+        missing = [k for k in required_keys if not config.has(k)]
+        if missing:
+            print(f"Configuration warning: Missing required keys: {missing}")
             print("Some features may not work without proper software paths.")
             print("You can set software paths in the configuration file.")
             print()

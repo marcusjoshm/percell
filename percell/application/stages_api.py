@@ -6,7 +6,10 @@ import time
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 
-from percell.application.config_api import Config
+from percell.domain.services.configuration_service import (
+    ConfigurationService,
+    create_configuration_service
+)
 from percell.application.logger_api import PipelineLogger, ModuleLogger
 
 

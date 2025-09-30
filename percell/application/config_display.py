@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from typing import Optional
-from percell.application.config_api import Config
+from percell.domain.services.configuration_service import (
+    ConfigurationService,
+    create_configuration_service
+)
 from percell.ports.driving.user_interface_port import UserInterfacePort
 from percell.application.ui_components import colorize, Colors
 

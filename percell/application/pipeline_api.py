@@ -6,7 +6,10 @@ import argparse
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
-from percell.application.config_api import Config
+from percell.domain.services.configuration_service import (
+    ConfigurationService,
+    create_configuration_service
+)
 from percell.application.logger_api import PipelineLogger
 from percell.application.stages_api import get_stage_registry, StageExecutor
 

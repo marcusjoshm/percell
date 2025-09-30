@@ -15,6 +15,12 @@ from percell.domain.services.configuration_service import ConfigurationService a
 from percell.domain.exceptions import ConfigurationError
 
 
+# Define ConfigError for compatibility
+class ConfigError(Exception):
+    """Compatibility exception for old config_api.ConfigError."""
+    pass
+
+
 class ConfigurationManager:
     """Compatibility wrapper for the old ConfigurationManager class.
 
@@ -84,7 +90,6 @@ class Config:
             self._service.load(create_if_missing=False)
         except ConfigurationError:
             # Re-raise as the old exception type for compatibility
-            from percell.application.config_api import ConfigError
             raise ConfigError(f"Configuration file not found: {config_path}")
 
     def load(self) -> None:
@@ -92,7 +97,6 @@ class Config:
         try:
             self._service.load(create_if_missing=False)
         except ConfigurationError as e:
-            from percell.application.config_api import ConfigError
             raise ConfigError(str(e)) from e
 
     def save(self) -> None:
@@ -100,7 +104,6 @@ class Config:
         try:
             self._service.save()
         except ConfigurationError as e:
-            from percell.application.config_api import ConfigError
             raise ConfigError(str(e)) from e
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -116,12 +119,3 @@ class Config:
     def config_data(self, value: Dict[str, Any]) -> None:
         """Set configuration data (for compatibility)."""
         self._service._data = value
-
-
-# Re-export the old ConfigError for compatibility
-try:
-    from percell.application.config_api import ConfigError
-except ImportError:
-    # If the old module doesn't exist, create a minimal ConfigError
-    class ConfigError(Exception):
-        pass
