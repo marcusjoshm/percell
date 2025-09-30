@@ -7,7 +7,7 @@ import re
 from typing import List, Optional
 
 from ..ports.driven.imagej_integration_port import ImageJIntegrationPort
-from percell.application.progress_api import progress_bar, spinner
+from ..ports.driven.progress_report_port import ProgressReportPort
 from percell.domain.exceptions import ImageJError, FileSystemError
 
 logger = logging.getLogger(__name__)
@@ -20,8 +20,13 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
     decide what macro to run and how to interpret results.
     """
 
-    def __init__(self, imagej_executable: Path) -> None:
+    def __init__(
+        self,
+        imagej_executable: Path,
+        progress_reporter: Optional[ProgressReportPort] = None
+    ) -> None:
         self._exe = Path(imagej_executable)
+        self._progress = progress_reporter
 
     def run_macro(self, macro_path: Path, args: List[str]) -> int:
         # Prefer -batch for headless macro execution
@@ -70,8 +75,8 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
 
             # Phase 2: if we have a total, open a determinate bar
             # while still printing logs
-            if total and total > 0 and process.poll() is None:
-                with progress_bar(
+            if total and total > 0 and process.poll() is None and self._progress:
+                with self._progress.create_progress_bar(
                     total=total, title=title, manual=True
                 ) as update:
                     progressed = 0
@@ -107,6 +112,17 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
                     remaining = (total - progressed) if total and progressed < total else 0
                     for _ in range(remaining):
                         update(1)
+            elif total and total > 0 and process.poll() is None:
+                # Fallback: no progress reporter, just continue reading output
+                while True:
+                    line = (
+                        process.stdout.readline() if process.stdout else ""
+                    )
+                    if not line:
+                        if process.poll() is not None:
+                            break
+                        continue
+                    print(line.rstrip())
 
             # Finalize
             process.wait()

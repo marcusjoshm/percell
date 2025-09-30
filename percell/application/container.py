@@ -12,6 +12,7 @@ from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter
 from percell.adapters.cellpose_subprocess_adapter import CellposeSubprocessAdapter
 from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
 from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
+from percell.adapters.console_progress_adapter import ConsoleProgressAdapter
 from percell.domain.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,9 @@ def build_container(config_path: Path) -> Container:
         workflow = WorkflowCoordinator(orchestrator=orchestrator)
         step_exec = StepExecutionCoordinator()
 
+        # Create progress reporter adapter
+        progress_reporter = ConsoleProgressAdapter()
+
         # Get project root for resolving relative paths to external resources
         from percell.application.paths_api import get_path_config
         project_root = get_path_config().get_project_root()
@@ -58,7 +62,7 @@ def build_container(config_path: Path) -> Container:
         imagej_path = Path(cfg.get("imagej_path") or
                           cfg.get("paths.imagej") or
                           "/Applications/ImageJ.app/Contents/MacOS/ImageJ")
-        imagej = ImageJMacroAdapter(imagej_path)
+        imagej = ImageJMacroAdapter(imagej_path, progress_reporter)
 
         # Resolve cellpose path with new get_resolved_path method
         cellpose_python = (cfg.get_resolved_path("cellpose_path", project_root) or
