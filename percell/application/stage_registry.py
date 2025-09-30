@@ -1,7 +1,7 @@
 """
 Application Layer Stage Registration
 
-Registers all available pipeline stages implemented in application.stage_classes.
+Registers all available pipeline stages from application.stages package.
 """
 
 from percell.application.stages_api import register_stage
@@ -9,8 +9,8 @@ from percell.application.stages_api import register_stage
 
 def register_all_stages():
     """Register all available pipeline stages."""
-    # Import stage classes from application layer to avoid circular imports
-    from percell.application.stage_classes import (
+    # Import stage classes from application.stages package
+    from percell.application.stages import (
         DataSelectionStage,
         SegmentationStage,
         ProcessSingleCellDataStage,
@@ -41,5 +41,3 @@ def register_all_stages():
     register_stage('measure_roi_area', order=6)(MeasureROIAreaStage)
     register_stage('analysis', order=7)(AnalysisStage)
     register_stage('cleanup', order=8)(CleanupStage)
-
-

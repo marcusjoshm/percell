@@ -11,25 +11,28 @@ import logging
 
 from percell.domain.models import DatasetSelection
 from percell.domain.services.data_selection_service import DataSelectionService
-from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
-from percell.ports.driving.user_interface_port import UserInterfacePort
+from percell.ports.driven.image_processing_port import ImageProcessingPort
+from percell.domain.exceptions import VisualizationError
 
 
 class VisualizationService:
-    """Service for creating visualizations of masks, raw images, and overlays."""
+    """Domain service for creating visualizations of masks, raw images, and overlays.
 
-    def __init__(self, ui: UserInterfacePort, logger: Optional[logging.Logger] = None):
-        self.ui = ui
+    This service contains pure domain logic for visualization and relies on
+    injected dependencies for UI and image processing operations.
+    """
+
+    def __init__(self, image_processor: ImageProcessingPort, logger: Optional[logging.Logger] = None):
         self.logger = logger or logging.getLogger(__name__)
         self.data_service = DataSelectionService()
-        self.image_processor = PILImageProcessingAdapter(logger)
+        self.image_processor = image_processor
 
-    def display_combined_visualization(
+    def create_visualization_data(
         self,
         raw_data_dir: Path,
         masks_dir: Path,
         selection: DatasetSelection,
-        overlay_alpha: float = 0.7
+        overlay_alpha: float = 0.5
     ) -> bool:
         """Display combined visualization of raw data, masks, and overlay with interactive LUT controls.
 
@@ -48,7 +51,7 @@ class VisualizationService:
             mask_files = self._find_corresponding_masks(raw_files, masks_dir)
 
             if not raw_files:
-                self.ui.error("No raw data files found matching selection criteria")
+                self.logger.error("No raw data files found matching selection criteria")
                 return False
 
             # Display images one at a time in sequence
@@ -76,7 +79,6 @@ class VisualizationService:
 
         except Exception as e:
             self.logger.error(f"Error creating visualization: {e}")
-            self.ui.error(f"Failed to create visualization: {e}")
             return False
 
     def _create_single_image_visualization(

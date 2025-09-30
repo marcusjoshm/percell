@@ -17,7 +17,7 @@ from percell.application.stages_api import get_stage_registry, StageExecutor
 class Pipeline:
     def __init__(
         self,
-        config: Config,
+        config: ConfigurationService,
         logger: PipelineLogger,
         args: argparse.Namespace,
         ports: Optional[Dict[str, Any]] = None,
@@ -122,7 +122,7 @@ class Pipeline:
         return self.registry.get_stage_order()
 
 
-def create_pipeline(config: Config, logger: PipelineLogger, args: argparse.Namespace) -> Pipeline:
+def create_pipeline(config: ConfigurationService, logger: PipelineLogger, args: argparse.Namespace) -> Pipeline:
     return Pipeline(config, logger, args)
 
 

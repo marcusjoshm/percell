@@ -198,16 +198,16 @@ class ConfigurationDisplayAction(MenuAction):
             from percell.application.config_display import display_current_configuration
             from percell.application.paths_api import get_path
             from percell.domain.services.configuration_service import (
-    ConfigurationService,
-    create_configuration_service
-)
+                ConfigurationService,
+                create_configuration_service
+            )
 
             try:
                 config_path = str(get_path("config_default"))
             except Exception:
                 config_path = "percell/config/config.json"
 
-            config = Config(config_path)
+            config = create_configuration_service(config_path, create_if_missing=True)
 
             # Pass current args input/output if available
             current_input = getattr(args, 'input', None)
@@ -259,9 +259,9 @@ class VisualizationAction(MenuAction):
     def _get_directories(self, ui: UserInterfacePort, args: argparse.Namespace) -> tuple[str, str]:
         """Get input and output directories from args or config."""
         from percell.domain.services.configuration_service import (
-    ConfigurationService,
-    create_configuration_service
-)
+            ConfigurationService,
+            create_configuration_service
+        )
         from percell.application.paths_api import get_path
 
         try:
@@ -269,7 +269,7 @@ class VisualizationAction(MenuAction):
         except Exception:
             config_path = "percell/config/config.json"
 
-        config = Config(config_path)
+        config = create_configuration_service(config_path, create_if_missing=True)
 
         input_dir = getattr(args, 'input', None) or config.get("directories.input", "")
         output_dir = getattr(args, 'output', None) or config.get("directories.output", "")

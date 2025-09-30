@@ -11,7 +11,7 @@ from percell.ports.driving.user_interface_port import UserInterfacePort
 from percell.application.ui_components import colorize, Colors
 
 
-def display_current_configuration(ui: UserInterfacePort, config: Config, args_input: Optional[str] = None, args_output: Optional[str] = None) -> None:
+def display_current_configuration(ui: UserInterfacePort, config: ConfigurationService, args_input: Optional[str] = None, args_output: Optional[str] = None) -> None:
     """Display current configuration including directories and data selections."""
 
     ui.info("")

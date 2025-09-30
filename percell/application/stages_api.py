@@ -18,7 +18,7 @@ class StageError(Exception):
 
 
 class StageBase(ABC):
-    def __init__(self, config: Config, logger: PipelineLogger, stage_name: str):
+    def __init__(self, config: ConfigurationService, logger: PipelineLogger, stage_name: str):
         self.config = config
         self.pipeline_logger = logger
         self.stage_name = stage_name
@@ -76,7 +76,7 @@ class StageBase(ABC):
 
 
 class FileProcessingStage(StageBase):
-    def __init__(self, config: Config, logger: PipelineLogger, stage_name: str):
+    def __init__(self, config: ConfigurationService, logger: PipelineLogger, stage_name: str):
         super().__init__(config, logger, stage_name)
         self.processed_files: List[str] = []
         self.failed_files: List[str] = []
@@ -138,7 +138,7 @@ class StageRegistry:
 class StageExecutor:
     def __init__(
         self,
-        config: Config,
+        config: ConfigurationService,
         logger: PipelineLogger,
         registry: StageRegistry,
         *,
