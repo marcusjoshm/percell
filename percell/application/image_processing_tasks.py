@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-"""Application-level helpers for pure image processing tasks.
+"""Application-level helpers for image processing orchestration.
 
-Currently includes image binning functionality.
+Provides orchestration functions that delegate to domain services for business logic.
 """
 
 from pathlib import Path
 from typing import Iterable, Optional, Set, List, Tuple
 from percell.ports.driven.image_processing_port import ImageProcessingPort
 from percell.ports.driven.file_management_port import FileManagementPort
+from percell.ports.driven.progress_report_port import ProgressReportPort
 from percell.domain import FileNamingService
-from percell.application.progress_api import progress_bar
+from percell.domain.services.image_binning_service import ImageBinningService
 import os
 import shutil
 import re as _re
@@ -23,6 +24,7 @@ from percell.domain.models import ImageMetadata
 
 
 def _to_optional_set(values: Optional[Iterable[str]]) -> Optional[Set[str]]:
+    """Convert an iterable to an optional set, handling 'all' keyword."""
     if not values:
         return None
     s = set(values)
@@ -30,42 +32,52 @@ def _to_optional_set(values: Optional[Iterable[str]]) -> Optional[Set[str]]:
         return None
     return s
 
-
-# Create a global metadata service instance
-_metadata_service = ImageMetadataService()
-
-def _extract_tiff_metadata(image_path: Path) -> Optional[ImageMetadata]:
-    """
-    Extract TIFF metadata from an image file using centralized service.
+def _extract_tiff_metadata(
+    image_path: Path,
+    metadata_service: Optional[ImageMetadataService] = None
+) -> Optional[ImageMetadata]:
+    """Extract TIFF metadata from an image file using centralized service.
 
     Args:
-        image_path (Path): Path to the TIFF image file
+        image_path: Path to the TIFF image file
+        metadata_service: Metadata service instance (creates if not provided)
 
     Returns:
         ImageMetadata or None: Extracted metadata object, or None if extraction fails
     """
+    if metadata_service is None:
+        metadata_service = ImageMetadataService()
+
     try:
-        metadata = _metadata_service.extract_metadata(image_path)
+        metadata = metadata_service.extract_metadata(image_path)
         return metadata if metadata.has_resolution_info() else None
     except Exception as e:
         print(f"Error extracting metadata from {image_path.name}: {e}")
         return None
 
 
-def _write_tiff_with_metadata(output_path: Path, image: np.ndarray, metadata: Optional[ImageMetadata] = None) -> bool:
-    """
-    Write a TIFF image with metadata preservation using centralized service.
+def _write_tiff_with_metadata(
+    output_path: Path,
+    image: np.ndarray,
+    metadata: Optional[ImageMetadata] = None,
+    metadata_service: Optional[ImageMetadataService] = None
+) -> bool:
+    """Write a TIFF image with metadata preservation using centralized service.
 
     Args:
-        output_path (Path): Path where to save the image
-        image (np.ndarray): Image data to save
-        metadata (ImageMetadata, optional): Metadata to preserve
+        output_path: Path where to save the image
+        image: Image data to save
+        metadata: Metadata to preserve
+        metadata_service: Metadata service instance (creates if not provided)
 
     Returns:
         bool: True if successful, False otherwise
     """
+    if metadata_service is None:
+        metadata_service = ImageMetadataService()
+
     try:
-        return _metadata_service.save_image_with_metadata(image, output_path, metadata)
+        return metadata_service.save_image_with_metadata(image, output_path, metadata)
     except Exception as e:
         print(f"Error writing {output_path.name} with metadata: {e}")
         return False
@@ -81,62 +93,54 @@ def bin_images(
     channels: Optional[Iterable[str]] = None,
     *,
     imgproc: Optional[ImageProcessingPort] = None,
+    progress: Optional[ProgressReportPort] = None,
 ) -> int:
     """Bin images from input_dir to output_dir with optional filtering.
 
-    Returns number of processed images.
+    This is an orchestration function that delegates business logic to
+    ImageBinningService in the domain layer.
+
+    Args:
+        input_dir: Source directory containing images
+        output_dir: Destination directory for binned images
+        bin_factor: Binning factor (e.g., 4 for 4x4 binning)
+        conditions: Conditions to include (None = all)
+        regions: Regions to include (None = all)
+        timepoints: Timepoints to include (None = all)
+        channels: Channels to include (None = all)
+        imgproc: Image processing port (creates adapter if not provided)
+        progress: Progress reporting port (optional)
+
+    Returns:
+        Number of images successfully processed
     """
     input_path = Path(input_dir)
     output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
 
+    # Convert iterables to sets
     selected_conditions = _to_optional_set(conditions)
     selected_regions = _to_optional_set(regions)
     selected_timepoints = _to_optional_set(timepoints)
     selected_channels = _to_optional_set(channels)
 
-    naming_service = FileNamingService()
+    # Create image processor if not provided
     if imgproc is None:
-        # Lazy import to avoid hard coupling when injected
-        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter  # type: ignore
+        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
         imgproc = PILImageProcessingAdapter()
 
-    processed_count = 0
-    for file_path in input_path.glob("**/*.tif"):
-        file_path = Path(file_path)
+    # Create binning service with image processor
+    binning_service = ImageBinningService(imgproc)
 
-        try:
-            rel = file_path.relative_to(input_path)
-            current_condition = rel.parts[0] if rel.parts else None
-            if not current_condition:
-                continue
-            if selected_conditions is not None and current_condition not in selected_conditions:
-                continue
-
-            meta = naming_service.parse_microscopy_filename(file_path.name)
-            current_region = meta.region
-            current_timepoint = meta.timepoint
-            current_channel = meta.channel
-
-            if selected_regions is not None and (not current_region or current_region not in selected_regions):
-                continue
-            if selected_timepoints is not None and (not current_timepoint or current_timepoint not in selected_timepoints):
-                continue
-            if selected_channels is not None and (not current_channel or current_channel not in selected_channels):
-                continue
-
-            out_file = output_path / rel.parent / f"bin4x4_{file_path.name}"
-            out_file.parent.mkdir(parents=True, exist_ok=True)
-
-            image = imgproc.read_image(file_path)
-            binned = imgproc.bin_image(image, bin_factor)
-            imgproc.write_image(out_file, binned.astype(image.dtype))
-            processed_count += 1
-        except Exception:
-            # Skip problematic files; upstream logs can indicate progress totals
-            continue
-
-    return processed_count
+    # Delegate to domain service
+    return binning_service.bin_images(
+        input_path,
+        output_path,
+        bin_factor,
+        selected_conditions,
+        selected_regions,
+        selected_timepoints,
+        selected_channels,
+    )
 
 
 # ------------------------- Cleanup Directories -------------------------
@@ -363,6 +367,7 @@ def group_cells(
     channels: Optional[Iterable[str]] = None,
     *,
     imgproc: Optional[ImageProcessingPort] = None,
+    progress: Optional[ProgressReportPort] = None,
 ) -> bool:
     """Group cell images by simple intensity and write summed images per group.
 
@@ -401,12 +406,19 @@ def group_cells(
         total_cells += len(cell_files)
 
     
-    # Use alive_progress bar with manual mode for unknown total progress
+    # Progress reporting if available
     regions_count = len(region_dirs)
     title = f"Grouping {total_cells} cells into {bins} bins across {regions_count} regions"
-    
-    # Use progress_bar which will use the configured alive_progress settings
-    with progress_bar(total=regions_count, title=title, manual=False) as update:
+
+    # Use progress reporter if provided, otherwise just print title
+    if progress:
+        progress_ctx = progress.create_progress_bar(total=regions_count, title=title, manual=False)
+    else:
+        from contextlib import nullcontext
+        print(title)
+        progress_ctx = nullcontext(lambda: None)
+
+    with progress_ctx as update:
         for region_dir in region_dirs:
             condition = region_dir.parent.name
             out_condition = out_root / condition / region_dir.name
