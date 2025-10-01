@@ -336,6 +336,7 @@ class MainMenu(Menu):
         self.ui.info(colorize("              🔬 Welcome single-cell microscopy analysis user! 🔬               ", Colors.bold))
         self.ui.info("")
         self.ui.info(colorize(f"{self.title.upper()}:", Colors.bold))
+        self.ui.info("")  # Add blank line after "MAIN MENU:"
 
         # Display all menu items with their potentially multiline text
         item_lines_used = 0
@@ -345,9 +346,9 @@ class MainMenu(Menu):
                 self.ui.info(line)
             item_lines_used += item.line_count()
 
-        # Calculate lines used: header (7) + empty (1) + welcome (1) + empty (1) + title (1) + items (item_lines_used) = 11 + item_lines_used
-        # Target is 24 lines total including prompt, so padding needed is: 24 - 11 - item_lines_used - 1 (for prompt)
-        lines_used = 11 + item_lines_used
+        # Calculate lines used: header (7) + empty (1) + welcome (1) + empty (1) + title (1) + empty (1) + items (item_lines_used) = 12 + item_lines_used
+        # Target is 24 lines total including prompt, so padding needed is: 24 - 12 - item_lines_used - 1 (for prompt)
+        lines_used = 12 + item_lines_used
         padding_needed = max(0, 24 - lines_used - 1)
 
         for _ in range(padding_needed):

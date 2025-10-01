@@ -416,7 +416,7 @@ def group_cells(
     else:
         from contextlib import nullcontext
         print(title)
-        progress_ctx = nullcontext(lambda: None)
+        progress_ctx = nullcontext(lambda _: None)
 
     with progress_ctx as update:
         for region_dir in region_dirs:
