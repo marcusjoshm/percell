@@ -438,7 +438,7 @@ class MenuFactory:
                     action=lambda ui, args: SetAttributeAction({"data_selection": True, "return_to_main": True}).execute(ui, args)),
             MenuItem("3", "Current Configuration", "View current analysis configuration",
                     action=lambda ui, args: ConfigurationDisplayAction().execute(ui, args)),
-            MenuItem("4", "Back to Main Menu", "", Colors.red,
+            MenuItem("4", "Back to Main Menu", "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Configuration Menu", items, ui)
@@ -470,7 +470,7 @@ class MenuFactory:
         items = [
             MenuItem("1", "Cellpose", "Single-cell segmentation using Cellpose SAM GUI",
                     action=lambda ui, args: SetAttributeAction({"segmentation": True}).execute(ui, args)),
-            MenuItem("2", "Back to Main Menu", "", Colors.red,
+            MenuItem("2", "Back to Main Menu", "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Segmentation Menu", items, ui)
@@ -481,7 +481,7 @@ class MenuFactory:
         items = [
             MenuItem("1", "Single-Cell Data Processing", "Tracking, resizing, extraction, grouping",
                     action=lambda ui, args: SetAttributeAction({"process_single_cell": True}).execute(ui, args)),
-            MenuItem("2", "Back to Main Menu", "", Colors.red,
+            MenuItem("2", "Back to Main Menu", "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Processing Menu", items, ui)
@@ -490,7 +490,7 @@ class MenuFactory:
     def create_tracking_menu(ui: UserInterfacePort) -> Menu:
         """Create the tracking submenu."""
         items = [
-            MenuItem("1", "Back to Main Menu", "", Colors.red,
+            MenuItem("1", "Back to Main Menu", "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Tracking Menu", items, ui)
@@ -504,7 +504,7 @@ class MenuFactory:
                     action=lambda ui, args: CombinedVisualizationAction().execute(ui, args)),
             MenuItem("2", "Napari Viewer", "Launch Napari for advanced image visualization and analysis",
                     action=lambda ui, args: NapariViewerAction().execute(ui, args)),
-            MenuItem("3", "Back to Main Menu", "", Colors.red,
+            MenuItem("3", "Back to Main Menu", "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Visualization Menu", items, ui)
