@@ -179,40 +179,6 @@ class TestValidateArgs:
         assert args.output == "/existing/output"
 
 
-class TestBackwardCompatibilityAliases:
-    """Test that backward compatibility aliases work correctly."""
-
-    @patch('percell.application.cli_services.show_menu')
-    def test_configuration_menu_alias(self, mock_show_menu):
-        """Test that show_configuration_menu calls show_menu."""
-        from percell.application.cli_services import show_configuration_menu
-
-        ui = MockUI()
-        args = argparse.Namespace()
-        expected_result = argparse.Namespace(test=True)
-        mock_show_menu.return_value = expected_result
-
-        result = show_configuration_menu(ui, args)
-
-        mock_show_menu.assert_called_once_with(ui, args)
-        assert result == expected_result
-
-    @patch('percell.application.cli_services.show_menu')
-    def test_workflows_menu_alias(self, mock_show_menu):
-        """Test that show_workflows_menu calls show_menu."""
-        from percell.application.cli_services import show_workflows_menu
-
-        ui = MockUI()
-        args = argparse.Namespace()
-        expected_result = argparse.Namespace(test=True)
-        mock_show_menu.return_value = expected_result
-
-        result = show_workflows_menu(ui, args)
-
-        mock_show_menu.assert_called_once_with(ui, args)
-        assert result == expected_result
-
-
 class TestVisualizationFunctions:
     """Test the visualization functions."""
 

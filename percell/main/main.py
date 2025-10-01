@@ -247,8 +247,7 @@ def main():
                     # Clear the flags and show configuration menu
                     delattr(args, 'return_to_config')
                     args.data_selection = False
-                    from percell.application.cli_services import show_configuration_menu
-                    args = show_configuration_menu(ui, args)
+                    args = show_menu(ui, args)
                     if args is None:
                         return 0
                     continue

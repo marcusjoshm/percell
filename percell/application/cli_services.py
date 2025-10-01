@@ -419,15 +419,3 @@ def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
     except Exception as e:
         logger.error(f"Napari viewer error: {e}")
         ui.error(f"Failed to run Napari viewer: {e}")
-
-
-# Backward compatibility aliases
-show_configuration_menu = show_menu
-show_workflows_menu = show_menu
-show_processing_menu = show_menu
-show_segmentation_menu = show_menu
-show_tracking_menu = show_menu
-show_visualization_menu = show_menu
-show_analysis_menu = show_menu
-show_plugins_menu = show_menu
-show_utilities_menu = show_menu
