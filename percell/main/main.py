@@ -18,7 +18,7 @@ from percell.domain.services.configuration_service import (
 from percell.domain.exceptions import ConfigurationError
 from percell.application.logger_api import PipelineLogger
 from percell.application.pipeline_api import Pipeline
-from percell.main.bootstrap import bootstrap
+from percell.application.container import build_container
 from percell.adapters.cli_user_interface_adapter import CLIUserInterfaceAdapter
 from percell.application.cli_services import show_menu, validate_args
 from percell.application.cli_parser import build_parser
@@ -100,7 +100,7 @@ def main():
 
         # Initialize DI container (adapters/services)
         try:
-            container = bootstrap(config_path)
+            container = build_container(Path(config_path))
         except Exception as e:
             print(f"Warning: Failed to initialize DI container: {e}")
             container = None
