@@ -11,19 +11,16 @@ __author__ = "Joshua Marcus"
 from percell.application.pipeline_api import Pipeline, create_pipeline
 from percell.domain.exceptions import ConfigurationError
 from percell.application.logger_api import PipelineLogger, ModuleLogger
-
-# Backward compatibility: Import deprecated Config classes from compat layer
-# These will emit deprecation warnings when used
-from percell.application.configuration_service_compat import Config, ConfigError
+from percell.domain.services.configuration_service import ConfigurationService, create_configuration_service
 
 # CLI components are now provided via application layer and UI adapters.
 
 __all__ = [
     "Pipeline",
     "create_pipeline",
-    "Config",  # Deprecated - use ConfigurationService
-    "ConfigError",  # Deprecated - use ConfigurationError
-    "ConfigurationError",  # Preferred
+    "ConfigurationService",
+    "create_configuration_service",
+    "ConfigurationError",
     "PipelineLogger",
     "ModuleLogger",
 ] 

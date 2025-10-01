@@ -16,28 +16,36 @@
 ## File Status
 
 ### Phase 1: Utilities
-- [ ] core/utils.py → domain/services
-- [ ] core/paths.py → file_naming_service
+- [x] core/utils.py → domain/services (migrated/removed)
+- [x] core/paths.py → file_naming_service (migrated/removed)
 
 ### Phase 2: Domain Logic
-- [x] modules/measure_roi_area.py → analysis_aggregation_service (implemented earlier)
-- [x] modules/resize_rois.py → segmentation_strategy_service (implemented earlier)
-- [x] modules/group_cells.py → intensity_analysis_service (implemented earlier)
+- [x] modules/measure_roi_area.py → analysis_aggregation_service
+- [x] modules/resize_rois.py → segmentation_strategy_service
+- [x] modules/group_cells.py → intensity_analysis_service
 
 ### Phase 3: Integration Logic
-- [x] modules/bin_images.py → pil_image_processing_adapter (wired)
-- [x] modules/create_cell_masks.py → imagej_macro_adapter (wired)
-- [x] modules/extract_cells.py → cellpose_subprocess_adapter (wired)
-- [x] modules/combine_masks.py → pil_image_processing_adapter (wired)
+- [x] modules/bin_images.py → pil_image_processing_adapter
+- [x] modules/create_cell_masks.py → imagej_macro_adapter
+- [x] modules/extract_cells.py → cellpose_subprocess_adapter
+- [x] modules/combine_masks.py → pil_image_processing_adapter
 
 ### Phase 4: Orchestration
-- [x] modules/stage_classes.py → step_execution_coordinator (implemented)
-- [x] core/pipeline.py → workflow_coordinator (implemented)
-- [ ] core/cli.py → user_interface_port (pending)
+- [x] modules/stage_classes.py → individual stage files in application/stages/
+- [x] core/pipeline.py → application/pipeline_api.py
+- [x] core/cli.py → main/main.py + application/menu/menu_system.py
 
-## Cleanup
-- [ ] Remove old wrappers
-- [ ] Delete obsolete files after verification
-- [ ] Update docs and examples
+## Recent Improvements (2025-10-01)
+- [x] Fixed progress reporting architecture (proper port/adapter pattern)
+- [x] Migrated Config to ConfigurationService in domain layer
+- [x] Split stage_classes.py into individual stage files
+- [x] Extracted business logic to domain services
+- [x] Fixed group_cells lambda progress fallback bug
+
+## Remaining Tasks
+- [ ] Review and remove any remaining old wrapper code
+- [ ] Verify all old module files are deleted
+- [ ] Update user-facing documentation
+- [ ] Consider adding integration tests for full workflows
 
 
