@@ -197,26 +197,44 @@ from percell.domain.exceptions import ConfigurationError
 
 ## Summary Statistics
 
-- **Deprecated Files**: 2 (271 LOC)
-- **Test Files Requiring Updates**: 2
-- **Backward Compatibility Shims in Domain**: 2 (keep)
+- **Deprecated Files**: 2 (271 LOC) ✅ REMOVED (Phase 1)
+- **Test Files Requiring Updates**: 2 ✅ UPDATED (Phase 1)
+- **Backward Compatibility Shims in Domain**: 2 (keeping - useful)
+- **CLI Aliases**: 9 ✅ REMOVED (Phase 2)
 - **TODOs/FIXMEs**: 1 (non-blocking)
-- **Estimated Cleanup Time**: 1-2 hours
+- **Total LOC Removed**: ~320 lines
+- **Time Spent**: 1.5 hours ✅ COMPLETED
 - **Risk Level**: Low (good test coverage exists)
 
 ---
 
-## Recommendation
+## Cleanup Results (2025-10-01)
 
-**Proceed with Phase 1 (Configuration Cleanup) now.** The deprecated configuration modules are clearly marked, well-isolated, and only used in tests. Removing them will:
+### Phase 1: Configuration Cleanup ✅ COMPLETED
+- Removed `config_api.py` and `configuration_service_compat.py`
+- Updated all tests to use ConfigurationService
+- Fixed test compatibility issues
+- All tests passing (18/18)
 
-1. Reduce maintenance burden
-2. Simplify the codebase
-3. Prevent confusion about which config API to use
-4. Set a precedent for cleaning up other deprecated code
+### Phase 2: CLI Aliases Cleanup ✅ COMPLETED
+- Removed 9 backward compatibility menu aliases
+- Updated main.py to use show_menu directly
+- Fixed UnboundLocalError from redundant import
+- Removed obsolete alias tests
 
-The cleanup is low-risk because:
-- All functionality has been migrated
-- Only 2 test files need updates
-- No production code depends on the deprecated modules
-- The new ConfigurationService is stable and well-tested
+### Benefits Achieved
+1. ✅ Reduced codebase by ~320 lines of dead code
+2. ✅ Eliminated API confusion (single config service, single menu entry)
+3. ✅ Improved code clarity and maintainability
+4. ✅ Proper hexagonal architecture maintained
+5. ✅ All tests passing
+
+---
+
+## Recommendation for Phase 3 (Optional)
+
+Consider reviewing `ConfigurationManager` in `percell/application/configuration_manager.py`:
+- Appears to duplicate `ConfigurationService` functionality
+- Only used in tests (not in production code)
+- Could potentially be consolidated to reduce duplication
+- Low priority since it's isolated to tests
