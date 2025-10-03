@@ -809,34 +809,329 @@ def _roi_center(roi: dict) -> Tuple[float, float]:
     raise ValueError("Unexpected ROI format")
 
 
-def _match_rois(roi_list1: List[dict], roi_list2: List[dict]) -> List[int]:
+def _match_rois_with_distance(
+    roi_list1: List[dict],
+    roi_list2: List[dict],
+    max_distance: Optional[float] = None
+) -> Tuple[List[int], List[float]]:
+    """Match ROIs between two frames with optional distance threshold.
+
+    Returns:
+        Tuple of (mapping indices, distances) where mapping[i] gives the index in roi_list2
+        that matches roi_list1[i], or -1 if no match within max_distance.
+    """
     try:
         from scipy.optimize import linear_sum_assignment  # type: ignore
     except Exception:
+        # Fallback: simple sequential matching
         n = min(len(roi_list1), len(roi_list2))
-        indices = list(range(n))
+        mapping = list(range(n))
+        distances = [0.0] * n
         if len(roi_list2) > len(roi_list1):
-            indices.extend(list(range(n, len(roi_list2))))
-        return indices
+            mapping.extend(list(range(n, len(roi_list2))))
+            distances.extend([0.0] * (len(roi_list2) - n))
+        return mapping, distances
 
     n1 = len(roi_list1)
     n2 = len(roi_list2)
-    n = min(n1, n2)
-    roi_subset1 = roi_list1[:n]
-    roi_subset2 = roi_list2[:n]
-    centers1 = [_roi_center(r) for r in roi_subset1]
-    centers2 = [_roi_center(r) for r in roi_subset2]
-    cost = np.zeros((n, n), dtype=np.float64)
-    for i in range(n):
-        for j in range(n):
+
+    if n1 == 0 or n2 == 0:
+        return [], []
+
+    # Calculate centers
+    centers1 = [_roi_center(r) for r in roi_list1]
+    centers2 = [_roi_center(r) for r in roi_list2]
+
+    # Build cost matrix
+    cost = np.zeros((n1, n2), dtype=np.float64)
+    for i in range(n1):
+        for j in range(n2):
             dx = centers1[i][0] - centers2[j][0]
             dy = centers1[i][1] - centers2[j][1]
-            cost[i, j] = np.hypot(dx, dy)
+            distance = np.hypot(dx, dy)
+            cost[i, j] = distance
+
+    # Find optimal assignment
     row_ind, col_ind = linear_sum_assignment(cost)
-    mapping = list(col_ind)
-    if n2 > n1:
-        mapping.extend(list(range(n, n2)))
-    return mapping
+
+    # Build mapping and filter by distance threshold
+    mapping = [-1] * n1  # -1 indicates no match
+    distances = [float('inf')] * n1
+
+    for i, j in zip(row_ind, col_ind):
+        distance = cost[i, j]
+        if max_distance is None or distance <= max_distance:
+            mapping[i] = j
+            distances[i] = distance
+
+    return mapping, distances
+
+
+def _build_tracks_across_timepoints(
+    roi_files: List[Path],
+    max_distance: Optional[float] = None
+) -> dict:
+    """Build cell tracks across all timepoints.
+
+    Returns dict with:
+        'tracks': List of track dicts, each containing:
+            - 'track_id': unique track ID
+            - 'timepoint_data': List of (timepoint_idx, roi_idx, centroid, distance_to_prev)
+            - 'complete': whether track appears in all frames
+        'timepoint_info': List of dicts with metadata per timepoint
+        'statistics': Summary statistics
+    """
+    if not roi_files:
+        return {'tracks': [], 'timepoint_info': [], 'statistics': {}}
+
+    # Load all ROI data
+    timepoint_data = []
+    for tp_idx, roi_file in enumerate(roi_files):
+        roi_dict = _load_roi_dict(roi_file)
+        roi_bytes = _load_roi_bytes(roi_file)
+        if roi_dict is None or roi_bytes is None:
+            print(f"Warning: Could not load {roi_file.name}, skipping this file")
+            continue
+
+        items = list(roi_dict.items())
+        rois = [it[1] for it in items]
+        names = [it[0] for it in items]
+        centers = [_roi_center(r) for r in rois]
+
+        timepoint_data.append({
+            'file': roi_file,
+            'roi_dict': roi_dict,
+            'roi_bytes': roi_bytes,
+            'rois': rois,
+            'names': names,
+            'centers': centers,
+            'roi_count': len(rois)
+        })
+
+    if not timepoint_data:
+        return {'tracks': [], 'timepoint_info': [], 'statistics': {}}
+
+    # Build tracks by linking ROIs across frames
+    tracks = []
+
+    # Start tracks from first timepoint
+    for roi_idx in range(timepoint_data[0]['roi_count']):
+        track = {
+            'track_id': roi_idx,
+            'timepoint_data': [(0, roi_idx, timepoint_data[0]['centers'][roi_idx], 0.0)],
+            'complete': True
+        }
+        tracks.append(track)
+
+    # Extend tracks through subsequent timepoints
+    for tp_idx in range(1, len(timepoint_data)):
+        prev_tp = timepoint_data[tp_idx - 1]
+        curr_tp = timepoint_data[tp_idx]
+
+        # Build list of ROIs from current active tracks at previous timepoint
+        prev_rois = []
+        track_indices = []
+        for track_idx, track in enumerate(tracks):
+            if track['timepoint_data'][-1][0] == tp_idx - 1:  # Track was active in previous frame
+                prev_roi_idx = track['timepoint_data'][-1][1]
+                prev_rois.append(prev_tp['rois'][prev_roi_idx])
+                track_indices.append(track_idx)
+
+        if not prev_rois or not curr_tp['rois']:
+            # Mark all previously active tracks as incomplete
+            for track_idx in track_indices:
+                tracks[track_idx]['complete'] = False
+            continue
+
+        # Match ROIs
+        mapping, distances = _match_rois_with_distance(prev_rois, curr_tp['rois'], max_distance)
+
+        # Update tracks
+        for i, track_idx in enumerate(track_indices):
+            matched_roi_idx = mapping[i]
+            if matched_roi_idx >= 0:  # Valid match
+                centroid = curr_tp['centers'][matched_roi_idx]
+                distance = distances[i]
+                tracks[track_idx]['timepoint_data'].append(
+                    (tp_idx, matched_roi_idx, centroid, distance)
+                )
+            else:  # No match found
+                tracks[track_idx]['complete'] = False
+
+        # Create new tracks for unmatched ROIs in current frame
+        matched_indices = set(m for m in mapping if m >= 0)
+        for roi_idx in range(curr_tp['roi_count']):
+            if roi_idx not in matched_indices:
+                # New track starting from this timepoint
+                new_track = {
+                    'track_id': len(tracks),
+                    'timepoint_data': [(tp_idx, roi_idx, curr_tp['centers'][roi_idx], 0.0)],
+                    'complete': False  # Can't be complete if it starts mid-series
+                }
+                tracks.append(new_track)
+
+    # Calculate statistics
+    complete_tracks = [t for t in tracks if t['complete']]
+    incomplete_tracks = [t for t in tracks if not t['complete']]
+
+    statistics = {
+        'total_timepoints': len(timepoint_data),
+        'total_tracks': len(tracks),
+        'complete_tracks': len(complete_tracks),
+        'incomplete_tracks': len(incomplete_tracks),
+        'roi_counts_per_timepoint': [tp['roi_count'] for tp in timepoint_data],
+    }
+
+    return {
+        'tracks': tracks,
+        'timepoint_data': timepoint_data,
+        'statistics': statistics
+    }
+
+
+def _generate_tracking_report(
+    tracking_result: dict,
+    output_path: Path
+) -> None:
+    """Generate a detailed tracking quality report."""
+    stats = tracking_result['statistics']
+    tracks = tracking_result['tracks']
+    timepoint_data = tracking_result['timepoint_data']
+
+    report_lines = []
+    report_lines.append("=" * 80)
+    report_lines.append("ROI TRACKING REPORT")
+    report_lines.append("=" * 80)
+    report_lines.append("")
+
+    # Summary statistics
+    report_lines.append("SUMMARY:")
+    report_lines.append(f"  Total timepoints: {stats['total_timepoints']}")
+    report_lines.append(f"  ROIs per timepoint: {stats['roi_counts_per_timepoint']}")
+    report_lines.append(f"  Total tracks found: {stats['total_tracks']}")
+    report_lines.append(f"  Complete tracks (present in all frames): {stats['complete_tracks']}")
+    report_lines.append(f"  Incomplete tracks: {stats['incomplete_tracks']}")
+    report_lines.append("")
+
+    # File information
+    report_lines.append("FILES:")
+    for i, tp in enumerate(timepoint_data):
+        report_lines.append(f"  Timepoint {i}: {tp['file'].name} ({tp['roi_count']} ROIs)")
+    report_lines.append("")
+
+    # Complete tracks details
+    complete_tracks = [t for t in tracks if t['complete']]
+    report_lines.append(f"COMPLETE TRACKS ({len(complete_tracks)}):")
+    if complete_tracks:
+        for track in complete_tracks:
+            track_id = track['track_id']
+            avg_dist = np.mean([d for _, _, _, d in track['timepoint_data'][1:]])
+            max_dist = max([d for _, _, _, d in track['timepoint_data'][1:]]) if len(track['timepoint_data']) > 1 else 0
+            report_lines.append(f"  Track {track_id}: avg_distance={avg_dist:.2f}px, max_distance={max_dist:.2f}px")
+    else:
+        report_lines.append("  None - all tracks are incomplete")
+    report_lines.append("")
+
+    # Incomplete tracks details
+    incomplete_tracks = [t for t in tracks if not t['complete']]
+    report_lines.append(f"INCOMPLETE TRACKS ({len(incomplete_tracks)}):")
+    if incomplete_tracks:
+        for track in incomplete_tracks[:20]:  # Show first 20
+            track_id = track['track_id']
+            frames = [tp_idx for tp_idx, _, _, _ in track['timepoint_data']]
+            report_lines.append(f"  Track {track_id}: present in frames {frames}")
+        if len(incomplete_tracks) > 20:
+            report_lines.append(f"  ... and {len(incomplete_tracks) - 20} more")
+    else:
+        report_lines.append("  None - all tracks are complete")
+    report_lines.append("")
+
+    report_lines.append("=" * 80)
+
+    # Write report
+    report_text = "\n".join(report_lines)
+    output_path.write_text(report_text)
+
+    # Also print to console
+    print("\n" + report_text)
+
+
+def _save_tracked_rois(
+    tracking_result: dict,
+    output_dir: Path,
+    save_complete: bool = True,
+    save_all: bool = True
+) -> bool:
+    """Save tracked ROI sets to output directories.
+
+    Args:
+        tracking_result: Result from _build_tracks_across_timepoints
+        output_dir: Base output directory
+        save_complete: Whether to save complete_tracks subdirectory
+        save_all: Whether to save all_rois subdirectory (backup of originals)
+
+    Returns:
+        True if at least one set was saved successfully
+    """
+    timepoint_data = tracking_result['timepoint_data']
+    tracks = tracking_result['tracks']
+
+    success = False
+
+    # Save complete tracks
+    if save_complete:
+        complete_dir = output_dir / "complete_tracks"
+        complete_dir.mkdir(parents=True, exist_ok=True)
+
+        complete_tracks = [t for t in tracks if t['complete']]
+
+        if complete_tracks:
+            # For each timepoint, save only ROIs from complete tracks
+            for tp_idx, tp_data in enumerate(timepoint_data):
+                # Find which ROIs belong to complete tracks at this timepoint
+                roi_indices_to_keep = []
+                for track in complete_tracks:
+                    # Find this track's ROI index at this timepoint
+                    for frame_idx, roi_idx, _, _ in track['timepoint_data']:
+                        if frame_idx == tp_idx:
+                            roi_indices_to_keep.append((track['track_id'], roi_idx))
+                            break
+
+                # Sort by track_id to maintain consistent ordering
+                roi_indices_to_keep.sort(key=lambda x: x[0])
+
+                # Extract ROI bytes in track order
+                roi_bytes_ordered = []
+                for track_id, roi_idx in roi_indices_to_keep:
+                    roi_name = tp_data['names'][roi_idx]
+                    roi_byte_data = tp_data['roi_bytes'].get(roi_name)
+                    if roi_byte_data:
+                        roi_bytes_ordered.append(roi_byte_data)
+
+                # Save the filtered ROI set
+                output_file = complete_dir / tp_data['file'].name
+                if _save_zip_from_bytes(roi_bytes_ordered, output_file):
+                    success = True
+                else:
+                    print(f"Warning: Failed to save {output_file.name}")
+        else:
+            print(f"Warning: No complete tracks found, complete_tracks directory will be empty")
+
+    # Save all ROIs (original backup)
+    if save_all:
+        all_dir = output_dir / "all_rois"
+        all_dir.mkdir(parents=True, exist_ok=True)
+
+        for tp_data in timepoint_data:
+            import shutil
+            output_file = all_dir / tp_data['file'].name
+            try:
+                shutil.copy2(tp_data['file'], output_file)
+                success = True
+            except Exception as e:
+                print(f"Warning: Failed to backup {tp_data['file'].name}: {e}")
+
+    return success
 
 
 def _save_zip_from_bytes(roi_bytes_list: List[bytes], output_zip_path: str | Path) -> bool:
@@ -851,65 +1146,147 @@ def _save_zip_from_bytes(roi_bytes_list: List[bytes], output_zip_path: str | Pat
         return False
 
 
-def process_roi_pair(zip_file1: str | Path, zip_file2: str | Path) -> bool:
-    roi_dict1 = _load_roi_dict(zip_file1)
-    roi_dict2 = _load_roi_dict(zip_file2)
-    if roi_dict1 is None or roi_dict2 is None:
-        return False
-    roi_bytes2 = _load_roi_bytes(zip_file2)
-    if roi_bytes2 is None:
-        return False
-    items1 = list(roi_dict1.items())
-    items2 = list(roi_dict2.items())
-    rois1 = [it[1] for it in items1]
-    rois2 = [it[1] for it in items2]
-    names2 = [it[0] for it in items2]
-    if not rois1 or not rois2:
-        return False
-    indices = _match_rois(rois1, rois2)
-    reordered: List[bytes] = []
-    for idx in indices:
-        if 0 <= idx < len(names2):
-            key = names2[idx]
-            data = roi_bytes2.get(key)
-            if data is not None:
-                reordered.append(data)
-    zip_file2_path = Path(zip_file2)
-    backup = zip_file2_path.with_suffix(zip_file2_path.suffix + ".bak")
-    try:
-        if not backup.exists():
-            zip_file2_path.replace(backup)
-    except Exception:
-        return False
-    return _save_zip_from_bytes(reordered, zip_file2_path)
+def find_roi_files_for_timepoints(directory: str | Path, timepoints: List[str]) -> dict[str, List[Path]]:
+    """Find all ROI zip files for each condition/region across timepoints.
 
-
-def find_roi_pairs(directory: str | Path, t0: str, t1: str) -> List[Tuple[Path, Path]]:
+    Returns dict mapping region_key -> list of ROI files ordered by timepoint.
+    """
     root = Path(directory)
-    t0_files = list(root.rglob(f"*{t0}*_rois.zip"))
-    t1_files = {str(p): p for p in root.rglob(f"*{t1}*_rois.zip")}
-    pairs: List[Tuple[Path, Path]] = []
-    for f0 in t0_files:
-        f0s = str(f0)
-        if t0 not in f0s:
-            continue
-        expected = f0s.replace(t0, t1)
-        match = t1_files.get(expected)
-        if match is not None:
-            pairs.append((f0, match))
-    return pairs
+
+    # Find all ROI files for all timepoints
+    all_roi_files = {}
+    for tp in timepoints:
+        files = list(root.rglob(f"*{tp}*_rois.zip"))
+        all_roi_files[tp] = files
+
+    if not all_roi_files:
+        return {}
+
+    # Group by region (everything except timepoint identifier)
+    region_groups = {}
+
+    # Use first timepoint as reference
+    first_tp = timepoints[0]
+    for ref_file in all_roi_files.get(first_tp, []):
+        ref_path_str = str(ref_file)
+
+        # Build a region key by removing timepoint
+        region_key = ref_path_str.replace(first_tp, "TIMEPOINT")
+
+        # Find corresponding files for all timepoints
+        file_sequence = []
+        for tp in timepoints:
+            expected_path = region_key.replace("TIMEPOINT", tp)
+            matching_file = None
+            for candidate in all_roi_files.get(tp, []):
+                if str(candidate) == expected_path:
+                    matching_file = candidate
+                    break
+            if matching_file:
+                file_sequence.append(matching_file)
+            else:
+                # Missing timepoint - still track what we have
+                file_sequence.append(None)
+
+        # Only include if we have files for multiple timepoints
+        valid_files = [f for f in file_sequence if f is not None]
+        if len(valid_files) >= 2:
+            region_groups[region_key] = file_sequence
+
+    return region_groups
 
 
-def track_rois(input_dir: str | Path, timepoints: List[str], recursive: bool = True) -> bool:
+def track_rois(
+    input_dir: str | Path,
+    timepoints: List[str],
+    recursive: bool = True,
+    max_distance: Optional[float] = None,
+    output_subdir: str = "tracked_rois"
+) -> bool:
+    """Track ROIs across timepoints with robust handling of missing/extra ROIs.
+
+    This implements a hybrid tracking approach that:
+    1. Builds tracks across all timepoints using distance-based matching
+    2. Identifies complete tracks (cells present in all frames)
+    3. Saves two versions:
+       - complete_tracks/: Only cells tracked across all frames
+       - all_rois/: Backup of original ROIs for manual review
+    4. Generates a detailed tracking quality report
+
+    Args:
+        input_dir: Directory containing ROI zip files
+        timepoints: List of timepoint identifiers (e.g., ['t1', 't2', 't3'])
+        recursive: Whether to search recursively (default True)
+        max_distance: Maximum distance threshold for matching ROIs (pixels, None=unlimited)
+        output_subdir: Name of output subdirectory for tracked results
+
+    Returns:
+        True if tracking succeeded for at least one region
+    """
     if not timepoints or len(timepoints) < 2:
+        print("Tracking requires at least 2 timepoints")
         return True
-    t0, t1 = timepoints[0], timepoints[1]
-    pairs = find_roi_pairs(input_dir, t0, t1)
-    if not pairs:
-        return True
-    ok_any = False
-    for a, b in pairs:
-        if process_roi_pair(a, b):
-            ok_any = True
-    return ok_any or True
+
+    root = Path(input_dir)
+    if not root.exists():
+        print(f"Input directory does not exist: {input_dir}")
+        return False
+
+    # Find ROI file groups
+    region_groups = find_roi_files_for_timepoints(input_dir, timepoints)
+
+    if not region_groups:
+        print("No matching ROI files found across timepoints")
+        return True  # Not an error, just nothing to track
+
+    print(f"\nFound {len(region_groups)} region(s) to track across {len(timepoints)} timepoints")
+
+    # Create output directory
+    output_base = root / output_subdir
+    output_base.mkdir(parents=True, exist_ok=True)
+
+    any_success = False
+
+    # Process each region
+    for region_idx, (region_key, file_sequence) in enumerate(region_groups.items(), 1):
+        # Filter out None entries (missing timepoints)
+        valid_files = [f for f in file_sequence if f is not None]
+
+        if len(valid_files) < 2:
+            print(f"\nRegion {region_idx}: Skipping (less than 2 valid timepoints)")
+            continue
+
+        print(f"\nRegion {region_idx}/{len(region_groups)}: Processing {len(valid_files)} timepoints")
+        print(f"  Files: {[f.name for f in valid_files]}")
+
+        # Build tracks
+        tracking_result = _build_tracks_across_timepoints(valid_files, max_distance)
+
+        if not tracking_result['tracks']:
+            print(f"  No tracks built, skipping")
+            continue
+
+        # Create region-specific output directory
+        region_name = valid_files[0].stem.replace("_rois", "")
+        region_output = output_base / region_name
+        region_output.mkdir(parents=True, exist_ok=True)
+
+        # Generate report
+        report_path = region_output / "tracking_report.txt"
+        _generate_tracking_report(tracking_result, report_path)
+
+        # Save tracked ROIs
+        if _save_tracked_rois(tracking_result, region_output, save_complete=True, save_all=True):
+            any_success = True
+            print(f"  Saved tracked ROIs to {region_output}")
+        else:
+            print(f"  Warning: Failed to save tracked ROIs for this region")
+
+    if any_success:
+        print(f"\nTracking complete. Results saved to {output_base}")
+        print(f"  - complete_tracks/: ROIs for cells tracked across all frames")
+        print(f"  - all_rois/: Original ROI files (backup)")
+        print(f"  - tracking_report.txt: Detailed tracking statistics")
+
+    return any_success
 
