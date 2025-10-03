@@ -569,10 +569,15 @@ def _find_raw_image_for_roi(roi_file: Path, raw_data_dir: Path) -> Optional[Path
     region = tokens.get("region", "")
     channel = tokens.get("channel", "")
     timepoint = tokens.get("timepoint", "")
-    pattern = f"{region}_{channel}_{timepoint}.tif"
-    matches = list(condition_dir.glob(f"**/{pattern}"))
-    if matches:
-        return matches[0]
+    # Try multiple pattern variations to match raw data files
+    patterns = [
+        f"{region}_{timepoint}_{channel}.tif",  # Most common: Region_t00_ch00.tif
+        f"{region}_{channel}_{timepoint}.tif",  # Alternative: Region_ch00_t00.tif
+    ]
+    for pattern in patterns:
+        matches = list(condition_dir.glob(f"**/{pattern}"))
+        if matches:
+            return matches[0]
     # Fallback: broader search for partial matches
     for file in condition_dir.glob("**/*.tif"):
         name = file.name
