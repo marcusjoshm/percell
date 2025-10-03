@@ -955,6 +955,9 @@ def _build_tracks_across_timepoints(
                 tracks[track_idx]['timepoint_data'].append(
                     (tp_idx, matched_roi_idx, centroid, distance)
                 )
+                # If distance exceeds threshold, mark track as incomplete
+                if max_distance is not None and distance > max_distance:
+                    tracks[track_idx]['complete'] = False
             else:  # No match found
                 tracks[track_idx]['complete'] = False
 
@@ -1221,17 +1224,17 @@ def track_rois(
     input_dir: str | Path,
     timepoints: List[str],
     recursive: bool = True,
-    max_distance: Optional[float] = None,
+    max_distance: Optional[float] = 2.0,
     backup_subdir: str = "roi_backups"
 ) -> bool:
     """Track ROIs across timepoints and reorder them for consistent cell identification.
 
     This implements a hybrid tracking approach that:
     1. Builds tracks across all timepoints using distance-based matching
-    2. Identifies complete tracks (cells present in all frames)
+    2. Identifies complete tracks (cells present in all frames with distance ≤ threshold)
     3. Reorders ROIs within zip files so that:
-       - ROIs 1-N: Complete tracks (same cell across all timepoints)
-       - ROIs N+1-M: Incomplete tracks (cells missing from some timepoints)
+       - ROIs 1-N: Complete tracks (same cell across all timepoints, distance ≤ threshold)
+       - ROIs N+1-M: Incomplete tracks (missing from some frames OR distance > threshold)
     4. Replaces original ROI files with reordered versions
     5. Backs up original ROI files to roi_backups/ directory
     6. Generates a detailed tracking quality report
@@ -1241,9 +1244,11 @@ def track_rois(
 
     Args:
         input_dir: Directory containing ROI zip files
-        timepoints: List of timepoint identifiers (e.g., ['t1', 't2', 't3'])
+        timepoints: List of timepoint identifiers (e.g., ['t00', 't01', 't02', 't03'])
         recursive: Whether to search recursively (default True)
-        max_distance: Maximum distance threshold for matching ROIs (pixels, None=unlimited)
+        max_distance: Maximum distance threshold for matching ROIs in pixels (default 2.0).
+                     Only ROIs within this distance across all timepoints are marked as complete tracks.
+                     Set to None for unlimited distance (not recommended)
         backup_subdir: Name of subdirectory for backup of original ROI files
 
     Returns:
