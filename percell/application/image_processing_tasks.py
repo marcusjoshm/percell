@@ -1012,6 +1012,13 @@ def _generate_tracking_report(
     report_lines.append(f"  Complete tracks (present in all frames): {stats['complete_tracks']}")
     report_lines.append(f"  Incomplete tracks: {stats['incomplete_tracks']}")
     report_lines.append("")
+    report_lines.append("ROI REORDERING:")
+    report_lines.append("  ROIs have been reordered in the output files:")
+    report_lines.append(f"    - ROIs 1-{stats['complete_tracks']}: Complete tracks (same cell across all timepoints)")
+    report_lines.append(f"    - ROIs {stats['complete_tracks']+1}-{stats['total_tracks']}: Incomplete tracks (partial appearances)")
+    report_lines.append("  After extraction, CELL1.tif, CELL2.tif, etc. will correspond to the same")
+    report_lines.append("  biological cell across timepoints (for complete tracks).")
+    report_lines.append("")
 
     # File information
     report_lines.append("FILES:")
@@ -1058,17 +1065,15 @@ def _generate_tracking_report(
 
 def _save_tracked_rois(
     tracking_result: dict,
-    output_dir: Path,
-    save_complete: bool = True,
-    save_all: bool = True
+    backup_dir: Path,
+    replace_originals: bool = True
 ) -> bool:
-    """Save tracked ROI sets to output directories.
+    """Save tracked ROI sets, replacing original files with tracked versions.
 
     Args:
         tracking_result: Result from _build_tracks_across_timepoints
-        output_dir: Base output directory
-        save_complete: Whether to save complete_tracks subdirectory
-        save_all: Whether to save all_rois subdirectory (backup of originals)
+        backup_dir: Directory to save backup of original ROI files
+        replace_originals: If True, replace original ROI files with tracked versions
 
     Returns:
         True if at least one set was saved successfully
@@ -1076,60 +1081,73 @@ def _save_tracked_rois(
     timepoint_data = tracking_result['timepoint_data']
     tracks = tracking_result['tracks']
 
+    if not timepoint_data or not tracks:
+        return False
+
     success = False
 
-    # Save complete tracks
-    if save_complete:
-        complete_dir = output_dir / "complete_tracks"
-        complete_dir.mkdir(parents=True, exist_ok=True)
+    # Separate complete and incomplete tracks
+    complete_tracks = [t for t in tracks if t['complete']]
+    incomplete_tracks = [t for t in tracks if not t['complete']]
 
-        complete_tracks = [t for t in tracks if t['complete']]
+    # Sort each group by track_id
+    complete_tracks.sort(key=lambda t: t['track_id'])
+    incomplete_tracks.sort(key=lambda t: t['track_id'])
 
-        if complete_tracks:
-            # For each timepoint, save only ROIs from complete tracks
-            for tp_idx, tp_data in enumerate(timepoint_data):
-                # Find which ROIs belong to complete tracks at this timepoint
-                roi_indices_to_keep = []
-                for track in complete_tracks:
-                    # Find this track's ROI index at this timepoint
-                    for frame_idx, roi_idx, _, _ in track['timepoint_data']:
-                        if frame_idx == tp_idx:
-                            roi_indices_to_keep.append((track['track_id'], roi_idx))
-                            break
+    # Combine: complete tracks first, then incomplete tracks
+    all_tracks_ordered = complete_tracks + incomplete_tracks
 
-                # Sort by track_id to maintain consistent ordering
-                roi_indices_to_keep.sort(key=lambda x: x[0])
+    if not all_tracks_ordered:
+        print(f"Warning: No tracks found")
+        return False
 
-                # Extract ROI bytes in track order
-                roi_bytes_ordered = []
-                for track_id, roi_idx in roi_indices_to_keep:
-                    roi_name = tp_data['names'][roi_idx]
-                    roi_byte_data = tp_data['roi_bytes'].get(roi_name)
-                    if roi_byte_data:
-                        roi_bytes_ordered.append(roi_byte_data)
+    # For each timepoint, reorder and save ROIs
+    for tp_idx, tp_data in enumerate(timepoint_data):
+        original_file = tp_data['file']
 
-                # Save the filtered ROI set
-                output_file = complete_dir / tp_data['file'].name
-                if _save_zip_from_bytes(roi_bytes_ordered, output_file):
-                    success = True
-                else:
-                    print(f"Warning: Failed to save {output_file.name}")
+        # Create backup if it doesn't exist
+        if replace_originals:
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            backup_file = backup_dir / original_file.name
+            if not backup_file.exists():
+                import shutil
+                try:
+                    shutil.copy2(original_file, backup_file)
+                    print(f"  Backed up: {original_file.name}")
+                except Exception as e:
+                    print(f"  Warning: Failed to backup {original_file.name}: {e}")
+
+        # Find which ROIs belong to each track at this timepoint
+        roi_indices_to_keep = []
+        for track in all_tracks_ordered:
+            # Find this track's ROI index at this timepoint (if it exists)
+            for frame_idx, roi_idx, _, _ in track['timepoint_data']:
+                if frame_idx == tp_idx:
+                    roi_indices_to_keep.append((track['track_id'], roi_idx))
+                    break
+            # Note: if track doesn't exist at this timepoint, nothing is added
+
+        # Extract ROI bytes in track order (maintaining complete tracks first)
+        roi_bytes_ordered = []
+        for track_id, roi_idx in roi_indices_to_keep:
+            roi_name = tp_data['names'][roi_idx]
+            roi_byte_data = tp_data['roi_bytes'].get(roi_name)
+            if roi_byte_data:
+                roi_bytes_ordered.append(roi_byte_data)
+
+        # Save the reordered ROI set (replace original or save to new location)
+        output_file = original_file if replace_originals else backup_dir / original_file.name
+        if _save_zip_from_bytes(roi_bytes_ordered, output_file):
+            success = True
+            print(f"  Reordered: {original_file.name} ({len(roi_bytes_ordered)} ROIs)")
         else:
-            print(f"Warning: No complete tracks found, complete_tracks directory will be empty")
+            print(f"  Warning: Failed to save {output_file.name}")
 
-    # Save all ROIs (original backup)
-    if save_all:
-        all_dir = output_dir / "all_rois"
-        all_dir.mkdir(parents=True, exist_ok=True)
-
-        for tp_data in timepoint_data:
-            import shutil
-            output_file = all_dir / tp_data['file'].name
-            try:
-                shutil.copy2(tp_data['file'], output_file)
-                success = True
-            except Exception as e:
-                print(f"Warning: Failed to backup {tp_data['file'].name}: {e}")
+    # Report what was saved
+    if complete_tracks:
+        print(f"  → {len(complete_tracks)} complete tracks (present in all {len(timepoint_data)} timepoints)")
+    if incomplete_tracks:
+        print(f"  → {len(incomplete_tracks)} incomplete tracks (partial timepoints)")
 
     return success
 
@@ -1158,21 +1176,24 @@ def find_roi_files_for_timepoints(directory: str | Path, timepoints: List[str]) 
     for tp in timepoints:
         files = list(root.rglob(f"*{tp}*_rois.zip"))
         all_roi_files[tp] = files
+        print(f"  Found {len(files)} ROI files for timepoint '{tp}'")
 
     if not all_roi_files:
         return {}
 
+    # Collect all unique region keys across ALL timepoints (not just first)
+    all_region_keys = set()
+    for tp in timepoints:
+        for roi_file in all_roi_files.get(tp, []):
+            ref_path_str = str(roi_file)
+            region_key = ref_path_str.replace(tp, "TIMEPOINT")
+            all_region_keys.add(region_key)
+
     # Group by region (everything except timepoint identifier)
     region_groups = {}
 
-    # Use first timepoint as reference
-    first_tp = timepoints[0]
-    for ref_file in all_roi_files.get(first_tp, []):
-        ref_path_str = str(ref_file)
-
-        # Build a region key by removing timepoint
-        region_key = ref_path_str.replace(first_tp, "TIMEPOINT")
-
+    # Process each unique region key
+    for region_key in sorted(all_region_keys):
         # Find corresponding files for all timepoints
         file_sequence = []
         for tp in timepoints:
@@ -1201,24 +1222,29 @@ def track_rois(
     timepoints: List[str],
     recursive: bool = True,
     max_distance: Optional[float] = None,
-    output_subdir: str = "tracked_rois"
+    backup_subdir: str = "roi_backups"
 ) -> bool:
-    """Track ROIs across timepoints with robust handling of missing/extra ROIs.
+    """Track ROIs across timepoints and reorder them for consistent cell identification.
 
     This implements a hybrid tracking approach that:
     1. Builds tracks across all timepoints using distance-based matching
     2. Identifies complete tracks (cells present in all frames)
-    3. Saves two versions:
-       - complete_tracks/: Only cells tracked across all frames
-       - all_rois/: Backup of original ROIs for manual review
-    4. Generates a detailed tracking quality report
+    3. Reorders ROIs within zip files so that:
+       - ROIs 1-N: Complete tracks (same cell across all timepoints)
+       - ROIs N+1-M: Incomplete tracks (cells missing from some timepoints)
+    4. Replaces original ROI files with reordered versions
+    5. Backs up original ROI files to roi_backups/ directory
+    6. Generates a detailed tracking quality report
+
+    After tracking, CELL1.tif will correspond to the same biological cell across
+    all timepoints (for complete tracks).
 
     Args:
         input_dir: Directory containing ROI zip files
         timepoints: List of timepoint identifiers (e.g., ['t1', 't2', 't3'])
         recursive: Whether to search recursively (default True)
         max_distance: Maximum distance threshold for matching ROIs (pixels, None=unlimited)
-        output_subdir: Name of output subdirectory for tracked results
+        backup_subdir: Name of subdirectory for backup of original ROI files
 
     Returns:
         True if tracking succeeded for at least one region
@@ -1241,9 +1267,9 @@ def track_rois(
 
     print(f"\nFound {len(region_groups)} region(s) to track across {len(timepoints)} timepoints")
 
-    # Create output directory
-    output_base = root / output_subdir
-    output_base.mkdir(parents=True, exist_ok=True)
+    # Create backup directory at the root level
+    backup_base = root / backup_subdir
+    backup_base.mkdir(parents=True, exist_ok=True)
 
     any_success = False
 
@@ -1266,27 +1292,32 @@ def track_rois(
             print(f"  No tracks built, skipping")
             continue
 
-        # Create region-specific output directory
-        region_name = valid_files[0].stem.replace("_rois", "")
-        region_output = output_base / region_name
-        region_output.mkdir(parents=True, exist_ok=True)
+        # Determine backup directory path (preserve original structure)
+        first_file = valid_files[0]
+        # Get relative path from input_dir to first file's parent
+        try:
+            rel_path = first_file.parent.relative_to(root)
+            backup_dir = backup_base / rel_path
+        except ValueError:
+            # Files not under input_dir, use flat backup
+            backup_dir = backup_base
 
-        # Generate report
-        report_path = region_output / "tracking_report.txt"
+        # Generate report in same directory as ROI files
+        report_path = first_file.parent / "tracking_report.txt"
         _generate_tracking_report(tracking_result, report_path)
 
-        # Save tracked ROIs
-        if _save_tracked_rois(tracking_result, region_output, save_complete=True, save_all=True):
+        # Save tracked ROIs (replaces originals, backs up to backup_dir)
+        if _save_tracked_rois(tracking_result, backup_dir, replace_originals=True):
             any_success = True
-            print(f"  Saved tracked ROIs to {region_output}")
         else:
             print(f"  Warning: Failed to save tracked ROIs for this region")
 
     if any_success:
-        print(f"\nTracking complete. Results saved to {output_base}")
-        print(f"  - complete_tracks/: ROIs for cells tracked across all frames")
-        print(f"  - all_rois/: Original ROI files (backup)")
-        print(f"  - tracking_report.txt: Detailed tracking statistics")
+        print(f"\n✓ Tracking complete!")
+        print(f"  - Original ROI files have been REPLACED with tracked versions")
+        print(f"  - Original ROI files backed up to: {backup_base}")
+        print(f"  - Tracking reports saved alongside ROI files")
+        print(f"\nCells are now tracked: CELL1.tif will be the same cell across timepoints")
 
     return any_success
 
