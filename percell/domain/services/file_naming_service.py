@@ -139,9 +139,11 @@ class FileNamingService:
 
         ch = None
         t = None
-        m_ch = re.search(r"_(ch\d+)_", name)
+        # Match channel with underscore before and either underscore or end-of-string after
+        m_ch = re.search(r"_(ch\d+)(?:_|$)", name)
         if m_ch:
             ch = m_ch.group(1)
+        # Match timepoint with underscore before and either underscore or end-of-string after
         m_t = re.search(r"_(t\d+)(?:_|$)", name)
         if m_t:
             t = m_t.group(1)
