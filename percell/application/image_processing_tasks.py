@@ -1224,7 +1224,7 @@ def track_rois(
     input_dir: str | Path,
     timepoints: List[str],
     recursive: bool = True,
-    max_distance: Optional[float] = 2.0,
+    max_distance: Optional[float] = 50.0,
     backup_subdir: str = "roi_backups"
 ) -> bool:
     """Track ROIs across timepoints and reorder them for consistent cell identification.
