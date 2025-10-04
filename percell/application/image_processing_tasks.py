@@ -1246,8 +1246,9 @@ def track_rois(
         input_dir: Directory containing ROI zip files
         timepoints: List of timepoint identifiers (e.g., ['t00', 't01', 't02', 't03'])
         recursive: Whether to search recursively (default True)
-        max_distance: Maximum distance threshold for matching ROIs in pixels (default 2.0).
-                     Only ROIs within this distance across all timepoints are marked as complete tracks.
+        max_distance: Maximum distance threshold for matching ROIs in pixels
+                     (default 50.0). Only ROIs within this distance across
+                     all timepoints are marked as complete tracks.
                      Set to None for unlimited distance (not recommended)
         backup_subdir: Name of subdirectory for backup of original ROI files
 
