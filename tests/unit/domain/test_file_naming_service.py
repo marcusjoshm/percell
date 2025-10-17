@@ -41,9 +41,8 @@ class TestFileNamingServiceParsing:
             assert getattr(meta, key) == value
 
     def test_parse_microscopy_filename_invalid_extension(self, svc: FileNamingService):
-        with pytest.raises(NotImplementedError):
-            # Implementation should raise a domain error or return a controlled result;
-            # for now, ensure the method is exercised during TDD.
+        with pytest.raises(ValueError):
+            # Should raise ValueError for unsupported extensions
             svc.parse_microscopy_filename("image.png")
 
 
