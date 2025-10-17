@@ -75,8 +75,8 @@ class DataSelectionStage(StageBase):
             self.output_dir = Path(kwargs['output_dir'])
             self._fs = kwargs.get('fs')
 
-            # Check feature flag (default to False for now to maintain backward compatibility)
-            use_flexible = self.config.get('data_selection.use_flexible_selection', False)
+            # Check feature flag (default to True - flexible mode is now the default)
+            use_flexible = self.config.get('data_selection.use_flexible_selection', True)
 
             if use_flexible:
                 self.logger.info("Using flexible data selection mode")
