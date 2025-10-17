@@ -23,6 +23,11 @@ class FileNamingService:
     def parse_microscopy_filename(self, filename: str) -> FileMetadata:
         """Parse a microscopy filename to extract metadata.
 
+        Now handles multiple naming conventions:
+        - Standard: "region_s1_t0_ch1_z5.tif"
+        - Leica-style: "18h dTAG13_Merged_z00_ch00.tif"
+        - Simple: "MyExperiment_ch00.tif"
+
         Args:
             filename: Filename to parse.
 
@@ -33,16 +38,17 @@ class FileNamingService:
         # Accept .tif/.tiff only
         _, ext = os.path.splitext(filename)
         if ext.lower() not in {".tif", ".tiff"}:
-            raise NotImplementedError
+            raise ValueError(f"Unsupported extension: {ext}")
 
         base = filename[: -len(ext)] if ext else filename
 
-        # Patterns for tokens
+        # Enhanced patterns - more flexible matching
+        # Match with or without underscore/space prefix, case insensitive
         token_patterns = {
-            "tile": r"_s(\d+)",
-            "z_index": r"_z(\d+)",
-            "channel": r"_ch(\d+)",
-            "timepoint": r"_t(\d+)",
+            "tile": r"[_\s]?s(\d+)",
+            "z_index": r"[_\s]?z(\d+)",
+            "channel": r"[_\s]?ch(\d+)",
+            "timepoint": r"[_\s]?t(\d+)",
         }
 
         # Extract tokens without caring about order; record spans to remove
@@ -51,6 +57,7 @@ class FileNamingService:
         for key, pat in token_patterns.items():
             m = re.search(pat, base, re.IGNORECASE)
             if m:
+                # Record the full match span (including optional prefix)
                 spans.append((m.start(), m.end()))
                 val = m.group(1)
                 if key == "z_index":
@@ -58,20 +65,26 @@ class FileNamingService:
                 elif key in ("channel", "timepoint"):
                     prefix = "ch" if key == "channel" else "t"
                     values[key] = f"{prefix}{val}"
-                else:
-                    # tile is not currently persisted in FileMetadata; we only strip it
-                    pass
+                # tile is not persisted in FileMetadata
 
         # Remove found token substrings to get region/image name
+        # Sort in reverse order to remove from end to start
+        # (preserves earlier indices)
         spans.sort(reverse=True)
         region = base
         for s, e in spans:
             region = region[:s] + region[e:]
-        region = region.rstrip("_")
+
+        # Clean up the region name
+        region = region.strip("_").strip()
+
+        # If region is empty, use the original base name
+        if not region:
+            region = base
 
         return FileMetadata(
             original_name=filename,
-            region=region or base,
+            region=region,
             channel=values.get("channel"),
             timepoint=values.get("timepoint"),
             z_index=values.get("z_index"),
