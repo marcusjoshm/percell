@@ -16,8 +16,9 @@ from typing import Dict, Any, List, Set, Optional
 
 from percell.application.progress_api import run_subprocess_with_spinner
 from percell.domain import WorkflowOrchestrationService
-from percell.domain.models import WorkflowStep, WorkflowState, WorkflowConfig
+from percell.domain.models import WorkflowStep, WorkflowState, WorkflowConfig, FileMetadata
 from percell.domain import DataSelectionService, FileNamingService
+from percell.domain.services.flexible_data_selection_service import FlexibleDataSelectionService
 from percell.application.stages_api import StageBase
 
 
@@ -32,6 +33,8 @@ class DataSelectionStage(StageBase):
     
     def __init__(self, config, logger, stage_name="data_selection"):
         super().__init__(config, logger, stage_name)
+
+        # Legacy instance variables (kept for backward compatibility)
         self.experiment_metadata = {}
         self.selected_datatype = None
         self.selected_conditions = []
@@ -39,9 +42,16 @@ class DataSelectionStage(StageBase):
         self.selected_regions = []
         self.segmentation_channel = None
         self.analysis_channels = []
-        # Domain services for parsing/scanning
-        self._selection_service = DataSelectionService()
+
+        # Domain services
+        self._selection_service = DataSelectionService()  # Legacy
         self._naming_service = FileNamingService()
+
+        # NEW: Flexible selection service and state
+        self._flexible_selection = FlexibleDataSelectionService()
+        self.discovered_files: List[tuple[Path, FileMetadata]] = []
+        self.available_dimensions: Dict[str, List[str]] = {}
+        self.condition_dimension: str = "project_folder"  # What represents a "condition"
         
     def validate_inputs(self, **kwargs) -> bool:
         """Validate inputs for data selection stage."""
@@ -56,36 +66,55 @@ class DataSelectionStage(StageBase):
         return True
     
     def run(self, **kwargs) -> bool:
-        """Run the data selection stage."""
+        """Run the data selection stage with dual mode support."""
         try:
             self.logger.info("Starting Data Selection Stage")
-            
-            # Store input and output directories for later use
+
+            # Store input and output directories
             self.input_dir = Path(kwargs['input_dir'])
             self.output_dir = Path(kwargs['output_dir'])
-            # Injected filesystem port (optional)
             self._fs = kwargs.get('fs')
-            
+
+            # Check feature flag (default to False for now to maintain backward compatibility)
+            use_flexible = self.config.get('data_selection.use_flexible_selection', False)
+
+            if use_flexible:
+                self.logger.info("Using flexible data selection mode")
+                return self._run_flexible_workflow(**kwargs)
+            else:
+                self.logger.info("Using legacy data selection mode")
+                return self._run_legacy_workflow(**kwargs)
+
+        except Exception as e:
+            self.logger.error(f"Error in Data Selection Stage: {e}")
+            return False
+
+    def _run_legacy_workflow(self, **kwargs) -> bool:
+        """Run legacy data selection workflow (original implementation).
+
+        Kept for backward compatibility.
+        """
+        try:
             # Step 1: Setup output directory structure
             self.logger.info("Setting up output directory structure...")
             if not self._setup_output_structure():
                 return False
-            
+
             # Step 2: Prepare input structure
             self.logger.info("Preparing input structure...")
             if not self._prepare_input_structure(str(self.input_dir)):
                 return False
-            
+
             # Step 3: Extract experiment metadata
             self.logger.info("Extracting experiment metadata...")
             if not self._extract_experiment_metadata(str(self.input_dir)):
                 return False
-            
+
             # Step 4: Interactive data selection
             self.logger.info("Starting interactive data selection...")
             if not self._run_interactive_selection():
                 return False
-            
+
             # Step 5: Save selections to config
             self.logger.info("Saving data selections...")
             self._save_selections_to_config()
@@ -99,14 +128,60 @@ class DataSelectionStage(StageBase):
             self.logger.info("Copying selected files to output directory...")
             if not self._copy_selected_files():
                 return False
-            
-            self.logger.info("Data Selection Stage completed successfully")
+
+            self.logger.info("Legacy Data Selection Stage completed successfully")
             return True
-            
+
         except Exception as e:
-            self.logger.error(f"Error in Data Selection Stage: {e}")
+            self.logger.error(f"Error in legacy workflow: {e}")
             return False
-    
+
+    def _run_flexible_workflow(self, **kwargs) -> bool:
+        """Run flexible data selection workflow.
+
+        This workflow:
+        1. Sets up output directory structure
+        2. Discovers all files and dimensions
+        3. Interactive selection of dimensions
+        4. Copies filtered files to output
+        """
+        try:
+            # Step 1: Setup output directory structure
+            self.logger.info("Setting up output directory structure...")
+            if not self._setup_output_structure():
+                return False
+
+            # Step 2: Discover files and dimensions
+            self.logger.info("Discovering files and dimensions...")
+            if not self._discover_files_and_dimensions():
+                return False
+
+            # Step 3: Interactive dimension-based selection
+            self.logger.info("Starting interactive dimension-based selection...")
+            if not self._run_flexible_interactive_selection():
+                return False
+
+            # Step 4: Save selections to config
+            self.logger.info("Saving data selections...")
+            self._save_flexible_selections_to_config()
+
+            # Step 5: Create output directories for selected data
+            self.logger.info("Creating output directories...")
+            if not self._create_flexible_output_directories():
+                return False
+
+            # Step 6: Copy filtered files
+            self.logger.info("Copying selected files...")
+            if not self._copy_filtered_files():
+                return False
+
+            self.logger.info("Flexible Data Selection Stage completed successfully")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error in flexible workflow: {e}")
+            return False
+
     def _setup_output_structure(self) -> bool:
         """Set up the output directory structure using the setup_output_structure.sh script."""
         try:
@@ -723,5 +798,376 @@ class DataSelectionStage(StageBase):
             
         except Exception as e:
             self.logger.error(f"Error saving selections to config: {e}")
+
+    # ==================================================================
+    # FLEXIBLE DATA SELECTION METHODS
+    # ==================================================================
+
+    def _discover_files_and_dimensions(self) -> bool:
+        """Discover all files and extract available dimensions.
+
+        Replaces _extract_experiment_metadata for flexible mode.
+        """
+        try:
+            self.logger.info(f"Scanning directory: {self.input_dir}")
+
+            # Use flexible service to discover all files
+            self.discovered_files = self._flexible_selection.discover_all_files(
+                self.input_dir
+            )
+
+            if not self.discovered_files:
+                self.logger.error("No microscopy files found in input directory")
+                return False
+
+            self.logger.info(f"Discovered {len(self.discovered_files)} files")
+
+            # Extract available dimensions
+            self.available_dimensions = self._flexible_selection.get_available_dimensions(
+                self.discovered_files
+            )
+
+            # Log summary
+            summary = self._flexible_selection.get_dimension_summary(self.discovered_files)
+            self.logger.info(f"\n{summary}")
+            print(f"\n{summary}\n")
+
+            # Store in experiment_metadata for compatibility
+            self.experiment_metadata = {
+                'discovered_files_count': len(self.discovered_files),
+                'available_dimensions': self.available_dimensions
+            }
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error discovering files and dimensions: {e}")
+            return False
+
+    def _run_flexible_interactive_selection(self) -> bool:
+        """Run flexible interactive selection based on discovered dimensions.
+
+        Replaces _run_interactive_selection for flexible mode.
+        """
+        try:
+            # Step 1: Select what dimension represents "conditions"
+            if not self._select_condition_dimension():
+                return False
+
+            # Step 2: Select specific conditions
+            if not self._select_dimension_values(
+                'condition',
+                f"Select {self.condition_dimension}s to analyze"
+            ):
+                return False
+
+            # Step 3: Select channels
+            if 'channel' in self.available_dimensions and self.available_dimensions['channel']:
+                if not self._select_channels_flexible():
+                    return False
+
+            # Step 4: Select timepoints (if any exist)
+            if 'timepoint' in self.available_dimensions and self.available_dimensions['timepoint']:
+                if not self._select_timepoints_flexible():
+                    return False
+
+            # Step 5: Select regions (if needed)
+            if 'region' in self.available_dimensions and len(self.available_dimensions['region']) > 1:
+                if not self._select_regions_flexible():
+                    return False
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error in flexible interactive selection: {e}")
+            return False
+
+    def _select_condition_dimension(self) -> bool:
+        """Let user choose which dimension represents experimental conditions."""
+        print("\n" + "="*80)
+        print("STEP 1: Define Experimental Conditions")
+        print("="*80)
+        print("\nWhich dimension represents your experimental conditions?")
+        print("(Conditions are the different experimental groups you want to compare)")
+
+        # Only show dimensions that have multiple values
+        available_for_conditions = {
+            dim: values for dim, values in self.available_dimensions.items()
+            if len(values) > 1
+        }
+
+        if not available_for_conditions:
+            self.logger.error("No dimensions with multiple values found. Cannot define conditions.")
+            return False
+
+        print("\nAvailable dimensions:")
+        dim_list = list(available_for_conditions.keys())
+        for i, dim in enumerate(dim_list, 1):
+            values = available_for_conditions[dim]
+            preview = ', '.join(values[:3])
+            more = f" (and {len(values)-3} more)" if len(values) > 3 else ""
+            print(f"{i}. {dim}: {len(values)} unique values - {preview}{more}")
+
+        # Default to project_folder if available
+        default_dim = 'project_folder' if 'project_folder' in available_for_conditions else dim_list[0]
+
+        while True:
+            user_input = input(f"\nEnter dimension number or name (default: {default_dim}): ").strip()
+
+            if not user_input:
+                self.condition_dimension = default_dim
+                break
+            elif user_input.isdigit() and 1 <= int(user_input) <= len(dim_list):
+                self.condition_dimension = dim_list[int(user_input) - 1]
+                break
+            elif user_input in available_for_conditions:
+                self.condition_dimension = user_input
+                break
+            else:
+                print("Invalid selection. Please try again.")
+
+        self.logger.info(f"Selected condition dimension: {self.condition_dimension}")
+        print(f"\n✓ Using '{self.condition_dimension}' as experimental conditions")
+
+        return True
+
+    def _select_dimension_values(self, dimension_key: str, prompt: str) -> bool:
+        """Generic method to select values from a dimension.
+
+        Args:
+            dimension_key: Which dimension to select from (e.g., 'channel', 'timepoint')
+            prompt: User-facing prompt text
+        """
+        # For conditions, use the chosen condition dimension
+        if dimension_key == 'condition':
+            actual_dimension = self.condition_dimension
+        else:
+            actual_dimension = dimension_key
+
+        available = self.available_dimensions.get(actual_dimension, [])
+
+        if not available:
+            self.logger.warning(f"No {actual_dimension} values available")
+            return True
+
+        print("\n" + "="*80)
+        print(prompt.upper())
+        print("="*80)
+
+        selected = self._handle_list_selection(available, actual_dimension, [])
+
+        # Store in appropriate instance variable
+        if dimension_key == 'condition':
+            self.selected_conditions = selected
+
+        return True
+
+    def _select_channels_flexible(self) -> bool:
+        """Select channels for segmentation and analysis."""
+        print("\n" + "="*80)
+        print("STEP: SELECT CHANNELS")
+        print("="*80)
+
+        available_channels = self.available_dimensions.get('channel', [])
+
+        # First select segmentation channel
+        print("\nSelect the channel for SEGMENTATION (cell/nuclei detection):")
+        print("This channel will be used to identify individual cells.")
+        seg_channel = self._handle_list_selection(available_channels, "segmentation channel", [])
+        if seg_channel:
+            self.segmentation_channel = seg_channel[0]
+            self.logger.info(f"Selected segmentation channel: {self.segmentation_channel}")
+
+        # Then select analysis channels
+        print("\nSelect channels for ANALYSIS:")
+        print("These channels will be measured for each segmented cell.")
+        self.analysis_channels = self._handle_list_selection(available_channels, "analysis channel", [])
+        self.logger.info(f"Selected analysis channels: {self.analysis_channels}")
+
+        return True
+
+    def _select_timepoints_flexible(self) -> bool:
+        """Select timepoints to include in analysis."""
+        print("\n" + "="*80)
+        print("STEP: SELECT TIMEPOINTS")
+        print("="*80)
+
+        available = self.available_dimensions.get('timepoint', [])
+
+        print(f"\nAvailable timepoints: {', '.join(available)}")
+        print("Select which timepoints to include in analysis.")
+
+        self.selected_timepoints = self._handle_list_selection(available, "timepoint", [])
+        self.logger.info(f"Selected timepoints: {self.selected_timepoints}")
+
+        return True
+
+    def _select_regions_flexible(self) -> bool:
+        """Select regions to include in analysis."""
+        print("\n" + "="*80)
+        print("STEP: SELECT REGIONS (OPTIONAL)")
+        print("="*80)
+
+        available = self.available_dimensions.get('region', [])
+
+        print(f"\nFound {len(available)} unique regions (base filenames):")
+        for i, region in enumerate(available[:10], 1):
+            print(f"  {i}. {region}")
+        if len(available) > 10:
+            print(f"  ... and {len(available) - 10} more")
+
+        print("\nYou can select specific regions or press Enter to include all.")
+
+        user_input = input("Select regions (or press Enter for all): ").strip()
+
+        if not user_input:
+            self.selected_regions = available
+            print(f"✓ Including all {len(available)} regions")
+        else:
+            self.selected_regions = self._handle_list_selection(available, "region", [])
+
+        self.logger.info(f"Selected {len(self.selected_regions)} regions")
+
+        return True
+
+    def _create_flexible_output_directories(self) -> bool:
+        """Create output directories based on selected conditions."""
+        try:
+            raw_data_dir = self.output_dir / "raw_data"
+            raw_data_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create a directory for each selected condition
+            for condition in self.selected_conditions:
+                condition_dir = raw_data_dir / condition
+                condition_dir.mkdir(parents=True, exist_ok=True)
+                self.logger.info(f"Created directory: {condition_dir}")
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error creating output directories: {e}")
+            return False
+
+    def _copy_filtered_files(self) -> bool:
+        """Copy files based on flexible filters.
+
+        Replaces _copy_selected_files for flexible mode.
+        """
+        try:
+            self.logger.info("Filtering and copying files...")
+
+            # Build filters from selections
+            filters = {}
+
+            # Add condition filter (using the chosen condition dimension)
+            filters[self.condition_dimension] = self.selected_conditions
+
+            # Add channel filter
+            if self.analysis_channels:
+                filters['channel'] = self.analysis_channels
+
+            # Add timepoint filter
+            if self.selected_timepoints:
+                filters['timepoint'] = self.selected_timepoints
+
+            # Add region filter
+            if self.selected_regions and len(self.selected_regions) < len(self.available_dimensions.get('region', [])):
+                filters['region'] = self.selected_regions
+
+            self.logger.info(f"Applying filters: {filters}")
+
+            # Filter files using flexible service
+            filtered_files = self._flexible_selection.filter_files(
+                self.discovered_files,
+                filters
+            )
+
+            self.logger.info(f"Filtered to {len(filtered_files)} files")
+
+            if not filtered_files:
+                self.logger.error("No files match the selection criteria")
+                return False
+
+            # Copy files to output, organized by condition
+            total_copied = 0
+            raw_data_dir = self.output_dir / "raw_data"
+
+            for file_path in filtered_files:
+                # Find the corresponding metadata
+                file_meta = None
+                for fp, meta in self.discovered_files:
+                    if fp == file_path:
+                        file_meta = meta
+                        break
+
+                if not file_meta:
+                    self.logger.warning(f"Could not find metadata for {file_path}")
+                    continue
+
+                # Determine output path based on condition dimension
+                condition_value = getattr(file_meta, self.condition_dimension, "unknown")
+                output_dir = raw_data_dir / condition_value
+                output_dir.mkdir(parents=True, exist_ok=True)
+
+                # Copy file
+                output_path = output_dir / file_path.name
+
+                fs_port = getattr(self, '_fs', None)
+                if fs_port is not None:
+                    fs_port.copy(file_path, output_path, overwrite=True)
+                else:
+                    from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
+                    LocalFileSystemAdapter().copy(file_path, output_path, overwrite=True)
+
+                total_copied += 1
+
+                if total_copied % 50 == 0:
+                    self.logger.info(f"Copied {total_copied} files...")
+
+            self.logger.info(f"Successfully copied {total_copied} files")
+
+            if total_copied == 0:
+                self.logger.error("No files were copied")
+                return False
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Error copying filtered files: {e}")
+            return False
+
+    def _save_flexible_selections_to_config(self):
+        """Save flexible selections to config.
+
+        Saves both in new flexible format and legacy format for compatibility.
+        """
+        try:
+            # Save in flexible format
+            self.config.set('data_selection.condition_dimension', self.condition_dimension)
+            self.config.set('data_selection.dimension_filters', {
+                self.condition_dimension: self.selected_conditions,
+                'channel': self.analysis_channels,
+                'timepoint': self.selected_timepoints,
+                'region': self.selected_regions
+            })
+
+            # Also save in legacy format for backward compatibility
+            self.config.set('data_selection.selected_conditions', self.selected_conditions)
+            self.config.set('data_selection.selected_timepoints', self.selected_timepoints)
+            self.config.set('data_selection.selected_regions', self.selected_regions)
+            self.config.set('data_selection.segmentation_channel', self.segmentation_channel)
+            self.config.set('data_selection.analysis_channels', self.analysis_channels)
+
+            # Save metadata
+            self.config.set('data_selection.experiment_metadata', self.experiment_metadata)
+            self.config.set('data_selection.available_dimensions', self.available_dimensions)
+
+            # Save the config
+            self.config.save()
+
+            self.logger.info("Flexible data selections saved to configuration")
+
+        except Exception as e:
+            self.logger.error(f"Error saving flexible selections to config: {e}")
 
 
