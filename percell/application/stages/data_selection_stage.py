@@ -1016,15 +1016,46 @@ class DataSelectionStage(StageBase):
         if len(available) > 10:
             print(f"  ... and {len(available) - 10} more")
 
-        print("\nYou can select specific regions or press Enter to include all.")
+        print("\nSelection options:")
+        print(f"- Press Enter to include all regions")
+        print(f"- Enter region names as space-separated text (e.g., '{available[0]}')")
+        print(f"- Enter numbers from the list (e.g., '1 3')")
+        print(f"- Type 'all' to select all regions")
 
-        user_input = input("Select regions (or press Enter for all): ").strip()
+        while True:
+            user_input = input("\nSelect regions (or press Enter for all): ").strip()
 
-        if not user_input:
-            self.selected_regions = available
-            print(f"✓ Including all {len(available)} regions")
-        else:
-            self.selected_regions = self._handle_list_selection(available, "region", [])
+            if not user_input:
+                self.selected_regions = available
+                print(f"✓ Including all {len(available)} regions")
+                break
+
+            if user_input.lower() == 'all':
+                self.selected_regions = available
+                print(f"✓ Including all {len(available)} regions")
+                break
+
+            # Try to parse as numbers first
+            try:
+                indices = [int(x) for x in user_input.split()]
+                if all(1 <= i <= len(available) for i in indices):
+                    self.selected_regions = [available[i-1] for i in indices]
+                    print(f"✓ Selected {len(self.selected_regions)} regions")
+                    break
+                else:
+                    print(f"Invalid numbers. Please enter numbers between 1 and {len(available)}.")
+                    continue
+            except ValueError:
+                pass
+
+            # If not numbers, treat as direct region names
+            selected_items = [item.strip() for item in user_input.split()]
+            if all(item in available for item in selected_items):
+                self.selected_regions = selected_items
+                print(f"✓ Selected {len(self.selected_regions)} regions")
+                break
+            else:
+                print(f"Invalid selection. Please enter valid region names or numbers.")
 
         self.logger.info(f"Selected {len(self.selected_regions)} regions")
 
