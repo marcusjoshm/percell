@@ -60,8 +60,8 @@ class DataSelectionService:
                 meta = self._naming.parse_microscopy_filename(f.name)
                 if meta.timepoint:
                     timepoints.add(meta.timepoint)
-                if meta.region:
-                    regions.add(meta.region)
+                if meta.dataset:
+                    regions.add(meta.dataset)
             except Exception:
                 continue
         return sorted(conditions), sorted(timepoints), sorted(regions)
@@ -90,7 +90,7 @@ class DataSelectionService:
             return False
         if selection.timepoints and not set(selection.timepoints).issubset(set(timepoints)):
             return False
-        if selection.regions and not set(selection.regions).issubset(set(regions)):
+        if selection.datasets and not set(selection.datasets).issubset(set(regions)):
             return False
         if selection.channels:
             # Validate channels by checking at least one file contains each channel
@@ -130,8 +130,8 @@ class DataSelectionService:
                 if not condition_ok:
                     continue
                 meta = self._naming.parse_microscopy_filename(f.name)
-                # Region filter
-                if selection.regions and (not meta.region or meta.region not in selection.regions):
+                # Dataset filter
+                if selection.datasets and (not meta.dataset or meta.dataset not in selection.datasets):
                     continue
                 # Timepoint filter
                 if selection.timepoints and (not meta.timepoint or meta.timepoint not in selection.timepoints):
