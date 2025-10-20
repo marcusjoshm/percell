@@ -204,7 +204,8 @@ def find_roi_image_pairs(input_dir: str | Path, output_dir: str | Path) -> List[
         filtered: List[Path] = []
         for rf in roi_files:
             name = rf.name
-            if name.endswith("_rois.zip"):
+            # Filter out macOS hidden files and only keep files ending with _rois.zip
+            if name.endswith("_rois.zip") and not name.startswith('._'):
                 filtered.append(rf)
         roi_files = filtered
 
@@ -519,7 +520,10 @@ def create_cell_masks(
     roi_files: List[Path] = []
     for condition_dir in roi_root.glob("*"):
         if condition_dir.is_dir() and not condition_dir.name.startswith('.'):
-            roi_files.extend(condition_dir.glob("*.zip"))
+            # Filter out macOS hidden files (._*)
+            for roi_file in condition_dir.glob("*.zip"):
+                if not roi_file.name.startswith('._'):
+                    roi_files.append(roi_file)
 
     if channels:
         filtered: List[Path] = []
@@ -702,7 +706,8 @@ def extract_cells(
     roi_files: List[Path] = []
     for condition_dir in roi_root.glob("*"):
         if condition_dir.is_dir() and not condition_dir.name.startswith('.'):
-            zips = list(condition_dir.glob("*.zip"))
+            # Filter out macOS hidden files (._*)
+            zips = [z for z in condition_dir.glob("*.zip") if not z.name.startswith('._')]
             logger.info(f"[DEBUG] Found {len(zips)} ZIP files in condition: {condition_dir.name}")
             roi_files.extend(zips)
 
