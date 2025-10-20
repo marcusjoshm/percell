@@ -440,13 +440,13 @@ def _find_matching_mask_for_roi(roi_file: Path, mask_dir: Path) -> Optional[Path
     if not condition_mask_dir.exists():
         return None
     tokens = _extract_tokens_from_roi_name(roi_file.name)
-    region = tokens.get("region", "")
+    dataset = tokens.get("dataset", "")
     channel = tokens.get("channel", "")
     timepoint = tokens.get("timepoint", "")
     patterns = [
-        f"MASK_{region}_{channel}_{timepoint}.tif",
-        f"MASK_{region}_{channel}_{timepoint}.tiff",
-        f"MASK_{region}_{channel}_*.tif",
+        f"MASK_{dataset}_{channel}_{timepoint}.tif",
+        f"MASK_{dataset}_{channel}_{timepoint}.tiff",
+        f"MASK_{dataset}_{channel}_*.tif",
         f"MASK_*{channel}*.tif",
     ]
     for pat in patterns:
@@ -459,10 +459,10 @@ def _find_matching_mask_for_roi(roi_file: Path, mask_dir: Path) -> Optional[Path
 def _create_output_dir_for_roi(roi_file: Path, output_base_dir: Path) -> Path:
     condition = roi_file.parent.name
     tokens = _extract_tokens_from_roi_name(roi_file.name)
-    region = tokens.get("region", "")
+    dataset = tokens.get("dataset", "")
     channel = tokens.get("channel", "")
     timepoint = tokens.get("timepoint", "")
-    out_dir = output_base_dir / condition / f"{region}_{channel}_{timepoint}"
+    out_dir = output_base_dir / condition / f"{dataset}_{channel}_{timepoint}"
     out_dir.mkdir(parents=True, exist_ok=True)
     return out_dir
 
@@ -579,16 +579,16 @@ def _find_raw_image_for_roi(roi_file: Path, raw_data_dir: Path) -> Optional[Path
         return None
 
     tokens = _extract_tokens_from_roi_name(roi_file.name)
-    region = tokens.get("region", "")
+    dataset = tokens.get("dataset", "")
     channel = tokens.get("channel", "")
     timepoint = tokens.get("timepoint", "")
 
-    logger.info(f"[DEBUG] Extracted tokens - region: '{region}', channel: '{channel}', timepoint: '{timepoint}'")
+    logger.info(f"[DEBUG] Extracted tokens - dataset: '{dataset}', channel: '{channel}', timepoint: '{timepoint}'")
 
     # Try multiple pattern variations to match raw data files
     patterns = [
-        f"{region}_{timepoint}_{channel}.tif",  # Most common: Region_t00_ch00.tif
-        f"{region}_{channel}_{timepoint}.tif",  # Alternative: Region_ch00_t00.tif
+        f"{dataset}_{timepoint}_{channel}.tif",  # Most common: Dataset_t00_ch00.tif
+        f"{dataset}_{channel}_{timepoint}.tif",  # Alternative: Dataset_ch00_t00.tif
     ]
 
     logger.info(f"[DEBUG] Trying patterns: {patterns}")
@@ -609,11 +609,11 @@ def _find_raw_image_for_roi(roi_file: Path, raw_data_dir: Path) -> Optional[Path
 
     for file in all_tifs:
         name = file.name
-        ok_region = region in name
+        ok_dataset = dataset in name
         ok_channel = channel in name if channel else True
         ok_time = timepoint in name if timepoint else True
-        logger.info(f"[DEBUG] Checking file: {name} - region:{ok_region}, channel:{ok_channel}, time:{ok_time}")
-        if ok_region and ok_channel and ok_time:
+        logger.info(f"[DEBUG] Checking file: {name} - dataset:{ok_dataset}, channel:{ok_channel}, time:{ok_time}")
+        if ok_dataset and ok_channel and ok_time:
             logger.info(f"[DEBUG] Partial match found: {file}")
             return file
 
@@ -624,10 +624,10 @@ def _find_raw_image_for_roi(roi_file: Path, raw_data_dir: Path) -> Optional[Path
 def _create_cells_output_dir_for_roi(roi_file: Path, output_base_dir: Path) -> Path:
     condition = roi_file.parent.name
     tokens = _extract_tokens_from_roi_name(roi_file.name)
-    region = tokens.get("region", "")
+    dataset = tokens.get("dataset", "")
     channel = tokens.get("channel", "")
     timepoint = tokens.get("timepoint", "")
-    out_dir = output_base_dir / condition / f"{region}_{channel}_{timepoint}"
+    out_dir = output_base_dir / condition / f"{dataset}_{channel}_{timepoint}"
     out_dir.mkdir(parents=True, exist_ok=True)
     return out_dir
 
