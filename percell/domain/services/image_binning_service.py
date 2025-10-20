@@ -109,8 +109,8 @@ class ImageBinningService:
         # Parse filename metadata
         meta = self.naming_service.parse_microscopy_filename(file_path.name)
 
-        # Check region, timepoint, channel
-        if regions is not None and (not meta.region or meta.region not in regions):
+        # Check dataset, timepoint, channel
+        if regions is not None and (not meta.dataset or meta.dataset not in regions):
             return False
         if timepoints is not None and (not meta.timepoint or meta.timepoint not in timepoints):
             return False
