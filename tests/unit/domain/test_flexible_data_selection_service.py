@@ -101,7 +101,7 @@ class TestFlexibleDataSelectionService:
         # Should have multiple dimensions
         assert "project_folder" in dimensions
         assert "channel" in dimensions
-        assert "region" in dimensions
+        assert "dataset" in dimensions
 
         # Check specific values
         assert set(dimensions["project_folder"]) == {"ProjectA", "ProjectB"}

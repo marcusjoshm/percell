@@ -39,7 +39,7 @@ class DataSelectionStage(StageBase):
         self.selected_datatype = None
         self.selected_conditions = []
         self.selected_timepoints = []
-        self.selected_regions = []
+        self.selected_datasets = []
         self.segmentation_channel = None
         self.analysis_channels = []
 
@@ -272,7 +272,7 @@ class DataSelectionStage(StageBase):
             # Use the instance variables that were set during interactive selection
             selected_conditions = self.selected_conditions
             selected_timepoints = self.selected_timepoints
-            selected_regions = self.selected_regions
+            selected_regions = self.selected_datasets
             
             self.logger.info(f"Selected conditions: {selected_conditions}")
             self.logger.info(f"Selected timepoints: {selected_timepoints}")
@@ -666,7 +666,7 @@ class DataSelectionStage(StageBase):
             input_dir = getattr(self, 'input_dir', None)
             if not input_dir:
                 available_items = self.experiment_metadata.get('regions', [])
-                self.selected_regions = self._handle_list_selection(available_items, "regions", self.selected_regions)
+                self.selected_datasets = self._handle_list_selection(available_items, "regions", self.selected_datasets)
                 return True
             condition_dir = Path(input_dir) / condition
             if condition_dir.exists():
@@ -714,7 +714,7 @@ class DataSelectionStage(StageBase):
             input()
             return False
             
-        self.selected_regions = self._handle_list_selection(available_items, "regions", self.selected_regions)
+        self.selected_datasets = self._handle_list_selection(available_items, "regions", self.selected_datasets)
         return True
     
     def _select_segmentation_channel(self) -> bool:
@@ -786,7 +786,7 @@ class DataSelectionStage(StageBase):
             self.config.set('data_selection.selected_datatype', self.selected_datatype)
             self.config.set('data_selection.selected_conditions', self.selected_conditions)
             self.config.set('data_selection.selected_timepoints', self.selected_timepoints)
-            self.config.set('data_selection.selected_regions', self.selected_regions)
+            self.config.set('data_selection.selected_regions', self.selected_datasets)
             self.config.set('data_selection.segmentation_channel', self.segmentation_channel)
             self.config.set('data_selection.analysis_channels', self.analysis_channels)
             self.config.set('data_selection.experiment_metadata', self.experiment_metadata)
@@ -871,9 +871,9 @@ class DataSelectionStage(StageBase):
                 if not self._select_timepoints_flexible():
                     return False
 
-            # Step 5: Select regions (if needed)
-            if 'region' in self.available_dimensions and len(self.available_dimensions['region']) > 1:
-                if not self._select_regions_flexible():
+            # Step 5: Select datasets (if needed)
+            if 'dataset' in self.available_dimensions and len(self.available_dimensions['dataset']) > 1:
+                if not self._select_datasets_flexible():
                     return False
 
             return True
@@ -1002,45 +1002,45 @@ class DataSelectionStage(StageBase):
 
         return True
 
-    def _select_regions_flexible(self) -> bool:
-        """Select regions to include in analysis."""
+    def _select_datasets_flexible(self) -> bool:
+        """Select datasets to include in analysis."""
         print("\n" + "="*80)
-        print("STEP: SELECT REGIONS (OPTIONAL)")
+        print("STEP: SELECT DATASETS (OPTIONAL)")
         print("="*80)
 
-        available = self.available_dimensions.get('region', [])
+        available = self.available_dimensions.get('dataset', [])
 
-        print(f"\nFound {len(available)} unique regions (base filenames):")
-        for i, region in enumerate(available[:10], 1):
-            print(f"  {i}. {region}")
+        print(f"\nFound {len(available)} unique datasets (base filenames):")
+        for i, dataset in enumerate(available[:10], 1):
+            print(f"  {i}. {dataset}")
         if len(available) > 10:
             print(f"  ... and {len(available) - 10} more")
 
         print("\nSelection options:")
-        print(f"- Press Enter to include all regions")
-        print(f"- Enter region names as space-separated text (e.g., '{available[0]}')")
+        print(f"- Press Enter to include all datasets")
+        print(f"- Enter dataset names as space-separated text (e.g., '{available[0]}')")
         print(f"- Enter numbers from the list (e.g., '1 3')")
-        print(f"- Type 'all' to select all regions")
+        print(f"- Type 'all' to select all datasets")
 
         while True:
-            user_input = input("\nSelect regions (or press Enter for all): ").strip()
+            user_input = input("\nSelect datasets (or press Enter for all): ").strip()
 
             if not user_input:
-                self.selected_regions = available
-                print(f"✓ Including all {len(available)} regions")
+                self.selected_datasets = available
+                print(f"✓ Including all {len(available)} datasets")
                 break
 
             if user_input.lower() == 'all':
-                self.selected_regions = available
-                print(f"✓ Including all {len(available)} regions")
+                self.selected_datasets = available
+                print(f"✓ Including all {len(available)} datasets")
                 break
 
             # Try to parse as numbers first
             try:
                 indices = [int(x) for x in user_input.split()]
                 if all(1 <= i <= len(available) for i in indices):
-                    self.selected_regions = [available[i-1] for i in indices]
-                    print(f"✓ Selected {len(self.selected_regions)} regions")
+                    self.selected_datasets = [available[i-1] for i in indices]
+                    print(f"✓ Selected {len(self.selected_datasets)} datasets")
                     break
                 else:
                     print(f"Invalid numbers. Please enter numbers between 1 and {len(available)}.")
@@ -1048,16 +1048,16 @@ class DataSelectionStage(StageBase):
             except ValueError:
                 pass
 
-            # If not numbers, treat as direct region names
+            # If not numbers, treat as direct dataset names
             selected_items = [item.strip() for item in user_input.split()]
             if all(item in available for item in selected_items):
-                self.selected_regions = selected_items
-                print(f"✓ Selected {len(self.selected_regions)} regions")
+                self.selected_datasets = selected_items
+                print(f"✓ Selected {len(self.selected_datasets)} datasets")
                 break
             else:
-                print(f"Invalid selection. Please enter valid region names or numbers.")
+                print(f"Invalid selection. Please enter valid dataset names or numbers.")
 
-        self.logger.info(f"Selected {len(self.selected_regions)} regions")
+        self.logger.info(f"Selected {len(self.selected_datasets)} datasets")
 
         return True
 
@@ -1101,9 +1101,9 @@ class DataSelectionStage(StageBase):
             if self.selected_timepoints:
                 filters['timepoint'] = self.selected_timepoints
 
-            # Add region filter
-            if self.selected_regions and len(self.selected_regions) < len(self.available_dimensions.get('region', [])):
-                filters['region'] = self.selected_regions
+            # Add dataset filter
+            if self.selected_datasets and len(self.selected_datasets) < len(self.available_dimensions.get('dataset', [])):
+                filters['dataset'] = self.selected_datasets
 
             self.logger.info(f"Applying filters: {filters}")
 
@@ -1179,13 +1179,13 @@ class DataSelectionStage(StageBase):
                 self.condition_dimension: self.selected_conditions,
                 'channel': self.analysis_channels,
                 'timepoint': self.selected_timepoints,
-                'region': self.selected_regions
+                'dataset': self.selected_datasets
             })
 
             # Also save in legacy format for backward compatibility
             self.config.set('data_selection.selected_conditions', self.selected_conditions)
             self.config.set('data_selection.selected_timepoints', self.selected_timepoints)
-            self.config.set('data_selection.selected_regions', self.selected_regions)
+            self.config.set('data_selection.selected_regions', self.selected_datasets)
             self.config.set('data_selection.segmentation_channel', self.segmentation_channel)
             self.config.set('data_selection.analysis_channels', self.analysis_channels)
 

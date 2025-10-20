@@ -17,7 +17,7 @@ class TestEnhancedFileNaming:
             "18h dTAG13_Merged_z00_ch00.tif"
         )
 
-        assert meta.region == "18h dTAG13_Merged"
+        assert meta.dataset == "18h dTAG13_Merged"
         assert meta.channel == "ch00"
         assert meta.z_index == 0
         assert meta.extension == ".tif"
@@ -31,7 +31,7 @@ class TestEnhancedFileNaming:
             "18h dTAG13_Merged_z00_ch01.tif"
         )
 
-        assert meta1.region == meta2.region
+        assert meta1.dataset == meta2.dataset
         assert meta1.channel == "ch00"
         assert meta2.channel == "ch01"
 
@@ -41,7 +41,7 @@ class TestEnhancedFileNaming:
             "No dTAG13_Merged_z00_ch00.tif"
         )
 
-        assert meta.region == "No dTAG13_Merged"
+        assert meta.dataset == "No dTAG13_Merged"
         assert meta.channel == "ch00"
 
     def test_parse_3h_treatment_filename(self, service):
@@ -50,7 +50,7 @@ class TestEnhancedFileNaming:
             "3h treatment_Merged_z00_ch00.tif"
         )
 
-        assert meta.region == "3h treatment_Merged"
+        assert meta.dataset == "3h treatment_Merged"
         assert meta.channel == "ch00"
         assert meta.z_index == 0
 
@@ -58,7 +58,7 @@ class TestEnhancedFileNaming:
         """Test parsing standard underscore-based naming."""
         meta = service.parse_microscopy_filename("region1_t0_ch1_z5.tif")
 
-        assert meta.region == "region1"
+        assert meta.dataset == "region1"
         assert meta.timepoint == "t0"
         assert meta.channel == "ch1"
         assert meta.z_index == 5
@@ -67,7 +67,7 @@ class TestEnhancedFileNaming:
         """Test parsing filename with minimal metadata."""
         meta = service.parse_microscopy_filename("experiment_ch00.tif")
 
-        assert meta.region == "experiment"
+        assert meta.dataset == "experiment"
         assert meta.channel == "ch00"
         assert meta.timepoint is None
         assert meta.z_index is None
@@ -76,7 +76,7 @@ class TestEnhancedFileNaming:
         """Test parsing filename with timepoint."""
         meta = service.parse_microscopy_filename("data_t5_ch2.tif")
 
-        assert meta.region == "data"
+        assert meta.dataset == "data"
         assert meta.timepoint == "t5"
         assert meta.channel == "ch2"
 
@@ -92,7 +92,7 @@ class TestEnhancedFileNaming:
         """Test parsing markers without underscore prefix."""
         meta = service.parse_microscopy_filename("experiment z00 ch01.tif")
 
-        assert "experiment" in meta.region
+        assert "experiment" in meta.dataset
         assert meta.channel == "ch01"
         assert meta.z_index == 0
 
@@ -100,7 +100,7 @@ class TestEnhancedFileNaming:
         """Test parsing nested structure fixture filename."""
         meta = service.parse_microscopy_filename("data_t0_ch0.tif")
 
-        assert meta.region == "data"
+        assert meta.dataset == "data"
         assert meta.timepoint == "t0"
         assert meta.channel == "ch0"
 
@@ -108,7 +108,7 @@ class TestEnhancedFileNaming:
         """Test parsing filenames with multi-digit indices."""
         meta = service.parse_microscopy_filename("sample_t10_ch15_z99.tif")
 
-        assert meta.region == "sample"
+        assert meta.dataset == "sample"
         assert meta.timepoint == "t10"
         assert meta.channel == "ch15"
         assert meta.z_index == 99
@@ -119,7 +119,7 @@ class TestEnhancedFileNaming:
             "experiment_ch00.tiff"
         )
 
-        assert meta.region == "experiment"
+        assert meta.dataset == "experiment"
         assert meta.channel == "ch00"
         assert meta.extension == ".tiff"
 
@@ -141,6 +141,6 @@ class TestEnhancedFileNaming:
             "A549 UFD1L KO_Merged_z00_ch00.tif"
         )
 
-        assert "A549 UFD1L KO" in meta.region or "A549 UFD1L KO_Merged" == meta.region
+        assert "A549 UFD1L KO" in meta.dataset or "A549 UFD1L KO_Merged" == meta.dataset
         assert meta.channel == "ch00"
         assert meta.z_index == 0

@@ -67,24 +67,24 @@ class FileNamingService:
                     values[key] = f"{prefix}{val}"
                 # tile is not persisted in FileMetadata
 
-        # Remove found token substrings to get region/image name
+        # Remove found token substrings to get dataset/image name
         # Sort in reverse order to remove from end to start
         # (preserves earlier indices)
         spans.sort(reverse=True)
-        region = base
+        dataset = base
         for s, e in spans:
-            region = region[:s] + region[e:]
+            dataset = dataset[:s] + dataset[e:]
 
-        # Clean up the region name
-        region = region.strip("_").strip()
+        # Clean up the dataset name
+        dataset = dataset.strip("_").strip()
 
-        # If region is empty, use the original base name
-        if not region:
-            region = base
+        # If dataset is empty, use the original base name
+        if not dataset:
+            dataset = base
 
         return FileMetadata(
             original_name=filename,
-            region=region,
+            dataset=dataset,
             channel=values.get("channel"),
             timepoint=values.get("timepoint"),
             z_index=values.get("z_index"),
@@ -102,8 +102,8 @@ class FileNamingService:
         """
 
         parts: list[str] = []
-        if metadata.region:
-            parts.append(metadata.region)
+        if metadata.dataset:
+            parts.append(metadata.dataset)
         if metadata.channel:
             parts.append(metadata.channel)
         if metadata.timepoint:
@@ -129,7 +129,7 @@ class FileNamingService:
         # Require both channel and timepoint tokens
         has_ch = bool(re.search(r"_ch\d+", filename)) or bool(re.search(r"ch\d+", filename))
         has_t = bool(re.search(r"_t\d+", filename)) or bool(re.search(r"t\d+", filename))
-        # Region presence approximated by some prefix before tokens
+        # Dataset presence approximated by some prefix before tokens
         base = filename[: -len(ext)] if ext else filename
         return bool(has_ch and has_t and len(base.split("_")) >= 3)
 
@@ -143,7 +143,7 @@ class FileNamingService:
             Mapping of metadata keys to string values.
         """
 
-        # Handle ROI zip names like ROIs_<region>_chNN_tXX_rois.zip
+        # Handle ROI zip names like ROIs_<dataset>_chNN_tXX_rois.zip
         name = filename
         if name.startswith("ROIs_"):
             name = name[5:]
@@ -161,16 +161,16 @@ class FileNamingService:
         if m_t:
             t = m_t.group(1)
 
-        region = name
+        dataset = name
         if ch:
-            region = region.replace(f"_{ch}", "")
+            dataset = dataset.replace(f"_{ch}", "")
         if t:
-            region = region.replace(f"_{t}", "")
-        region = region.rstrip("_")
+            dataset = dataset.replace(f"_{t}", "")
+        dataset = dataset.rstrip("_")
 
         out: Dict[str, str] = {}
-        if region:
-            out["region"] = region
+        if dataset:
+            out["dataset"] = dataset
         if ch:
             out["channel"] = ch
         if t:

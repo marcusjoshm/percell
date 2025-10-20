@@ -49,7 +49,7 @@ class FileMetadata:
         path: Optional absolute file path of the asset.
         condition: Experimental condition identifier.
         timepoint: Timepoint identifier.
-        region: Region/field identifier.
+        dataset: Dataset/field identifier (formerly called 'region').
         channel: Imaging channel identifier.
         z_index: Z-stack index when applicable.
         extension: File extension including the dot (e.g., ".tif").
@@ -62,7 +62,7 @@ class FileMetadata:
     path: Optional[Path] = None
     condition: Optional[str] = None
     timepoint: Optional[str] = None
-    region: Optional[str] = None
+    dataset: Optional[str] = None
     channel: Optional[str] = None
     z_index: Optional[int] = None
     extension: Optional[str] = None
@@ -98,7 +98,7 @@ class DatasetSelection:
         files: Concrete list of files participating in the workflow.
         conditions: Selected condition identifiers (legacy).
         timepoints: Selected timepoint identifiers (legacy).
-        regions: Selected region identifiers (legacy).
+        datasets: Selected dataset identifiers (legacy, formerly 'regions').
         channels: Selected channels to process (legacy).
         condition_dimension: Which dimension represents experimental
                              conditions (flexible mode).
@@ -111,7 +111,7 @@ class DatasetSelection:
     # Legacy fields - kept for backward compatibility
     conditions: list[str] = field(default_factory=list)
     timepoints: list[str] = field(default_factory=list)
-    regions: list[str] = field(default_factory=list)
+    datasets: list[str] = field(default_factory=list)
     channels: list[str] = field(default_factory=list)
     # New fields for flexible dimension-based selection
     condition_dimension: str = "project_folder"
@@ -127,15 +127,15 @@ class DatasetGrouping:
 
     Attributes:
         group_by: List of dimension names to group by
-                  (e.g., ['project_folder', 'region']).
+                  (e.g., ['project_folder', 'dataset']).
                   Files will be grouped based on unique combinations of
                   these dimensions.
         filter_by: Dict mapping dimension names to lists of allowed values.
                    Only files matching all filters will be included.
 
     Example:
-        group_by=['project_folder', 'region'] groups files by project folder first,
-        then by region name.
+        group_by=['project_folder', 'dataset'] groups files by project folder first,
+        then by dataset name.
 
         filter_by={'channel': ['ch00', 'ch01']} includes only files from
         channels ch00 and ch01.

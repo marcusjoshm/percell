@@ -97,7 +97,7 @@ class FlexibleDataSelectionService:
         Dimensions are any metadata that can be used for grouping or
         filtering:
         - project_folder: First directory under root
-        - region: Base filename (e.g., "18h dTAG13_Merged")
+        - dataset: Base filename (e.g., "18h dTAG13_Merged")
         - channel: Channel identifier (e.g., "ch00")
         - timepoint: Timepoint identifier (e.g., "t0")
         - z_index: Z-slice index (e.g., "0", "1", "2")
@@ -110,7 +110,7 @@ class FlexibleDataSelectionService:
         """
         dimensions: Dict[str, Set[str]] = {
             "project_folder": set(),
-            "region": set(),
+            "dataset": set(),
             "channel": set(),
             "timepoint": set(),
             "z_index": set(),
@@ -119,8 +119,8 @@ class FlexibleDataSelectionService:
         for file_path, meta in files_meta:
             if meta.project_folder:
                 dimensions["project_folder"].add(meta.project_folder)
-            if meta.region:
-                dimensions["region"].add(meta.region)
+            if meta.dataset:
+                dimensions["dataset"].add(meta.dataset)
             if meta.channel:
                 dimensions["channel"].add(meta.channel)
             if meta.timepoint:

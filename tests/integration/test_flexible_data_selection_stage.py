@@ -122,7 +122,7 @@ class TestFlexibleDataSelectionStageIntegration:
         if stage.available_dimensions.get('timepoint'):
             stage.selected_timepoints = stage.available_dimensions['timepoint']
 
-        stage.selected_regions = stage.available_dimensions.get('region', [])
+        stage.selected_datasets = stage.available_dimensions.get('dataset', [])
 
         # Step 3: Create output directories
         success = stage._create_flexible_output_directories()
@@ -154,7 +154,7 @@ class TestFlexibleDataSelectionStageIntegration:
         stage.analysis_channels = ['ch00']
         stage.segmentation_channel = 'ch00'
         stage.selected_timepoints = []
-        stage.selected_regions = stage.available_dimensions.get('region', [])
+        stage.selected_datasets = stage.available_dimensions.get('dataset', [])
 
         # Create directories
         stage._create_flexible_output_directories()
@@ -193,7 +193,7 @@ class TestFlexibleDataSelectionStageIntegration:
         stage.analysis_channels = ['ch00', 'ch01']
         stage.segmentation_channel = 'ch00'
         stage.selected_timepoints = []
-        stage.selected_regions = stage.available_dimensions.get('region', [])
+        stage.selected_datasets = stage.available_dimensions.get('dataset', [])
 
         # Save to config
         stage._save_flexible_selections_to_config()
@@ -276,7 +276,7 @@ class TestFlexibleDataSelectionStageIntegration:
         stage.analysis_channels = ['ch0', 'ch1']
         stage.segmentation_channel = 'ch0'
         stage.selected_timepoints = ['t0']  # Filter to specific timepoint
-        stage.selected_regions = stage.available_dimensions.get('region', [])
+        stage.selected_datasets = stage.available_dimensions.get('dataset', [])
 
         # Create directories and copy files
         stage._create_flexible_output_directories()
