@@ -256,7 +256,7 @@ class VisualizationService:
             root=root_dir,
             conditions=selection.conditions,
             timepoints=selection.timepoints,
-            regions=selection.regions,
+            datasets=selection.datasets,
             channels=selection.channels
         )
 
