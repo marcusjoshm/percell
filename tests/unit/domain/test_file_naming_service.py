@@ -15,7 +15,7 @@ class TestFileNamingServiceParsing:
             (
                 "R_1_Merged_ch01_t00.tif",
                 {
-                    "dataset": "R_1_Merged",
+                    "region": "R_1_Merged",
                     "channel": "ch01",
                     "timepoint": "t00",
                     "extension": ".tif",
@@ -24,7 +24,7 @@ class TestFileNamingServiceParsing:
             (
                 "ExperimentX_s2_z3_ch1_t10.tiff",
                 {
-                    "dataset": "ExperimentX",
+                    "region": "ExperimentX",
                     "channel": "ch1",
                     "timepoint": "t10",
                     "extension": ".tiff",
@@ -52,11 +52,11 @@ class TestFileNamingServiceROIExtraction:
         [
             (
                 "ROIs_R_1_Merged_ch01_t00_rois.zip",
-                {"dataset": "R_1_Merged", "channel": "ch01", "timepoint": "t00"},
+                {"region": "R_1_Merged", "channel": "ch01", "timepoint": "t00"},
             ),
             (
                 "ROIs_Sample_A_ch00_t12.zip",
-                {"dataset": "Sample_A", "channel": "ch00", "timepoint": "t12"},
+                {"region": "Sample_A", "channel": "ch00", "timepoint": "t12"},
             ),
         ],
     )
@@ -85,7 +85,7 @@ class TestFileNamingServiceValidationAndGeneration:
             (
                 FileMetadata(
                     original_name="R_1_Merged_ch01_t00.tif",
-                    dataset="R_1_Merged",
+                    region="R_1_Merged",
                     channel="ch01",
                     timepoint="t00",
                     extension=".tif",
@@ -95,7 +95,7 @@ class TestFileNamingServiceValidationAndGeneration:
             (
                 FileMetadata(
                     original_name="ExperimentX_s2_z3_ch1_t10.tiff",
-                    dataset="ExperimentX",
+                    region="ExperimentX",
                     channel="ch1",
                     timepoint="t10",
                     extension=".tiff",

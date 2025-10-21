@@ -1177,8 +1177,7 @@ def find_roi_files_for_timepoints(directory: str | Path, timepoints: List[str]) 
     # Find all ROI files for all timepoints
     all_roi_files = {}
     for tp in timepoints:
-        # Filter out macOS hidden files (._*)
-        files = [f for f in root.rglob(f"*{tp}*_rois.zip") if not f.name.startswith('._')]
+        files = list(root.rglob(f"*{tp}*_rois.zip"))
         all_roi_files[tp] = files
         print(f"  Found {len(files)} ROI files for timepoint '{tp}'")
 

@@ -1,8 +1,18 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git commit:*)",
-      "Read(//Volumes/NX-01-A/2025-10-16_analysis_UFD1L-dTAG_Clone1_As/raw_data/A549 UFD1L KO + UFD1L-dTAG Clone 1 As/**)"
+      "Bash(git add:*)",
+      "Read(//Users/joshuamarcus/image_metadata/**)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(python -m pytest tests/unit/application/test_configuration_service.py -v)",
+      "Bash(python -m pytest tests/integration/test_configuration_manager.py -v)",
+      "Bash(python -m pytest tests/unit/domain/test_configuration_service_refactored.py::TestConfigurationServiceErrorHandling::test_load_io_error -v)",
+      "Bash(python3:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nRefactor progress reporting to fix adapter→application dependency violation\n\nCreate proper port abstraction for progress reporting to maintain hexagonal\narchitecture boundaries and adhere to the dependency inversion principle.\n\nChanges:\n- Add ProgressReportPort interface in ports/driven/\n- Create ConsoleProgressAdapter implementing ProgressReportPort\n- Refactor ImageJMacroAdapter to accept ProgressReportPort via DI\n- Update Container to wire progress reporter dependency\n- Remove direct import of application.progress_api from adapters\n\nBenefits:\n- Eliminates dependency rule violation (adapter no longer depends on application)\n- Follows dependency inversion principle (adapter depends on port abstraction)\n- Improves testability (progress reporter can be easily mocked)\n- Maintains proper hexagonal architecture layering\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(awk:*)",
+      "Bash(find:*)",
+      "Bash(mypy:*)"
     ],
     "deny": [],
     "ask": []
