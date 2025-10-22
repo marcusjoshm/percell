@@ -108,41 +108,28 @@ class DataSelectionStage(StageBase):
             return False
     
     def _setup_output_structure(self) -> bool:
-        """Set up the output directory structure using the setup_output_structure.sh script."""
+        """Set up the output directory structure using the setup_output_structure.py script."""
         try:
             self.logger.info("Starting output directory structure setup...")
-            
-            # Use the setup_output_structure.sh script
-            from percell.application.paths_api import get_path, ensure_executable
+
+            # Use the cross-platform Python script
+            from percell.application.paths_api import get_path
             script_path = get_path("setup_output_structure_script")
-            
-            # Make sure the script is executable (prefer injected filesystem port)
-            fs_port = getattr(self, '_fs', None)
-            try:
-                if fs_port is not None:
-                    from percell.application.paths_api import get_path
-                    fs_port.ensure_executable(get_path("setup_output_structure_script"))
-                else:
-                    from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
-                    from percell.application.paths_api import get_path
-                    LocalFileSystemAdapter().ensure_executable(get_path("setup_output_structure_script"))
-            except Exception:
-                pass
-            
-            self.logger.info(f"Running setup_output_structure.sh with input: {self.input_dir}, output: {self.output_dir}")
-            
-            # Run the script to create directory structure (no file copying yet)
-            result = subprocess.run([str(script_path), str(self.input_dir), str(self.output_dir)], 
+
+            self.logger.info(f"Running setup_output_structure.py with input: {self.input_dir}, output: {self.output_dir}")
+
+            # Run the Python script to create directory structure (no file copying yet)
+            result = subprocess.run([sys.executable, str(script_path), str(self.input_dir), str(self.output_dir)],
                                   capture_output=True, text=True)
-            
+
             if result.returncode != 0:
-                self.logger.error(f"setup_output_structure.sh failed: {result.stderr}")
+                self.logger.error(f"setup_output_structure.py failed: {result.stderr}")
                 return False
-            
+
             self.logger.info("Output directory structure setup complete")
             self.logger.info(f"Script output: {result.stdout}")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Error setting up output structure: {e}")
             return False
@@ -325,42 +312,29 @@ class DataSelectionStage(StageBase):
             return False
     
     def _prepare_input_structure(self, input_dir: str) -> bool:
-        """Prepare input directory structure using the prepare_input_structure.sh script."""
+        """Prepare input directory structure using the prepare_input_structure.py script."""
         try:
             input_path = Path(input_dir)
             self.logger.info(f"Starting input directory structure preparation: {input_path}")
-            
-            # Use the prepare_input_structure.sh script
-            from percell.application.paths_api import get_path, ensure_executable
+
+            # Use the cross-platform Python script
+            from percell.application.paths_api import get_path
             script_path = get_path("prepare_input_structure_script")
-            
-            # Make sure the script is executable (prefer injected filesystem port)
-            fs_port = getattr(self, '_fs', None)
-            try:
-                if fs_port is not None:
-                    from percell.application.paths_api import get_path
-                    fs_port.ensure_executable(get_path("prepare_input_structure_script"))
-                else:
-                    from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
-                    from percell.application.paths_api import get_path
-                    LocalFileSystemAdapter().ensure_executable(get_path("prepare_input_structure_script"))
-            except Exception:
-                pass
-            
-            self.logger.info(f"Running prepare_input_structure.sh with input: {input_path}")
-            
-            # Run the script
-            result = subprocess.run([str(script_path), str(input_path)], 
+
+            self.logger.info(f"Running prepare_input_structure.py with input: {input_path}")
+
+            # Run the Python script
+            result = subprocess.run([sys.executable, str(script_path), str(input_path)],
                                   capture_output=True, text=True)
-            
+
             if result.returncode != 0:
-                self.logger.error(f"prepare_input_structure.sh failed: {result.stderr}")
+                self.logger.error(f"prepare_input_structure.py failed: {result.stderr}")
                 return False
-            
+
             self.logger.info("Input directory structure prepared successfully")
             self.logger.info(f"Script output: {result.stdout}")
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Error preparing input structure: {e}")
             return False

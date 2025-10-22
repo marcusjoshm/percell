@@ -76,9 +76,16 @@ class PathConfig:
             "config_template": root / "config" / "config.template.json",
             "config_default": root / "config" / "config.json",
             "bash_dir": root / "bash",
-            "setup_output_structure_script": root / "bash" / "setup_output_structure.sh",
-            "prepare_input_structure_script": root / "bash" / "prepare_input_structure.sh",
-            "launch_segmentation_tools_script": root / "bash" / "launch_segmentation_tools.sh",
+            "scripts_dir": root / "scripts",
+            # Updated to use cross-platform Python scripts instead of bash
+            "setup_output_structure_script": root / "scripts" / "setup_output_structure.py",
+            "prepare_input_structure_script": root / "scripts" / "prepare_input_structure.py",
+            "launch_segmentation_tools_script": root / "scripts" / "launch_segmentation_tools.py",
+            "launch_napari_viewer_script": root / "scripts" / "launch_napari_viewer.py",
+            # Legacy bash scripts (kept for backwards compatibility)
+            "setup_output_structure_sh": root / "bash" / "setup_output_structure.sh",
+            "prepare_input_structure_sh": root / "bash" / "prepare_input_structure.sh",
+            "launch_segmentation_tools_sh": root / "bash" / "launch_segmentation_tools.sh",
             "macros_dir": root / "macros",
             "analyze_cell_masks_macro": root / "macros" / "analyze_cell_masks.ijm",
             "create_cell_masks_macro": root / "macros" / "create_cell_masks.ijm",
@@ -109,10 +116,17 @@ class PathConfig:
             return False
 
     def ensure_executable(self, path_name: str) -> None:
+        """
+        Ensure a file is executable (Unix/Linux/macOS only).
+        On Windows, this is a no-op since Windows doesn't use Unix permissions.
+        """
         file_path = self.get_path(path_name)
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
-        file_path.chmod(0o755)
+
+        # Only set permissions on Unix-like systems
+        if sys.platform != 'win32':
+            file_path.chmod(0o755)
 
     def list_paths(self) -> Dict[str, str]:
         return {name: str(path) for name, path in self._paths.items()}
