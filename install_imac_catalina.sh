@@ -153,14 +153,16 @@ print_status "Virtual environment activated"
 # Upgrade pip
 echo ""
 echo "Upgrading pip..."
-python -m pip install --upgrade pip --quiet
+python -m pip install --upgrade pip
 print_status "Pip upgraded"
 
 # Install minimal dependencies first (avoiding PyQt5/napari which need Qt build tools)
 echo ""
 echo "Installing core dependencies..."
+echo "(This may take several minutes, please be patient...)"
+echo ""
 if [ -f "requirements-imac-minimal.txt" ]; then
-    pip install -r requirements-imac-minimal.txt --quiet
+    pip install -r requirements-imac-minimal.txt
     print_status "Core dependencies installed"
 else
     print_warning "Minimal requirements file not found, using standard installation"
@@ -169,7 +171,7 @@ fi
 # Install percell in development mode (without dependencies to avoid PyQt5)
 echo ""
 echo "Installing percell..."
-pip install -e . --no-deps --quiet
+pip install -e . --no-deps
 print_status "Percell installed in development mode"
 
 # Create config directory if it doesn't exist
