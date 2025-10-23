@@ -10,10 +10,12 @@ from percell.application.step_execution_coordinator import StepExecutionCoordina
 from percell.domain.services.workflow_orchestration_service import WorkflowOrchestrationService
 from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter
 from percell.adapters.cellpose_subprocess_adapter import CellposeSubprocessAdapter
+from percell.adapters.cellpose_conda_adapter import CellposeCondaAdapter
 from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
 from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
 from percell.adapters.console_progress_adapter import ConsoleProgressAdapter
 from percell.domain.exceptions import ConfigurationError
+from percell.ports.driven.cellpose_integration_port import CellposeIntegrationPort
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,7 @@ class Container:
     workflow: WorkflowCoordinator
     step_exec: StepExecutionCoordinator
     imagej: ImageJMacroAdapter
-    cellpose: CellposeSubprocessAdapter
+    cellpose: CellposeIntegrationPort
     fs: LocalFileSystemAdapter
     imgproc: PILImageProcessingAdapter
 
@@ -64,11 +66,30 @@ def build_container(config_path: Path) -> Container:
                           "/Applications/ImageJ.app/Contents/MacOS/ImageJ")
         imagej = ImageJMacroAdapter(imagej_path, progress_reporter)
 
-        # Resolve cellpose path with new get_resolved_path method
-        cellpose_python = (cfg.get_resolved_path("cellpose_path", project_root) or
-                          cfg.get_resolved_path("paths.cellpose", project_root) or
-                          project_root / "cellpose_venv/bin/python")
-        cellpose = CellposeSubprocessAdapter(cellpose_python)
+        # Determine cellpose adapter type based on configuration
+        cellpose_type = cfg.get("cellpose_type") or "subprocess"
+
+        if cellpose_type == "conda":
+            # Use conda adapter for conda-based cellpose installations
+            conda_env_name = cfg.get("cellpose_conda_env") or "cellpose_env"
+            conda_path_str = cfg.get("conda_path")
+            conda_path = Path(conda_path_str) if conda_path_str else None
+            cellpose = CellposeCondaAdapter(conda_env_name, conda_path)
+            logger.info(
+                f"Using CellposeCondaAdapter with env: {conda_env_name}"
+            )
+        else:
+            # Use subprocess adapter (default)
+            cellpose_python = (
+                cfg.get_resolved_path("cellpose_path", project_root) or
+                cfg.get_resolved_path("paths.cellpose", project_root) or
+                project_root / "cellpose_venv/bin/python"
+            )
+            cellpose = CellposeSubprocessAdapter(cellpose_python)
+            logger.info(
+                f"Using CellposeSubprocessAdapter with python: "
+                f"{cellpose_python}"
+            )
 
         fs = LocalFileSystemAdapter()
         imgproc = PILImageProcessingAdapter()

@@ -1,0 +1,132 @@
+{
+  "name": "Microscopy Single-Cell Analysis Workflow - iMac Catalina",
+  "version": "2.0.0",
+  "description": "Complete workflow for analyzing microscopy data on macOS Catalina with conda-based cellpose",
+  "imagej_path": "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx",
+  "cellpose_type": "conda",
+  "cellpose_conda_env": "cellpose_env",
+  "conda_path": null,
+  "steps": [
+    {
+      "name": "prepare_input_structure",
+      "type": "bash",
+      "path": "percell/bash/prepare_input_structure.sh",
+      "args": [
+        "{input_dir}"
+      ],
+      "description": "Standardize input directory structure for LASX-exported data"
+    },
+    {
+      "name": "select_datatype",
+      "type": "manual",
+      "instructions": "Select the type of data: single_timepoint or multi_timepoint. You can specify the datatype when running the script with the --datatype option.",
+      "description": "Select the data type (single or multiple timepoints)"
+    },
+    {
+      "name": "select_condition",
+      "type": "manual",
+      "instructions": "Review available conditions: {conditions_list}. Select the conditions to analyze. You can specify conditions when running the script with the --conditions option.",
+      "description": "Select specific conditions for analysis"
+    },
+    {
+      "name": "select_timepoints",
+      "type": "manual",
+      "instructions": "Review available timepoints in the raw data and decide which timepoints to use for analysis. Current experiment has timepoints: {timepoints_list}. Press Enter when you have made your selection. You can specify timepoints when running the script with --timepoints option.",
+      "description": "Select specific timepoints for analysis"
+    },
+    {
+      "name": "select_regions",
+      "type": "manual",
+      "instructions": "Review available regions in the raw data and decide which regions to use for analysis. Current experiment has regions: {regions_list}. Press Enter when you have made your selection. You can specify regions when running the script with --regions option.",
+      "description": "Select specific regions for analysis"
+    },
+    {
+      "name": "select_segmentation_channel",
+      "type": "manual",
+      "instructions": "Select the channel to use for cell segmentation. This channel will be used for binning images and interactive segmentation. Available channels: {channels_list}",
+      "description": "Select the channel for cell segmentation"
+    },
+    {
+      "name": "select_analysis_channels",
+      "type": "manual",
+      "instructions": "Select the channels to analyze. These channels will be used for all downstream analysis steps. Available channels: {channels_list}",
+      "description": "Select channels for analysis"
+    },
+    {
+      "name": "bin_images_for_segmentation",
+      "type": "stage",
+      "stage_name": "segmentation",
+      "description": "Bin images 4x4 for cell segmentation and launch interactive segmentation tools"
+    },
+    {
+      "name": "interactive_segmentation",
+      "type": "bash",
+      "path": "percell/bash/launch_segmentation_tools.sh",
+      "args": [
+        "{output_dir}/preprocessed"
+      ],
+      "description": "Launch Cellpose and FIJI for interactive cell segmentation"
+    },
+    {
+      "name": "roi_tracking",
+      "type": "stage",
+      "stage_name": "process_single_cell",
+      "description": "Process single-cell data including ROI tracking, resizing, extraction, and grouping"
+    },
+    {
+      "name": "resize_rois",
+      "type": "stage",
+      "stage_name": "process_single_cell",
+      "description": "Resize ROIs from binned images to match original image dimensions (uses segmentation channel as reference)"
+    },
+    {
+      "name": "duplicate_rois_for_analysis_channels",
+      "type": "stage",
+      "stage_name": "process_single_cell",
+      "description": "Create duplicate ROI files with naming conventions for each analysis channel"
+    },
+    {
+      "name": "extract_cells",
+      "type": "stage",
+      "stage_name": "process_single_cell",
+      "description": "Extract individual cells using ROIs and save as separate files for each analysis channel"
+    },
+    {
+      "name": "group_cells",
+      "type": "stage",
+      "stage_name": "process_single_cell",
+      "description": "Group cells by expression level and create summed images for each analysis channel",
+      "notes": "Optional parameters available: '--clustering-method gmm' to use GMM instead of K-means (which is now the default), '--force-clusters' to ensure all bin groups are created even with similar data"
+    },
+    {
+      "name": "threshold_grouped_cells",
+      "type": "stage",
+      "stage_name": "threshold_grouped_cells",
+      "description": "Threshold grouped cell images to create masks for each analysis channel"
+    },
+    {
+      "name": "combine_masks",
+      "type": "stage",
+      "stage_name": "analysis",
+      "description": "Combine mask images from different bin groups into single masks for each analysis channel"
+    },
+    {
+      "name": "create_cell_masks",
+      "type": "stage",
+      "stage_name": "analysis",
+      "description": "Create individual cell masks by applying ROIs to combined masks for each analysis channel"
+    },
+    {
+      "name": "analyze_cell_masks",
+      "type": "stage",
+      "stage_name": "analysis",
+      "description": "Analyze cell masks using ImageJ and extract measurements for each analysis channel"
+    },
+    {
+      "name": "include_group_metadata",
+      "type": "stage",
+      "stage_name": "analysis",
+      "description": "Include cell group metadata in analysis results to correlate expression levels with phenotypes for each analysis channel"
+    }
+  ]
+}
