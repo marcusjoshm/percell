@@ -6,6 +6,8 @@ This guide provides step-by-step instructions for installing and running percell
 
 This installation approach leverages your existing conda-based cellpose installation while installing percell in a separate Python virtual environment. This allows percell to call cellpose from the global conda environment without version conflicts.
 
+**Important Note**: This is a **minimal installation** that excludes GUI components (napari, PyQt5) which require Qt build tools not compatible with macOS Catalina. You'll have CLI-based workflow capabilities and can use cellpose GUI from the conda environment separately.
+
 ## Prerequisites
 
 ### Required Software

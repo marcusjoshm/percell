@@ -156,10 +156,20 @@ echo "Upgrading pip..."
 python -m pip install --upgrade pip --quiet
 print_status "Pip upgraded"
 
-# Install percell in development mode
+# Install minimal dependencies first (avoiding PyQt5/napari which need Qt build tools)
 echo ""
-echo "Installing percell and dependencies..."
-pip install -e . --quiet
+echo "Installing core dependencies..."
+if [ -f "requirements-imac-minimal.txt" ]; then
+    pip install -r requirements-imac-minimal.txt --quiet
+    print_status "Core dependencies installed"
+else
+    print_warning "Minimal requirements file not found, using standard installation"
+fi
+
+# Install percell in development mode (without dependencies to avoid PyQt5)
+echo ""
+echo "Installing percell..."
+pip install -e . --no-deps --quiet
 print_status "Percell installed in development mode"
 
 # Create config directory if it doesn't exist
@@ -230,16 +240,21 @@ echo "Configuration:"
 echo "  - Cellpose environment: $CELLPOSE_ENV_NAME"
 echo "  - Config file: $HOME/.percell/config.json"
 echo ""
+echo "Installation Type: Minimal (CLI only)"
+echo "  - GUI features (napari) are not available on this system"
+echo "  - This is normal for macOS Catalina compatibility"
+echo ""
 echo "To use percell:"
 echo "  1. Activate the virtual environment:"
 echo "     source venv/bin/activate"
 echo ""
-echo "  2. Run percell:"
+echo "  2. Run percell workflows:"
 echo "     percell --help"
-echo ""
-echo "  3. For GUI mode:"
-echo "     percell gui"
+echo "     percell workflow --input <data> --output <results>"
 echo ""
 echo "Note: Cellpose will be called from the conda environment '$CELLPOSE_ENV_NAME'"
 echo "      You do NOT need to activate the conda environment manually."
+echo ""
+echo "Important: GUI mode (napari) is not available in this installation."
+echo "           Cellpose GUI can still be launched via the conda environment."
 echo ""
