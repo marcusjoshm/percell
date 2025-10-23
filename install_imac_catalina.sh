@@ -82,16 +82,56 @@ fi
 # Verify cellpose is installed in the environment
 echo ""
 echo "Verifying cellpose installation in $CELLPOSE_ENV_NAME..."
-if conda run -n "$CELLPOSE_ENV_NAME" python -c "import cellpose" 2>/dev/null; then
-    CELLPOSE_VERSION=$(conda run -n "$CELLPOSE_ENV_NAME" python -c "import cellpose; print(cellpose.__version__)" 2>/dev/null)
-    print_status "Cellpose is installed (version: $CELLPOSE_VERSION)"
+echo "(This may take a moment...)"
+
+# Use a more compatible approach that works with older conda versions
+# Create a temporary test script
+TEMP_TEST_SCRIPT=$(mktemp)
+cat > "$TEMP_TEST_SCRIPT" << 'TESTSCRIPT'
+#!/bin/bash
+eval "$(conda shell.bash hook)" 2>/dev/null || true
+conda activate "$1" 2>/dev/null || exit 1
+python -c 'import cellpose; print("OK")' 2>/dev/null || exit 1
+TESTSCRIPT
+
+chmod +x "$TEMP_TEST_SCRIPT"
+CELLPOSE_CHECK=$("$TEMP_TEST_SCRIPT" "$CELLPOSE_ENV_NAME" 2>/dev/null || echo "FAILED")
+rm -f "$TEMP_TEST_SCRIPT"
+
+if [ "$CELLPOSE_CHECK" = "OK" ]; then
+    # Try to get version, but don't fail if it doesn't work
+    TEMP_VERSION_SCRIPT=$(mktemp)
+    cat > "$TEMP_VERSION_SCRIPT" << 'VERSIONSCRIPT'
+#!/bin/bash
+eval "$(conda shell.bash hook)" 2>/dev/null || true
+conda activate "$1" 2>/dev/null
+python -c 'import cellpose; print(getattr(cellpose, "__version__", "unknown"))' 2>/dev/null || echo "unknown"
+VERSIONSCRIPT
+
+    chmod +x "$TEMP_VERSION_SCRIPT"
+    CELLPOSE_VERSION=$("$TEMP_VERSION_SCRIPT" "$CELLPOSE_ENV_NAME" 2>/dev/null || echo "unknown")
+    rm -f "$TEMP_VERSION_SCRIPT"
+
+    if [ "$CELLPOSE_VERSION" = "unknown" ] || [ -z "$CELLPOSE_VERSION" ]; then
+        print_status "Cellpose is installed (version detection not available)"
+    else
+        print_status "Cellpose is installed (version: $CELLPOSE_VERSION)"
+    fi
 else
-    print_error "Cellpose is not installed in the $CELLPOSE_ENV_NAME environment."
+    print_error "Could not verify cellpose installation in the $CELLPOSE_ENV_NAME environment."
     echo ""
-    echo "Please install cellpose in the conda environment:"
+    echo "However, the environment was detected. You can try to continue anyway."
+    echo "To verify manually, run:"
     echo "  conda activate $CELLPOSE_ENV_NAME"
-    echo "  pip install cellpose"
-    exit 1
+    echo "  python -c 'import cellpose; print(\"OK\")'"
+    echo ""
+    read -p "Continue installation anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Installation cancelled."
+        exit 1
+    fi
+    print_warning "Continuing installation without cellpose verification..."
 fi
 
 # Create virtual environment for percell
