@@ -77,9 +77,11 @@ def build_container(config_path: Path) -> Container:
         imagej = ImageJMacroAdapter(imagej_path, progress_reporter)
 
         # Resolve cellpose path with new get_resolved_path method
+        # Use cross-platform utility for fallback instead of hardcoded Unix path
+        from percell.utils.path_utils import get_venv_python
         cellpose_python = (cfg.get_resolved_path("cellpose_path", project_root) or
                           cfg.get_resolved_path("paths.cellpose", project_root) or
-                          project_root / "cellpose_venv/bin/python")
+                          get_venv_python("cellpose_venv"))
         cellpose = CellposeSubprocessAdapter(cellpose_python)
 
         fs = LocalFileSystemAdapter()

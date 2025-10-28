@@ -69,31 +69,40 @@ def create_config():
 
     # Check for Cellpose environment
     print("\nSearching for Cellpose environment...")
-    conda_locations = [
-        Path.home() / "Anaconda3" / "envs",
-        Path.home() / "miniconda3" / "envs",
-        Path("C:\\") / "ProgramData" / "Anaconda3" / "envs",
-        Path("C:\\") / "ProgramData" / "miniconda3" / "envs",
-    ]
 
-    cellpose_found = False
-    for conda_envs in conda_locations:
-        if conda_envs.exists():
-            cellpose_env = conda_envs / "cellpose"
-            if cellpose_env.exists():
-                python_exe = cellpose_env / "python.exe"
-                if python_exe.exists():
-                    config["paths"]["cellpose_env"] = str(python_exe)
-                    print(f"✓ Found Cellpose environment at: {cellpose_env}")
-                    cellpose_found = True
-                    break
+    # First check for local cellpose_venv
+    cellpose_venv_python = get_venv_python("cellpose_venv")
+    if cellpose_venv_python.exists():
+        config["paths"]["cellpose_env"] = str(cellpose_venv_python)
+        print(f"✓ Found Cellpose environment at: {cellpose_venv_python.parent.parent}")
+        cellpose_found = True
+    else:
+        # Fall back to searching conda environments
+        conda_locations = [
+            Path.home() / "Anaconda3" / "envs",
+            Path.home() / "miniconda3" / "envs",
+            Path("C:\\") / "ProgramData" / "Anaconda3" / "envs",
+            Path("C:\\") / "ProgramData" / "miniconda3" / "envs",
+        ]
 
-    if not cellpose_found:
-        print("⚠ Cellpose environment not found.")
-        print("  To install Cellpose, create a conda environment:")
-        print("  conda create -n cellpose python=3.9")
-        print("  conda activate cellpose")
-        print("  pip install cellpose[gui]")
+        cellpose_found = False
+        for conda_envs in conda_locations:
+            if conda_envs.exists():
+                cellpose_env = conda_envs / "cellpose"
+                if cellpose_env.exists():
+                    python_exe = cellpose_env / "python.exe"
+                    if python_exe.exists():
+                        config["paths"]["cellpose_env"] = str(python_exe)
+                        print(f"✓ Found Cellpose environment at: {cellpose_env}")
+                        cellpose_found = True
+                        break
+
+        if not cellpose_found:
+            print("⚠ Cellpose environment not found.")
+            print("  To install Cellpose, create a conda environment:")
+            print("  conda create -n cellpose python=3.9")
+            print("  conda activate cellpose")
+            print("  pip install cellpose[gui]")
 
     # Save config
     config_dir = Path("config")
