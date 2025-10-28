@@ -64,9 +64,10 @@ pyan3-callgraph-script.py
 # Config files
 config/config.json
 percell/config/config.json
+.claude/settings.local.json
 
 # MkDocs build output
 site/
 
 # Node
-node_modules/
+node_modules
