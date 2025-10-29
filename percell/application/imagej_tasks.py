@@ -109,40 +109,33 @@ def run_imagej_macro(
         return False
 
 
-def run_imagej_macro_interactive(imagej_path: str | Path, macro_file: str | Path) -> bool:
-    """Run ImageJ in interactive mode using -macro so that UI-based macros execute.
+def run_imagej_macro_interactive(
+    imagej_path: str | Path, macro_file: str | Path
+) -> bool:
+    """Run ImageJ in interactive mode using -macro.
 
     Returns True on zero exit code.
 
-    Note: This blocks until ImageJ exits. The user must close ImageJ to continue.
+    Note: Blocks until ImageJ exits. User must close ImageJ to continue.
     """
-    import sys
     import logging
     logger = logging.getLogger(__name__)
 
     try:
         cmd = [str(imagej_path), "-macro", str(macro_file)]
-        logger.info(f"Launching ImageJ in interactive mode. Please close ImageJ when finished to continue.")
-
-        # Use Popen with proper I/O handling to avoid blocking on Windows
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
-            text=True,
-            bufsize=1
+        logger.info(
+            "Launching ImageJ in interactive mode. "
+            "Please close ImageJ when finished to continue."
         )
 
-        # Stream output while waiting
-        if process.stdout:
-            for line in process.stdout:
-                print(line.rstrip())
+        # Simply use subprocess.run and wait for it to complete
+        # The macro itself calls System.exit(0) when done
+        completed = subprocess.run(cmd)
 
-        # Wait for process to complete
-        returncode = process.wait()
-        logger.info(f"ImageJ interactive session closed (exit code: {returncode})")
-        return returncode == 0
+        logger.info(
+            f"ImageJ session closed (exit code: {completed.returncode})"
+        )
+        return completed.returncode == 0
     except Exception as e:
         logger.error(f"Error running ImageJ interactive: {e}")
         return False
