@@ -1,0 +1,107 @@
+# Percell Configuration - Headless Segmentation Example
+# This configuration enables fully automated segmentation without the GUI
+
+# ============================================================================
+# PATHS - Update these to match your system
+# ============================================================================
+
+imagej_path: /Applications/ImageJ.app/Contents/MacOS/ImageJ
+cellpose_path: cellpose_venv/bin/python
+
+# ============================================================================
+# SEGMENTATION - Headless Mode Configuration
+# ============================================================================
+
+segmentation:
+  # Enable headless (automated) mode - no GUI interaction required
+  headless: true
+
+  # Cellpose model selection
+  # Options: cyto, cyto2, nuclei, cyto3
+  # - cyto/cyto2: For cytoplasm or whole-cell segmentation
+  # - nuclei: For nuclear segmentation only
+  # - cyto3: Latest generalist model (requires newer Cellpose version)
+  model_type: cyto2
+
+  # Expected cell diameter in pixels
+  # - Measure your typical cell size in ImageJ
+  # - Set to 0 for automatic diameter estimation (slower but flexible)
+  # - Typical values: 15-50 pixels depending on magnification
+  diameter: 30.0
+
+  # Flow error threshold (range: 0.0 - 1.0)
+  # - Controls segmentation quality vs quantity trade-off
+  # - Higher values = fewer cells, more stringent
+  # - Lower values = more cells, may include false positives
+  # - Default: 0.4
+  # - Recommended: 0.3-0.6 for most applications
+  flow_threshold: 0.4
+
+  # Cell probability threshold (range: -6.0 to 6.0)
+  # - Filters out low-confidence cells
+  # - Higher values = fewer cells
+  # - Negative values = accept fainter cells
+  # - Default: 0.0
+  # - Increase to 0.5-1.0 for cleaner results
+  # - Decrease to -2.0 to -4.0 for faint cells
+  cellprob_threshold: 0.0
+
+  # Minimum ROI area in pixels
+  # - Filters out very small objects/noise
+  # - Set based on smallest legitimate cell size
+  # - Typical values: 10-50 pixels
+  min_area: 10
+
+  # GPU acceleration
+  # - Set to true if you have CUDA-compatible GPU
+  # - Can provide 10-100x speedup
+  # - Requires proper CUDA/PyTorch installation
+  use_gpu: false
+
+# ============================================================================
+# DATA SELECTION
+# ============================================================================
+
+data_selection:
+  # List of experimental conditions to process
+  selected_conditions:
+    - control
+    - treatment
+
+  # List of imaging regions to process
+  selected_regions:
+    - R_01
+    - R_02
+    - R_03
+
+  # List of timepoints to process
+  selected_timepoints:
+    - t00
+    - t01
+    - t02
+    - t03
+
+  # Channel to use for segmentation
+  # Usually the channel with clearest cell boundaries
+  # Format: ch00, ch01, ch02, etc.
+  segmentation_channel: ch00
+
+# ============================================================================
+# NOTES
+# ============================================================================
+
+# To use this configuration:
+# 1. Install dependencies in your cellpose environment:
+#    source cellpose_venv/bin/activate
+#    pip install cellpose roifile scikit-image tifffile
+#
+# 2. Copy this file to percell_config.yaml:
+#    cp percell_config_headless_example.yaml percell_config.yaml
+#
+# 3. Update paths and parameters above
+#
+# 4. Run percell:
+#    source venv/bin/activate
+#    python -m percell.main
+#
+# For parameter tuning tips, see: docs/HEADLESS_SEGMENTATION.md
