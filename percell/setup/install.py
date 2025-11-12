@@ -205,7 +205,7 @@ def print_cellpose_guidance():
     print("If you need to perform cell segmentation, you can:")
     print("\n1. Try installing Cellpose manually:")
     print("   source cellpose_venv/bin/activate")
-    print("   pip install cellpose[gui]==4.0.4")
+    print("   pip install cellpose[gui]==4.0.7")
     print("\n2. Or use the --skip-cellpose flag to skip this step:")
     print("   python install.py --skip-cellpose")
     print("\n3. Or install Cellpose later when needed:")

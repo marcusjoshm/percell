@@ -60,8 +60,8 @@ if ! python -c "import cellpose" 2>/dev/null; then
     if python -c "import cellpose" 2>&1 | grep -q "numpy.*compatibility"; then
         echo "Cellpose detected with NumPy compatibility warning - this is normal"
     else
-        echo "Installing cellpose version 4.0.4..."
-        pip install "cellpose==4.0.4"
+        echo "Installing cellpose version 4.0.7..."
+        pip install "cellpose==4.0.7"
     fi
 fi
 

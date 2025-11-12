@@ -98,14 +98,20 @@ def run_imagej_macro(
     *,
     imagej: Optional[ImageJIntegrationPort] = None,
 ) -> bool:
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
         if imagej is None:
             # Lazy import to avoid hard coupling when injected
             from percell.adapters.imagej_macro_adapter import ImageJMacroAdapter  # type: ignore
             imagej = ImageJMacroAdapter(Path(imagej_path))
+        logger.debug(f"Running ImageJ macro: {macro_file}")
         rc = imagej.run_macro(Path(macro_file), [])
+        logger.debug(f"ImageJ macro return code: {rc}")
         return rc == 0
-    except Exception:
+    except Exception as e:
+        logger.error(f"Exception running ImageJ macro: {e}")
         return False
 
 
@@ -401,20 +407,42 @@ def analyze_masks(
     *,
     imagej: Optional[ImageJIntegrationPort] = None,
 ) -> bool:
+    import logging
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"analyze_masks called with: input_dir={input_dir}, regions={regions}, timepoints={timepoints}")
+
     groups = find_mask_files(input_dir, max_files=max_files, regions=regions, timepoints=timepoints)
+    logger.info(f"find_mask_files returned {len(groups)} groups with {sum(len(v) for v in groups.values())} total masks")
+
     if not groups:
+        logger.error("No groups found by find_mask_files")
         return False
+
     any_ok = False
+    group_num = 0
     for dir_path, mask_paths in groups.items():
+        group_num += 1
+        logger.info(f"Processing group {group_num}/{len(groups)}: {Path(dir_path).name} ({len(mask_paths)} masks)")
+
         csv_file = _analysis_csv_filename(dir_path, output_dir)
+        logger.info(f"  CSV output: {csv_file}")
         csv_file.parent.mkdir(parents=True, exist_ok=True)
+
         macro_file = create_analyze_macro_with_parameters(macro_path, mask_paths, csv_file, auto_close)
         if not macro_file:
+            logger.error(f"  Failed to create macro file for group {group_num}")
             continue
+
+        logger.info(f"  Created macro file: {macro_file}")
+        logger.info(f"  Running ImageJ macro...")
+
         try:
             if run_imagej_macro(imagej_path, macro_file, auto_close, imagej=imagej):
+                logger.info(f"  ImageJ macro succeeded for group {group_num}")
                 any_ok = True
             else:
+                logger.error(f"  ImageJ macro failed for group {group_num} - stopping early")
                 # early stop if ImageJ failing consistently
                 break
         finally:
@@ -422,6 +450,8 @@ def analyze_masks(
                 Path(macro_file).unlink(missing_ok=True)
             except Exception:
                 pass
+
+    logger.info(f"analyze_masks completed: any_ok={any_ok}")
     return any_ok
 
 

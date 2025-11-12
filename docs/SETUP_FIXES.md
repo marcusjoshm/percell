@@ -14,10 +14,10 @@ This document describes the fixes made to the `setup_workflow.py` script and rel
 - Added user-friendly messages about NumPy compatibility warnings in `setup_workflow.py`
 
 ### 2. Cellpose Version Management
-**Problem**: The setup was trying to install the latest Cellpose version instead of the specific version 4.0.4 that you wanted.
+**Problem**: The setup was trying to install the latest Cellpose version instead of the specific version that you wanted.
 
 **Solution**:
-- Ensured all installation scripts use `requirements_cellpose.txt` which specifies `cellpose[gui]==4.0.4`
+- Ensured all installation scripts use `requirements_cellpose.txt` which specifies `cellpose[gui]==4.0.7`
 - Removed redundant cellpose installation commands
 - Updated `percell/setup/requirements.txt` to not include Cellpose (since it should only be in the dedicated environment)
 
@@ -29,7 +29,7 @@ This document describes the fixes made to the `setup_workflow.py` script and rel
 - **Installed via**: `setup_workflow.py` and `install.sh`
 
 ### `requirements_cellpose.txt`
-- **Purpose**: Cellpose and its dependencies (version 4.0.4)
+- **Purpose**: Cellpose and its dependencies (version 4.0.7)
 - **Used by**: Cellpose virtual environment (`cellpose_venv`)
 - **Installed via**: `setup_workflow.py`, `install.sh`, and `percell/python/setup/path_detection.py`
 
@@ -69,7 +69,7 @@ This document describes the fixes made to the `setup_workflow.py` script and rel
    - Added NumPy compatibility warning handling
 
 5. **`percell/bash/launch_segmentation_tools.sh`**:
-   - Updated Cellpose installation to use version 4.0.4
+   - Updated Cellpose installation to use version 4.0.7
    - Added NumPy compatibility warning handling
 
 6. **`percell/setup/requirements.txt`**:
@@ -101,13 +101,13 @@ To test the fixes:
    ```bash
    source cellpose_venv/bin/activate
    python -c "import cellpose; print(cellpose.__version__)"
-   # Should output: 4.0.4
+   # Should output: 4.0.7
    ```
 
 ## Expected Behavior
 
 - Setup script should complete without errors
 - NumPy compatibility warnings should be displayed but not treated as errors
-- Cellpose version 4.0.4 should be installed in the dedicated environment
+- Cellpose version 4.0.7 should be installed in the dedicated environment
 - Main workflow should function correctly with the main environment
-- Cellpose should function correctly with its dedicated environment 
+- Cellpose should function correctly with its dedicated environment
