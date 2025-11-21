@@ -64,6 +64,137 @@ def create_macro_with_parameters(
         return None
 
 
+def validate_filter_inputs(
+    input_dir: str | Path,
+    output_dir: str | Path,
+    channel: str,
+    *,
+    fs: Optional[FileManagementPort] = None,
+) -> bool:
+    """Validate inputs for filter edge ROIs operation."""
+    try:
+        in_dir = Path(input_dir)
+        if not in_dir.exists():
+            return False
+        # Simple content check; avoid heavy scans
+        if not any(in_dir.iterdir()):
+            return False
+        if not str(channel).startswith("ch"):
+            return False
+        try:
+            if fs is not None:
+                fs.ensure_dir(Path(output_dir))
+            else:
+                Path(output_dir).mkdir(parents=True, exist_ok=True)
+        except Exception:
+            return False
+        return True
+    except Exception:
+        return False
+
+
+def create_filter_macro_with_parameters(
+    macro_template_file: str | Path,
+    input_dir: str | Path,
+    output_dir: str | Path,
+    channel: str,
+    edge_margin: int = 0,
+    auto_close: bool = False,
+) -> Optional[Path]:
+    """Create a temporary macro file for edge ROI filtering with parameters.
+
+    Returns the path to the temporary macro file or None on failure.
+    """
+    try:
+        template_path = Path(macro_template_file)
+        template_content = template_path.read_text()
+
+        # Filter out ImageJ parameter annotations as we embed values directly
+        lines = [ln for ln in template_content.split("\n") if not ln.strip().startswith("#@")]
+
+        in_dir = _normalize_path_for_imagej(input_dir)
+        out_dir = _normalize_path_for_imagej(output_dir)
+
+        params = (
+            "// Parameters embedded from application helper\n"
+            f"input_dir = \"{in_dir}\";\n"
+            f"output_dir = \"{out_dir}\";\n"
+            f"channel = \"{channel}\";\n"
+            f"edge_margin = {edge_margin};\n"
+            f"auto_close = {str(bool(auto_close)).lower()};\n"
+        )
+
+        content = params + "\n" + "\n".join(lines)
+
+        temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".ijm", delete=False)
+        try:
+            temp_path = Path(temp_file.name)
+            temp_file.write(content)
+        finally:
+            temp_file.close()
+        return temp_path
+    except Exception:
+        return None
+
+
+def filter_edge_rois(
+    input_dir: str | Path,
+    output_dir: str | Path,
+    imagej_path: str | Path,
+    channel: str,
+    macro_path: str | Path,
+    edge_margin: int = 10,
+    auto_close: bool = True,
+    *,
+    imagej: Optional[ImageJIntegrationPort] = None,
+    fs: Optional[FileManagementPort] = None,
+) -> bool:
+    """Filter out ROIs that are near image edges.
+
+    This function processes ROI zip files and removes any ROIs whose bounding
+    box is within edge_margin pixels of the image edge. This ensures only
+    complete cells are included in downstream analysis.
+
+    Args:
+        input_dir: Directory containing preprocessed images and ROI files
+        output_dir: Directory to save filtered ROI files
+        imagej_path: Path to ImageJ/Fiji executable
+        channel: Channel identifier (e.g., 'ch00')
+        macro_path: Path to the filter_edge_rois.ijm macro
+        edge_margin: Number of pixels from edge to consider as "near edge".
+                     ROIs within this margin will be excluded. Default is 10.
+                     Set to 0 to only exclude ROIs that directly touch the edge.
+        auto_close: Whether to auto-close ImageJ after processing
+        imagej: Optional ImageJ integration port for dependency injection
+        fs: Optional file management port for dependency injection
+
+    Returns:
+        True if filtering completed successfully, False otherwise
+    """
+    if not validate_filter_inputs(input_dir, output_dir, channel, fs=fs):
+        return False
+
+    temp_macro: Optional[Path] = create_filter_macro_with_parameters(
+        macro_template_file=macro_path,
+        input_dir=input_dir,
+        output_dir=output_dir,
+        channel=channel,
+        edge_margin=edge_margin,
+        auto_close=auto_close,
+    )
+    if not temp_macro:
+        return False
+
+    try:
+        ok = run_imagej_macro(imagej_path, temp_macro, auto_close, imagej=imagej)
+        return ok
+    finally:
+        try:
+            Path(temp_macro).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
 def validate_resize_inputs(
     input_dir: str | Path,
     output_dir: str | Path,

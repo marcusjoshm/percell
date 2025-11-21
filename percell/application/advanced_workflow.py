@@ -31,6 +31,7 @@ class AdvancedWorkflowStage(StageBase):
             ("data_selection", "Data selection"),
             ("segmentation", "Cell segmentation"),
             ("track_rois", "Track ROIs"),
+            ("filter_edge_rois", "Filter Edge ROIs"),
             ("resize_rois", "Resize ROIs"),
             ("duplicate_rois", "Duplicate ROIs for multi-channel analysis"),
             ("extract_cells", "Extract Cells"),
@@ -164,12 +165,38 @@ class AdvancedWorkflowStage(StageBase):
             output_dir = kwargs.get('output_dir')
             return _track(input_dir=f"{output_dir}/preprocessed", timepoints=timepoints, recursive=True)
 
+        if step_key == "filter_edge_rois":
+            data_selection = self.config.get('data_selection') or {}
+            output_dir = kwargs.get('output_dir')
+            edge_margin = self._prompt_for_edge_margin()
+            from percell.application.imagej_tasks import filter_edge_rois as _filter_edge_rois
+            ok = _filter_edge_rois(
+                input_dir=f"{output_dir}/preprocessed",
+                output_dir=f"{output_dir}/preprocessed_filtered",
+                imagej_path=self.config.get('imagej_path'),
+                channel=data_selection.get('segmentation_channel', ''),
+                macro_path=get_path_str("filter_edge_rois_macro"),
+                edge_margin=edge_margin,
+                auto_close=True,
+            )
+            if not ok:
+                self.logger.error("filter_edge_rois failed")
+            return ok
+
         if step_key == "resize_rois":
             data_selection = self.config.get('data_selection') or {}
             output_dir = kwargs.get('output_dir')
+            # Use filtered ROIs if available, otherwise use preprocessed
+            filtered_dir = Path(output_dir) / "preprocessed_filtered"
+            if filtered_dir.exists() and any(filtered_dir.rglob("*_rois.zip")):
+                input_dir = str(filtered_dir)
+                self.logger.info("Using filtered ROIs from preprocessed_filtered/")
+            else:
+                input_dir = f"{output_dir}/preprocessed"
+                self.logger.info("Using ROIs from preprocessed/ (no filtered ROIs found)")
             from percell.application.imagej_tasks import resize_rois as _resize_rois
             ok = _resize_rois(
-                input_dir=f"{output_dir}/preprocessed",
+                input_dir=input_dir,
                 output_dir=f"{output_dir}/ROIs",
                 imagej_path=self.config.get('imagej_path'),
                 channel=data_selection.get('segmentation_channel', ''),
@@ -286,5 +313,25 @@ class AdvancedWorkflowStage(StageBase):
         except Exception:
             self.logger.warning("Invalid input for bins. Using default.")
             return default_bins
+
+    def _prompt_for_edge_margin(self, default_margin: int = 10) -> int:
+        """Prompt user for edge margin in pixels; return validated int, default if blank."""
+        try:
+            print("\n" + "-"*80)
+            print(" Filter Edge ROIs Configuration ".center(80, '-'))
+            print("-"*80)
+            print(" ROIs within this margin of the image edge will be excluded.")
+            print(" Set to 0 to only exclude ROIs that directly touch the edge.")
+            user_input = input(f"\n>>> Enter edge margin in pixels [default {default_margin}]: ").strip()
+            if not user_input:
+                return default_margin
+            value = int(user_input)
+            if value < 0:
+                self.logger.warning("Edge margin cannot be negative. Using default.")
+                return default_margin
+            return value
+        except Exception:
+            self.logger.warning("Invalid input for edge margin. Using default.")
+            return default_margin
 
 

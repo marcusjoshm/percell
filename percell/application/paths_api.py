@@ -83,6 +83,7 @@ class PathConfig:
             "analyze_cell_masks_macro": root / "macros" / "analyze_cell_masks.ijm",
             "create_cell_masks_macro": root / "macros" / "create_cell_masks.ijm",
             "extract_cells_macro": root / "macros" / "extract_cells.ijm",
+            "filter_edge_rois_macro": root / "macros" / "filter_edge_rois.ijm",
             "measure_roi_area_macro": root / "macros" / "measure_roi_area.ijm",
             "resize_rois_macro": root / "macros" / "resize_rois.ijm",
             "threshold_grouped_cells_macro": root / "macros" / "threshold_grouped_cells.ijm",

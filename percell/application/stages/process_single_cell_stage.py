@@ -87,12 +87,31 @@ class ProcessSingleCellDataStage(StageBase):
             else:
                 self.logger.info("Skipping ROI tracking (single timepoint or no timepoints)")
             
-            # Step 2: Resize ROIs (migrated from module to application helper)
-            self.logger.info("Resizing ROIs...")
+            # Step 2: Filter edge ROIs (remove cells touching image boundaries)
+            self.logger.info("Filtering edge ROIs...")
             from percell.application.paths_api import get_path_str
+            from percell.application.imagej_tasks import filter_edge_rois as _filter_edge_rois
             from percell.application.imagej_tasks import resize_rois as _resize_rois
-            ok_resize = _resize_rois(
+            ok_filter = _filter_edge_rois(
                 input_dir=f"{output_dir}/preprocessed",
+                output_dir=f"{output_dir}/preprocessed_filtered",
+                imagej_path=self.config.get('imagej_path'),
+                channel=data_selection.get('segmentation_channel', ''),
+                macro_path=get_path_str("filter_edge_rois_macro"),
+                edge_margin=int(kwargs.get('edge_margin', 10)),
+                auto_close=True,
+                imagej=kwargs.get('imagej'),
+                fs=kwargs.get('fs'),
+            )
+            if not ok_filter:
+                self.logger.error("Failed to filter edge ROIs")
+                return False
+            self.logger.info("Edge ROIs filtered successfully")
+
+            # Step 3: Resize ROIs (migrated from module to application helper)
+            self.logger.info("Resizing ROIs...")
+            ok_resize = _resize_rois(
+                input_dir=f"{output_dir}/preprocessed_filtered",
                 output_dir=f"{output_dir}/ROIs",
                 imagej_path=self.config.get('imagej_path'),
                 channel=data_selection.get('segmentation_channel', ''),
@@ -106,7 +125,7 @@ class ProcessSingleCellDataStage(StageBase):
                 return False
             self.logger.info("ROIs resized successfully")
             
-            # Step 3: Duplicate ROIs for analysis channels (migrated to application helper)
+            # Step 4: Duplicate ROIs for analysis channels (migrated to application helper)
             self.logger.info("Duplicating ROIs for analysis channels...")
             from percell.application.image_processing_tasks import duplicate_rois_for_channels as _dup_rois
             ok_dup = _dup_rois(
@@ -119,7 +138,7 @@ class ProcessSingleCellDataStage(StageBase):
                 return False
             self.logger.info("ROIs duplicated successfully")
             
-            # Step 4: Extract cells (migrated to application helper)
+            # Step 5: Extract cells (migrated to application helper)
             self.logger.info("Extracting cells...")
             from percell.application.imagej_tasks import extract_cells as _extract_cells
             ok_extract = _extract_cells(
@@ -137,7 +156,7 @@ class ProcessSingleCellDataStage(StageBase):
                 return False
             self.logger.info("Cells extracted successfully")
             
-            # Step 5: Group cells (migrated to application helper)
+            # Step 6: Group cells (migrated to application helper)
             self.logger.info("Grouping cells...")
             from percell.application.image_processing_tasks import group_cells as _group_cells
             ok_group = _group_cells(
