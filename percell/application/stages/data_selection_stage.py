@@ -19,6 +19,7 @@ from percell.domain import WorkflowOrchestrationService
 from percell.domain.models import WorkflowStep, WorkflowState, WorkflowConfig
 from percell.domain import DataSelectionService, FileNamingService
 from percell.application.stages_api import StageBase
+from percell.domain.utils.filesystem_filters import is_system_hidden_file
 
 
 class DataSelectionStage(StageBase):
@@ -176,7 +177,7 @@ class DataSelectionStage(StageBase):
 
                 # Create subdirectories for timepoints if they exist in the input
                 for timepoint_dir in condition_input_dir.iterdir():
-                    if timepoint_dir.is_dir():
+                    if timepoint_dir.is_dir() and not is_system_hidden_file(timepoint_dir):
                         timepoint_name = timepoint_dir.name
                         timepoint_output_dir = condition_output_dir / timepoint_name
                         timepoint_output_dir.mkdir(parents=True, exist_ok=True)
@@ -228,8 +229,8 @@ class DataSelectionStage(StageBase):
                 # Create condition directory in output
                 condition_output_dir.mkdir(parents=True, exist_ok=True)
                 
-                # Check what's in the condition directory
-                condition_items = list(condition_input_dir.iterdir())
+                # Check what's in the condition directory (filter out system files)
+                condition_items = [item for item in condition_input_dir.iterdir() if not is_system_hidden_file(item)]
                 self.logger.info(f"Items in condition directory: {[item.name for item in condition_items]}")
                 
                 # Copy files based on selections

@@ -21,6 +21,7 @@ import numpy as np
 # Import metadata service for centralized metadata handling
 from percell.domain.services.image_metadata_service import ImageMetadataService
 from percell.domain.models import ImageMetadata
+from percell.domain.utils.filesystem_filters import is_system_hidden_file
 
 
 def _to_optional_set(values: Optional[Iterable[str]]) -> Optional[Set[str]]:
@@ -233,6 +234,7 @@ def cleanup_directories(
         dir_path = Path(meta["path"])  # type: ignore[index]
         try:
             size = meta.get("size_bytes", 0)
+            # Also clean up system metadata files during cleanup
             for item in dir_path.iterdir():
                 if item.is_file():
                     item.unlink()
@@ -256,7 +258,9 @@ def _get_mask_prefix(filename: str) -> str | None:
 
 def _find_mask_groups(mask_dir: Path) -> dict[str, list[Path]]:
     groups: dict[str, list[Path]] = {}
-    for mask_file in mask_dir.glob("*_bin_*.tif"):
+    # Filter out system metadata files (e.g., ._ files on exFAT)
+    mask_files = [mf for mf in mask_dir.glob("*_bin_*.tif") if not is_system_hidden_file(mf)]
+    for mask_file in mask_files:
         prefix = _get_mask_prefix(mask_file.name)
         if not prefix:
             continue
@@ -288,9 +292,11 @@ def combine_masks(
 
     # Expect layout: input_dir/<condition>/<region_timepoint>
     for condition_dir in in_root.glob("*"):
-        if not condition_dir.is_dir():
+        if not condition_dir.is_dir() or is_system_hidden_file(condition_dir):
             continue
         for rt_dir in condition_dir.glob("*"):
+            if is_system_hidden_file(rt_dir):
+                continue
             if not rt_dir.is_dir():
                 continue
             groups = _find_mask_groups(rt_dir)
@@ -349,12 +355,14 @@ def combine_masks(
 def _find_cell_dirs(cells_dir: Path) -> list[Path]:
     dirs: list[Path] = []
     for condition_dir in cells_dir.glob("*"):
-        if not condition_dir.is_dir() or condition_dir.name.startswith('.'):
+        if not condition_dir.is_dir() or is_system_hidden_file(condition_dir):
             continue
         for region_dir in condition_dir.glob("*"):
-            if not region_dir.is_dir() or region_dir.name.startswith('.'):
+            if not region_dir.is_dir() or is_system_hidden_file(region_dir):
                 continue
-            if list(region_dir.glob("CELL*.tif")):
+            # Filter out system metadata files when checking for CELL files
+            cell_files = [cf for cf in region_dir.glob("CELL*.tif") if not is_system_hidden_file(cf)]
+            if cell_files:
                 dirs.append(region_dir)
     return dirs
 
@@ -402,7 +410,8 @@ def group_cells(
     # Count total cells for progress info
     total_cells = 0
     for region_dir in region_dirs:
-        cell_files = list(region_dir.glob("CELL*.tif"))
+        # Filter out system metadata files
+        cell_files = [cf for cf in region_dir.glob("CELL*.tif") if not is_system_hidden_file(cf)]
         total_cells += len(cell_files)
 
     
@@ -425,7 +434,8 @@ def group_cells(
             out_condition.mkdir(parents=True, exist_ok=True)
 
             # Gather images and simple intensity metric
-            cell_files = list(region_dir.glob("CELL*.tif"))
+            # Filter out system metadata files
+            cell_files = [cf for cf in region_dir.glob("CELL*.tif") if not is_system_hidden_file(cf)]
             if not cell_files:
                 continue
             images: list[tuple[Path, np.ndarray, float]] = []
@@ -599,14 +609,14 @@ def _find_analysis_file(analysis_dir: Path, output_dir: Path | None) -> Path | N
     if output_dir is not None:
         dish_name = output_dir.name.replace('_analysis_', '').replace('/', '_')
         dish_file = analysis_dir / f"{dish_name}_combined_analysis.csv"
-        if dish_file.exists() and not dish_file.name.startswith('._'):
+        if dish_file.exists() and not is_system_hidden_file(dish_file):
             return dish_file
     for pattern in ["*combined*.csv", "*combined_analysis.csv", "combined_results.csv"]:
-        matches = [f for f in analysis_dir.glob(pattern) if not f.name.startswith('._')]
+        matches = [f for f in analysis_dir.glob(pattern) if not is_system_hidden_file(f)]
         if matches:
             matches.sort(key=lambda f: f.stat().st_size, reverse=True)
             return matches[0]
-    csvs = [f for f in analysis_dir.glob("*.csv") if not f.name.startswith('._')]
+    csvs = [f for f in analysis_dir.glob("*.csv") if not is_system_hidden_file(f)]
     if csvs:
         csvs.sort(key=lambda f: f.stat().st_size, reverse=True)
         return csvs[0]

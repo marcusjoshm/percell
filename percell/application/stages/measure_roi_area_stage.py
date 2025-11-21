@@ -19,6 +19,7 @@ from percell.domain import WorkflowOrchestrationService
 from percell.domain.models import WorkflowStep, WorkflowState, WorkflowConfig
 from percell.domain import DataSelectionService, FileNamingService
 from percell.application.stages_api import StageBase
+from percell.domain.utils.filesystem_filters import is_system_hidden_file
 
 
 class MeasureROIAreaStage(StageBase):
@@ -95,7 +96,8 @@ class MeasureROIAreaStage(StageBase):
                 
                 # Check if any CSV files were created in the analysis directory
                 analysis_dir = Path(output_dir) / "analysis"
-                csv_files = list(analysis_dir.glob("*cell_area*.csv"))
+                # Filter out system metadata files
+                csv_files = [cf for cf in analysis_dir.glob("*cell_area*.csv") if not is_system_hidden_file(cf)]
                 if csv_files:
                     self.logger.info(f"Created {len(csv_files)} ROI area measurement files")
                     for csv_file in csv_files[:5]:  # Show first 5 files

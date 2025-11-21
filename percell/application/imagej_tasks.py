@@ -15,6 +15,7 @@ import subprocess
 from typing import Optional, List, Tuple
 from percell.ports.driven.file_management_port import FileManagementPort
 from percell.ports.driven.imagej_integration_port import ImageJIntegrationPort
+from percell.domain.utils.filesystem_filters import is_system_hidden_file
 
 
 def _normalize_path_for_imagej(p: str | Path) -> str:
@@ -207,6 +208,8 @@ def find_roi_image_pairs(input_dir: str | Path, output_dir: str | Path) -> List[
         output_path = Path(output_dir)
 
         roi_files = list(output_path.glob("ROIs/**/*.zip"))
+        # Filter out system metadata files (e.g., ._ files on exFAT)
+        roi_files = [rf for rf in roi_files if not is_system_hidden_file(rf)]
         filtered: List[Path] = []
         for rf in roi_files:
             name = rf.name
@@ -548,8 +551,10 @@ def create_cell_masks(
     # Collect ROI zips grouped by condition
     roi_files: List[Path] = []
     for condition_dir in roi_root.glob("*"):
-        if condition_dir.is_dir() and not condition_dir.name.startswith('.'):
-            roi_files.extend(condition_dir.glob("*.zip"))
+        if condition_dir.is_dir() and not is_system_hidden_file(condition_dir):
+            # Filter out system metadata files (e.g., ._ files on exFAT)
+            zip_files = [zf for zf in condition_dir.glob("*.zip") if not is_system_hidden_file(zf)]
+            roi_files.extend(zip_files)
 
     if channels:
         filtered: List[Path] = []
@@ -634,7 +639,8 @@ def _find_raw_image_for_roi(roi_file: Path, raw_data_dir: Path) -> Optional[Path
 
     # Fallback: broader search for partial matches
     logger.info(f"[DEBUG] No exact matches, trying fallback partial matching")
-    all_tifs = list(condition_dir.glob("**/*.tif"))
+    # Filter out system metadata files (e.g., ._ files on exFAT)
+    all_tifs = [tf for tf in condition_dir.glob("**/*.tif") if not is_system_hidden_file(tf)]
     logger.info(f"[DEBUG] Found {len(all_tifs)} total TIF files in condition directory")
 
     for file in all_tifs:
@@ -731,8 +737,9 @@ def extract_cells(
     # Gather ROI zips under all conditions
     roi_files: List[Path] = []
     for condition_dir in roi_root.glob("*"):
-        if condition_dir.is_dir() and not condition_dir.name.startswith('.'):
-            zips = list(condition_dir.glob("*.zip"))
+        if condition_dir.is_dir() and not is_system_hidden_file(condition_dir):
+            # Filter out system metadata files (e.g., ._ files on exFAT)
+            zips = [zf for zf in condition_dir.glob("*.zip") if not is_system_hidden_file(zf)]
             logger.info(f"[DEBUG] Found {len(zips)} ZIP files in condition: {condition_dir.name}")
             roi_files.extend(zips)
 
