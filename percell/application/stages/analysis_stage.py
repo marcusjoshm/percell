@@ -116,6 +116,7 @@ class AnalysisStage(StageBase):
                 macro_path=get_path_str("analyze_cell_masks_macro"),
                 regions=data_selection.get('selected_regions'),
                 timepoints=data_selection.get('selected_timepoints'),
+                channels=data_selection.get('analysis_channels'),
                 max_files=9999999999999,  # Effectively no limit
                 auto_close=True,
                 imagej=kwargs.get('imagej'),

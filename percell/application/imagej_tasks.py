@@ -200,8 +200,22 @@ def create_measure_macro_with_parameters(
         return None
 
 
-def find_roi_image_pairs(input_dir: str | Path, output_dir: str | Path) -> List[Tuple[str, str, str]]:
-    """Discover (roi_zip, image_path, csv_output_path) tuples for measurement."""
+def find_roi_image_pairs(
+    input_dir: str | Path,
+    output_dir: str | Path,
+    channels: Optional[List[str]] = None,
+) -> List[Tuple[str, str, str]]:
+    """Discover (roi_zip, image_path, csv_output_path) tuples for measurement.
+
+    Args:
+        input_dir: Directory containing raw input images
+        output_dir: Output directory containing ROIs subdirectory
+        channels: Optional list of channels to filter (e.g., ['ch00', 'ch01']).
+                  If None, all channels are included.
+
+    Returns:
+        List of (roi_zip_path, image_path, csv_output_path) tuples
+    """
     pairs: List[Tuple[str, str, str]] = []
     try:
         input_path = Path(input_dir)
@@ -216,6 +230,17 @@ def find_roi_image_pairs(input_dir: str | Path, output_dir: str | Path) -> List[
             if name.endswith("_rois.zip"):
                 filtered.append(rf)
         roi_files = filtered
+
+        # Filter by channels if specified
+        if channels:
+            channel_filtered: List[Path] = []
+            for rf in roi_files:
+                name = rf.name
+                # Match _chNN_ pattern in filename
+                m = re.search(r"_(ch\d+)_", name)
+                if m and m.group(1) in channels:
+                    channel_filtered.append(rf)
+            roi_files = channel_filtered
 
         for roi_file in roi_files:
             roi_name = roi_file.name
@@ -261,12 +286,28 @@ def measure_roi_areas(
     output_dir: str | Path,
     imagej_path: str | Path,
     macro_path: str | Path,
+    channels: Optional[List[str]] = None,
     auto_close: bool = True,
     *,
     imagej: Optional[ImageJIntegrationPort] = None,
 ) -> bool:
+    """Measure ROI areas for the specified channels.
+
+    Args:
+        input_dir: Directory containing raw input images
+        output_dir: Output directory containing ROIs subdirectory
+        imagej_path: Path to ImageJ/Fiji executable
+        macro_path: Path to the measure ROI area macro
+        channels: Optional list of channels to filter (e.g., ['ch00', 'ch01']).
+                  If None, all channels are included.
+        auto_close: Whether to auto-close ImageJ after processing
+        imagej: Optional ImageJ integration port
+
+    Returns:
+        True if at least one measurement was successful
+    """
     try:
-        pairs = find_roi_image_pairs(input_dir, output_dir)
+        pairs = find_roi_image_pairs(input_dir, output_dir, channels=channels)
         if not pairs:
             return True
         ok_any = False
@@ -331,12 +372,14 @@ def find_mask_files(
     input_dir: str | Path,
     regions: Optional[List[str]] = None,
     timepoints: Optional[List[str]] = None,
+    channels: Optional[List[str]] = None,
     max_files: int = 9999999999999,
 ) -> dict[str, List[str]]:
     import os, re, glob
     mask_files_by_dir: dict[str, List[str]] = {}
     target_regions: List[str] = []
     target_timepoints: List[str] = []
+    target_channels: List[str] = []
     total_files_collected = 0
     if regions:
         for r in regions:
@@ -350,6 +393,12 @@ def find_mask_files(
                 target_timepoints.extend([s.strip() for s in t.split()])
             else:
                 target_timepoints.append(t)
+    if channels:
+        for c in channels:
+            if isinstance(c, str) and " " in c:
+                target_channels.extend([s.strip() for s in c.split()])
+            else:
+                target_channels.append(c)
     for extension in ["tif", "tiff"]:
         if total_files_collected >= max_files:
             break
@@ -359,6 +408,12 @@ def find_mask_files(
             dir_name = os.path.basename(parent_dir)
             region = None
             timepoint = None
+            channel = None
+            # Try to match directory name pattern: {region}_{channel}_{timepoint}
+            # e.g., "R_1_ch00_t1" or "condition_ch00_t1"
+            ch_match = re.search(r"_(ch\d+)_", dir_name)
+            if ch_match:
+                channel = ch_match.group(1)
             m = re.match(r"(R_\d+)_(t\d+)", dir_name)
             if m:
                 region = m.group(1)
@@ -380,6 +435,8 @@ def find_mask_files(
                 if not any(region in tr or tr in region for tr in target_regions):
                     continue
             if target_timepoints and timepoint not in target_timepoints:
+                continue
+            if target_channels and channel and channel not in target_channels:
                 continue
             
             # Check if we've reached the maximum number of files
@@ -405,6 +462,7 @@ def analyze_masks(
     macro_path: str | Path,
     regions: Optional[List[str]] = None,
     timepoints: Optional[List[str]] = None,
+    channels: Optional[List[str]] = None,
     max_files: int = 9999999999999,
     auto_close: bool = True,
     *,
@@ -413,9 +471,15 @@ def analyze_masks(
     import logging
     logger = logging.getLogger(__name__)
 
-    logger.info(f"analyze_masks called with: input_dir={input_dir}, regions={regions}, timepoints={timepoints}")
+    logger.info(
+        f"analyze_masks called with: input_dir={input_dir}, "
+        f"regions={regions}, timepoints={timepoints}, channels={channels}"
+    )
 
-    groups = find_mask_files(input_dir, max_files=max_files, regions=regions, timepoints=timepoints)
+    groups = find_mask_files(
+        input_dir, max_files=max_files, regions=regions,
+        timepoints=timepoints, channels=channels
+    )
     logger.info(f"find_mask_files returned {len(groups)} groups with {sum(len(v) for v in groups.values())} total masks")
 
     if not groups:

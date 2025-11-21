@@ -78,15 +78,22 @@ class MeasureROIAreaStage(StageBase):
 
             imagej_path = self.config.get('imagej_path')
 
+            # Get analysis channels from data_selection config
+            data_selection = self.config.get('data_selection')
+            channels = data_selection.get('analysis_channels') if data_selection else None
+
             self.logger.info(f"Measuring ROI areas using ImageJ: {imagej_path}")
             self.logger.info(f"Input directory: {input_dir}")
             self.logger.info(f"Output directory: {output_dir}")
+            if channels:
+                self.logger.info(f"Analysis channels: {channels}")
 
             success = _measure_roi_areas(
                 input_dir=str(input_dir),
                 output_dir=str(output_dir),
                 imagej_path=str(imagej_path),
                 macro_path=get_path_str("measure_roi_area_macro"),
+                channels=channels,
                 auto_close=True,
                 imagej=kwargs.get('imagej'),
             )
