@@ -212,9 +212,15 @@ def cleanup_directories(
     delete_grouped_masks: bool = False,
     dry_run: bool = False,
     force: bool = True,
+    logger=None,
 ) -> tuple[int, int]:
+    import logging
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
     output_path = Path(output_dir)
     if not output_path.exists():
+        logger.warning(f"Output directory does not exist: {output_path}")
         return 0, 0
     info = scan_cleanup_directories(
         output_dir,
@@ -224,25 +230,54 @@ def cleanup_directories(
         include_grouped_cells=delete_grouped_cells,
         include_grouped_masks=delete_grouped_masks,
     )
-    if not info or dry_run:
+    if not info:
+        logger.warning("No directories found to clean up")
+        return 0, 0
+    if dry_run:
+        logger.info("Dry run mode - no files will be deleted")
         return 0, 0
     emptied = 0
     freed = 0
     for name, meta in info.items():
         if not meta.get("exists"):
+            logger.debug(f"Skipping {name}: directory does not exist")
             continue
         dir_path = Path(meta["path"])  # type: ignore[index]
+        logger.info(f"Cleaning up directory: {dir_path}")
         try:
             size = meta.get("size_bytes", 0)
+            items_deleted = 0
             # Also clean up system metadata files during cleanup
             for item in dir_path.iterdir():
-                if item.is_file():
-                    item.unlink()
-                elif item.is_dir():
-                    shutil.rmtree(item)
+                try:
+                    if item.is_file():
+                        item.unlink(missing_ok=True)
+                        items_deleted += 1
+                    elif item.is_dir():
+                        shutil.rmtree(item, ignore_errors=True)
+                        items_deleted += 1
+                except PermissionError as pe:
+                    logger.error(f"Permission denied deleting {item}: {pe}")
+                except FileNotFoundError:
+                    # Race condition with ._ files on exFAT - already deleted
+                    pass
+                except OSError as oe:
+                    # ENOENT (errno 2) can happen with ._ files - ignore it
+                    if oe.errno == 2:
+                        pass
+                    else:
+                        logger.error(f"OS error deleting {item}: {oe}")
+            logger.info(f"Deleted {items_deleted} items from {name}")
             emptied += 1
             freed += int(size)
-        except Exception:
+        except PermissionError as pe:
+            logger.error(f"Permission denied accessing {dir_path}: {pe}")
+            continue
+        except OSError as oe:
+            logger.error(f"OS error accessing {dir_path}: {oe}")
+            continue
+        except Exception as e:
+            logger.error(f"Unexpected error cleaning {dir_path}: {type(e).__name__}: {e}")
             continue
     return emptied, freed
 

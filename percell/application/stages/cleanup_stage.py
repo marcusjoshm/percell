@@ -102,7 +102,8 @@ class CleanupStage(StageBase):
                 delete_grouped_cells=False,
                 delete_grouped_masks=False,
                 dry_run=False,
-                force=True  # Force cleanup in pipeline mode
+                force=True,  # Force cleanup in pipeline mode
+                logger=self.logger
             )
             
             self.logger.info(f"Cleanup completed successfully!")

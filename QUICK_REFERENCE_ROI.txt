@@ -1,0 +1,131 @@
+PERCELL ROI HANDLING - QUICK REFERENCE
+================================================================================
+
+KEY ARCHITECTURE COMPONENTS:
+
+1. ROI REPRESENTATION (percell/domain/models.py)
+   - Class: ROI (id, label, polygon, mask_path)
+   - Storage: ImageJ ROI Manager format in ZIP files
+   - Location: {output_dir}/ROIs/{condition}/*.zip
+
+2. PIPELINE STAGES (in execution order):
+   ┌─────────────────────────────────────────────────────────────┐
+   │ 0. Complete Workflow (meta-stage)                            │
+   │ 1. Advanced Workflow (interactive builder)                   │
+   │ 2. Data Selection → Select conditions, regions, channels     │
+   │ 3. Segmentation → Cellpose creates initial ROIs             │
+   │ 4. Process Single-Cell Data:                                 │
+   │    4.1 ROI Tracking (across timepoints)                      │
+   │    4.2 ROI Resizing (binned → full-res)                      │
+   │    4.3 ROI Duplication (per analysis channel)                │
+   │    4.4 Cell Extraction (extract patches using ROIs)          │
+   │    4.5 Cell Grouping (organize for visualization)            │
+   │ 5. Threshold Grouped Cells (user interactive)                │
+   │ 6. Measure ROI Area ← EDGE EXCLUSION POINT                   │
+   │ 7. Analysis:                                                  │
+   │    7.1 Combine Masks                                         │
+   │    7.2 Create Cell Masks                                     │
+   │    7.3 Analyze Cell Masks                                    │
+   │    7.4 Include Group Metadata                                │
+   │ 8. Cleanup                                                    │
+   └─────────────────────────────────────────────────────────────┘
+
+3. IMAGEJ MACROS (in percell/macros/):
+   ✓ resize_rois.ijm           - Scale ROIs from binned to original dimensions
+   ✓ measure_roi_area.ijm      - Measure area of each ROI ← Edge filtering here
+   ✓ extract_cells.ijm         - Extract cell patches using ROIs
+   ✓ create_cell_masks.ijm     - Create binary masks per ROI
+   ✓ analyze_cell_masks.ijm    - Run Analyze Particles
+   ✓ threshold_grouped_cells.ijm - Interactive thresholding
+
+4. CURRENT FILTERING STATUS:
+   - NO edge exclusion logic exists
+   - ALL detected ROIs are processed through pipeline
+   - No filtering at any stage
+
+5. WHERE EDGE EXCLUSION FITS:
+   RECOMMENDED: Stage 6 (Measure ROI Area)
+   
+   Why:
+   - Logical point to evaluate ROI properties
+   - Measurements already calculated
+   - CSV format easy to filter
+   - Filters before downstream stages
+   
+   Implementation:
+   - Python-level: Post-measurement CSV filtering
+   - ImageJ-level: Check ROI bounds vs image dims
+
+6. REQUIRED DATA FOR EDGE DETECTION:
+   - ROI bounds: min_x, max_x, min_y, max_y
+     Source: Roi.getBounds() in ImageJ or polygon coordinates
+   - Image dimensions: width, height
+     Source: getWidth()/getHeight() in ImageJ
+   - Edge margin: pixels from edge to consider "edge" (configurable)
+
+7. KEY FILES:
+   ┌────────────────────────────────────────────────────────────┐
+   │ CORE CLASSES                                                │
+   │ • percell/domain/models.py → ROI dataclass                 │
+   │                                                              │
+   │ ROI HANDLING                                                │
+   │ • percell/application/imagej_tasks.py                       │
+   │   - measure_roi_areas() [BEST LOCATION FOR FILTERING]      │
+   │   - resize_rois(), extract_cells(), create_cell_masks()    │
+   │ • percell/application/image_processing_tasks.py             │
+   │   - track_rois(), duplicate_rois_for_channels(), group()   │
+   │                                                              │
+   │ STAGES                                                       │
+   │ • percell/application/stages/measure_roi_area_stage.py      │
+   │   [Stage 6 - EDGE EXCLUSION POINT]                          │
+   │ • percell/application/stages/process_single_cell_stage.py   │
+   │   [Stage 4 - Main ROI processing pipeline]                  │
+   │ • percell/application/stages/analysis_stage.py              │
+   │   [Stage 7 - Final analysis]                                │
+   │                                                              │
+   │ IMAGEJ MACROS                                               │
+   │ • percell/macros/measure_roi_area.ijm [FILTERING HERE]     │
+   │ • percell/macros/resize_rois.ijm                            │
+   │ • percell/macros/extract_cells.ijm                          │
+   └────────────────────────────────────────────────────────────┘
+
+8. IMPLEMENTATION PSEUDOCODE:
+
+   Python Level (imagej_tasks.py):
+   ────────────────────────────────
+   def measure_roi_areas(..., exclude_edge_rois=False, edge_margin=5):
+       pairs = find_roi_image_pairs(...)
+       for roi_zip, img_path, csv_path in pairs:
+           # Run existing measurement
+           run_imagej_macro(...)
+           
+           # NEW: Filter edge ROIs
+           if exclude_edge_rois:
+               df = pd.read_csv(csv_path)
+               df = _filter_edge_rois(df, img_path, edge_margin)
+               df.to_csv(csv_path, index=False)
+
+   ImageJ Level (measure_roi_area.ijm):
+   ────────────────────────────────────
+   for (i = 0; i < num_rois; i++) {
+       roiManager("Select", i);
+       bounds = Roi.getBounds();  // [x, y, w, h]
+       width = getWidth();
+       height = getHeight();
+       
+       // Check if at edge
+       is_edge = (bounds[0] <= margin ||
+                  bounds[0] + bounds[2] >= width - margin ||
+                  bounds[1] <= margin ||
+                  bounds[1] + bounds[3] >= height - margin);
+       
+       // Only record non-edge ROIs
+       if (!is_edge) {
+           setResult("Label", i, roi_name);
+           // ... rest of measurement
+       }
+   }
+
+================================================================================
+COMPLETE DOCUMENTATION: See ARCHITECTURE_ROI_HANDLING.md in repository root
+================================================================================
