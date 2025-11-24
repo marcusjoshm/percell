@@ -247,16 +247,35 @@ def run_imagej_macro(
         return False
 
 
-def run_imagej_macro_interactive(imagej_path: str | Path, macro_file: str | Path) -> bool:
-    """Run ImageJ in interactive mode using -macro so that UI-based macros execute.
+def run_imagej_macro_interactive(
+    imagej_path: str | Path, macro_file: str | Path
+) -> bool:
+    """Run ImageJ in interactive mode using -macro.
 
     Returns True on zero exit code.
+
+    Note: Blocks until ImageJ exits. User must close ImageJ to continue.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
         cmd = [str(imagej_path), "-macro", str(macro_file)]
+        logger.info(
+            "Launching ImageJ in interactive mode. "
+            "Please close ImageJ when finished to continue."
+        )
+
+        # Simply use subprocess.run and wait for it to complete
+        # The macro itself calls System.exit(0) when done
         completed = subprocess.run(cmd)
+
+        logger.info(
+            f"ImageJ session closed (exit code: {completed.returncode})"
+        )
         return completed.returncode == 0
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error running ImageJ interactive: {e}")
         return False
 
 

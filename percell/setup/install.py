@@ -197,42 +197,52 @@ def check_cellpose_availability() -> bool:
         return False
 
 def print_cellpose_guidance():
-    """Print guidance about Cellpose installation."""
+    """Print guidance about Cellpose installation (platform-aware)."""
+    import sys
+    from percell.utils.path_utils import get_venv_activate_path
+
     print("\n" + "="*80)
     print_warning("Cellpose Installation Guidance")
     print("="*80)
     print("\nCellpose is used for interactive cell segmentation.")
     print("If you need to perform cell segmentation, you can:")
+
+    activate_cmd = str(get_venv_activate_path("cellpose_venv"))
+    if sys.platform == 'win32':
+        activate_cmd = activate_cmd.replace('/', '\\')
+
     print("\n1. Try installing Cellpose manually:")
-    print("   source cellpose_venv/bin/activate")
+    if sys.platform == 'win32':
+        print(f"   {activate_cmd}")
+    else:
+        print(f"   source {activate_cmd}")
     print("   pip install cellpose[gui]==4.0.7")
+
     print("\n2. Or use the --skip-cellpose flag to skip this step:")
     print("   python install.py --skip-cellpose")
+
     print("\n3. Or install Cellpose later when needed:")
-    print("   source cellpose_venv/bin/activate")
+    if sys.platform == 'win32':
+        print(f"   {activate_cmd}")
+    else:
+        print(f"   source {activate_cmd}")
     print("   pip install -r percell/setup/requirements_cellpose.txt")
     print("="*60)
 
 def detect_software_paths() -> Dict[str, str]:
-    """Detect software paths for configuration."""
+    """Detect software paths for configuration using cross-platform utilities."""
     paths = {}
-    
-    # Common ImageJ/Fiji locations
-    imagej_locations = [
-        "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx",
-        "/Applications/ImageJ.app/Contents/MacOS/ImageJ-macosx",
-        "/usr/local/Fiji.app/Contents/MacOS/ImageJ-macosx",
-        "C:\\Program Files\\Fiji.app\\ImageJ-win64.exe",
-        "C:\\Program Files\\ImageJ\\ImageJ.exe"
-    ]
-    
-    for location in imagej_locations:
-        if Path(location).exists():
-            paths["imagej_path"] = location
-            print_status(f"Found ImageJ/Fiji at: {location}")
-            break
+
+    # Use cross-platform ImageJ detection from path_utils
+    from percell.utils.path_utils import get_imagej_executable
+
+    imagej_exe = get_imagej_executable()
+    if imagej_exe:
+        paths["imagej_path"] = str(imagej_exe)
+        print_status(f"Found ImageJ/Fiji at: {imagej_exe}")
     else:
         print_warning("ImageJ/Fiji not found in common locations")
+        print_warning("Please install ImageJ/Fiji and set the path manually in config/config.json")
         paths["imagej_path"] = ""
     
     # Get Python path from main virtual environment
@@ -364,22 +374,33 @@ def verify_installation(venv_name: str = "venv") -> bool:
         return False
 
 def create_global_symlink() -> bool:
-    """Create a global symbolic link for the percell command."""
+    """Create a global symbolic link for the percell command (Unix/Linux/macOS only)."""
+    import sys
+
+    # Skip on Windows - not applicable
+    if sys.platform == 'win32':
+        print_status("Skipping global symlink creation (not applicable on Windows)")
+        print_status("On Windows, use: python -m percell.main.main")
+        print_status("Or add the project directory to your PATH to use percell.bat")
+        return True
+
     try:
         # Get the current directory (project root)
         project_root = Path.cwd()
-        venv_percell = project_root / "venv" / "bin" / "percell"
+        from percell.utils.path_utils import get_venv_scripts_dir
+        venv_scripts = get_venv_scripts_dir("venv")
+        venv_percell = project_root / venv_scripts / "percell"
         global_percell = Path("/usr/local/bin/percell")
-        
+
         if not venv_percell.exists():
             print_error(f"Percell command not found in virtual environment: {venv_percell}")
             return False
-        
+
         # Create the symbolic link
         if global_percell.exists():
             print_status("Removing existing global percell link")
             global_percell.unlink()
-        
+
         print_status("Creating global symbolic link...")
         global_percell.symlink_to(venv_percell)
         print_status(f"Global percell command created at: {global_percell}")
@@ -394,18 +415,37 @@ def create_global_symlink() -> bool:
         return False
 
 def print_usage_instructions():
-    """Print usage instructions."""
+    """Print usage instructions (platform-aware)."""
+    import sys
+    from percell.utils.path_utils import get_venv_activate_path
+
     print("\n" + "="*80)
     print_status("Installation completed successfully!", Colors.BLUE)
     print("="*80)
-    print("\nTo use the Percell:")
-    print("\n1. Global command (recommended):")
-    print("   percell")
-    print("\n2. Or activate the virtual environment:")
-    print("   source venv/bin/activate")
-    print("   percell")
-    print("\n3. For Cellpose operations, activate the Cellpose environment:")
-    print("   source cellpose_venv/bin/activate")
+    print("\nTo use Percell:")
+
+    if sys.platform == 'win32':
+        # Windows instructions
+        print("\n1. Run directly with Python:")
+        print("   python -m percell.main.main")
+        print("\n2. Or use the batch wrapper:")
+        print("   percell.bat")
+        print("\n3. Or activate the virtual environment:")
+        venv_activate = str(get_venv_activate_path("venv")).replace('/', '\\')
+        print(f"   {venv_activate}")
+        print("   python -m percell.main.main")
+        print("\n4. For Cellpose operations, activate the Cellpose environment:")
+        cellpose_activate = str(get_venv_activate_path("cellpose_venv")).replace('/', '\\')
+        print(f"   {cellpose_activate}")
+    else:
+        # Unix/Linux/macOS instructions
+        print("\n1. Global command (recommended):")
+        print("   percell")
+        print("\n2. Or activate the virtual environment:")
+        print("   source venv/bin/activate")
+        print("   percell")
+        print("\n3. For Cellpose operations, activate the Cellpose environment:")
+        print("   source cellpose_venv/bin/activate")
     print("\nFor more information, see the README.md file.")
     print("="*80)
 

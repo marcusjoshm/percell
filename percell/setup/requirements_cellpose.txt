@@ -1,4 +1,6 @@
-# Core dependencies for Cellpose
+# Core dependencies for Cellpose (CPU-only version)
+# For GPU acceleration on Windows, use requirements_cellpose_gpu.txt instead
+# See docs/GPU_SETUP_WINDOWS.md for GPU installation instructions
 numpy>=1.20.0,<2.0.0  # Keep numpy < 2.0.0 for compatibility
 torch>=1.6.0
 torchvision>=0.7.0

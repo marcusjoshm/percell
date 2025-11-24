@@ -1,0 +1,36 @@
+# GPU-accelerated Cellpose requirements for Windows with CUDA
+# This file installs PyTorch with CUDA support for GPU acceleration
+
+# Core dependencies - keep numpy < 2.0.0 for compatibility
+numpy>=1.20.0,<2.0.0
+
+# PyTorch with CUDA 11.8 support (Windows)
+# Install from PyTorch index for CUDA-enabled versions
+--index-url https://download.pytorch.org/whl/cu118
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# Reset to default PyPI index for remaining packages
+--index-url https://pypi.org/simple
+
+# Cellpose and its dependencies
+cellpose[gui]==4.0.4
+scipy>=1.7.0
+natsort>=8.0.0
+tifffile>=2021.0.0
+tqdm>=4.62.0
+opencv-python-headless>=4.5.0
+fastremap>=1.13.0
+imagecodecs>=2021.0.0
+roifile>=2021.0.0
+fill-voids>=2.0.0
+segment-anything>=1.0.0
+
+# GUI dependencies
+pyqtgraph>=0.12.4
+PyQt6>=6.4.0
+PyQt6-Qt6>=6.4.0
+PyQt6-sip>=13.4.0
+qtpy>=2.0.0
+superqt>=0.7.0

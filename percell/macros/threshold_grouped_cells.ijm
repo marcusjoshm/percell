@@ -241,9 +241,9 @@ for (d = 0; d < conditionDirs.length; d++) {
                 // If user wants more bins, create flag file and exit
                 if (userBinsDecision == "Go back and add one more group") {
                     File.saveString("User requested more bins for better cell grouping", flag_file);
-                    showMessage("More Bins Requested", "Your request for more bins has been recorded. The workflow will restart the cell grouping step with more bins. You can now close ImageJ.");
+                    showMessage("More Bins Requested", "Your request for more bins has been recorded. The workflow will restart the cell grouping step with more bins.");
                     run("Close All");
-                    eval("script", "System.exit(0);");
+                    run("Quit");
                 }
                 
                 // Handle case when there are no structures to threshold
@@ -421,5 +421,9 @@ print("=== Threshold Grouped Cells Macro Completed ===");
 
 // Auto-close ImageJ if requested
 if (auto_close) {
-    eval("script", "System.exit(0);");
+    print("Auto-close requested - closing ImageJ...");
+    // Close all windows first
+    run("Close All");
+    // Use run("Quit") which is more reliable than System.exit on Windows
+    run("Quit");
 }

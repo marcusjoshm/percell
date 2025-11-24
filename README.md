@@ -3,6 +3,7 @@
 <img src="percell/art/percell_terminal_window.png?v=3" width="900" title="Percell Terminal Interface" alt="Percell Terminal Interface" align="center">
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/marcusjoshm/percell/)
 [![repo size](https://img.shields.io/github/repo-size/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/)
 [![License: MIT](https://img.shields.io/github/license/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/blob/main/LICENSE)
 [![Contributors](https://img.shields.io/github/contributors-anon/marcusjoshm/percell)](https://github.com/marcusjoshm/percell/graphs/contributors)
@@ -26,6 +27,28 @@
 
 ## Quick Start
 
+### Windows
+1. **Install PerCell**:
+   ```cmd
+   git clone https://github.com/marcusjoshm/percell.git
+   cd percell
+   install.bat
+   ```
+
+2. **Run PerCell**:
+   ```cmd
+   percell.bat
+   ```
+   Or:
+   ```cmd
+   venv\Scripts\activate
+   python -m percell.main.main
+   ```
+
+3. **Set Input/Output directories** (Configuration → I/O)
+4. **Run complete analysis** (Workflows → Default Workflow)
+
+### macOS/Linux
 1. **Install PerCell**:
    ```bash
    git clone https://github.com/marcusjoshm/percell.git
@@ -38,14 +61,8 @@
    percell
    ```
 
-3. **Set Input/Output directories for your dataset** (Configuration → I/O):
-   - Input: Point to your microscope-exported .tif files
-   - Output: Specify path for new analysis directory (PerCell creates it)
-   - Required for each new experiment/dataset
-
-4. **Run complete analysis** (Workflows → Default Workflow):
-   - Comprehensive workflow for most datasets
-   - Best starting point for new datasets
+3. **Set Input/Output directories** (Configuration → I/O)
+4. **Run complete analysis** (Workflows → Default Workflow)
 
 ## Typical Use Case
 
@@ -123,7 +140,73 @@ Workflows → Advanced Workflow Builder → Select: threshold_grouped_cells → 
 
 ## Installation
 
-### Automatic Installation (Recommended)
+### Windows Installation
+
+#### Prerequisites
+- **Python 3.8+**: Download from [python.org](https://www.python.org/downloads/)
+  - ⚠️ **Important**: Check "Add Python to PATH" during installation
+- **Git for Windows** (optional): For cloning repository
+- **ImageJ/Fiji** (optional): Download from [fiji.sc](https://fiji.sc/)
+  - Install to `C:\Program Files\Fiji.app` for auto-detection
+
+#### Installation Steps
+
+**Option 1: Command Prompt (Recommended)**
+```cmd
+# Clone the repository
+git clone https://github.com/marcusjoshm/percell.git
+cd percell
+
+# Run installation
+install.bat
+```
+
+**Option 2: PowerShell**
+```powershell
+# Clone the repository
+git clone https://github.com/marcusjoshm/percell.git
+cd percell
+
+# Run installation (may need to enable script execution)
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+**What the Windows installer does:**
+- ✅ Verifies Python installation
+- ✅ Creates Python virtual environment
+- ✅ Installs all dependencies
+- ✅ Installs PerCell in development mode
+- ✅ Auto-detects ImageJ/Fiji paths
+- ✅ Creates `config.json` with Windows paths
+- ✅ Creates `percell.bat` launcher
+- ✅ Creates utility scripts (e.g., `replace_spaces.bat`)
+
+#### Running PerCell on Windows
+
+**Option 1: Batch wrapper (easiest)**
+```cmd
+percell.bat
+```
+
+**Option 2: Virtual environment**
+```cmd
+venv\Scripts\activate
+python -m percell.main.main
+```
+
+**Option 3: Direct Python call**
+```cmd
+python -m percell.main.main
+```
+
+### macOS/Linux Installation
+
+#### Prerequisites
+- **Python 3.8+**: Usually pre-installed or via package manager
+- **ImageJ/Fiji** (optional): Download from [fiji.sc](https://fiji.sc/)
+  - Install to `/Applications/Fiji.app` (macOS) for auto-detection
+
+#### Installation Steps
 
 ```bash
 # Clone the repository
@@ -138,31 +221,120 @@ cd percell
 - ✅ Creates Python virtual environments (main + Cellpose)
 - ✅ Installs all dependencies (NumPy, SciPy, tifffile, etc.)
 - ✅ Installs package in development mode
-- ✅ Detects ImageJ/Fiji installation paths
+- ✅ Auto-detects ImageJ/Fiji installation
 - ✅ Creates configuration files
-- ✅ Sets up global `percell` command
+- ✅ Sets up global `percell` command (symlink to `/usr/local/bin`)
 - ✅ Verifies installation
+
+#### Running PerCell on macOS/Linux
+
+```bash
+# Global command (works from anywhere)
+percell
+
+# Or activate virtual environment
+source venv/bin/activate
+percell
+```
 
 ### Troubleshooting Installation
 
-If `percell` command is not found after installation:
+#### Windows-Specific Issues
 
+**Python not found**
+```cmd
+# Verify Python installation
+python --version
+
+# If not found, reinstall Python with "Add to PATH" checked
+```
+
+**Script execution disabled (PowerShell)**
+```powershell
+# Enable script execution for current user
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+**Long path errors**
+```powershell
+# Enable long path support (run as Administrator)
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+```
+
+**ImageJ/Fiji not detected**
+- Install Fiji to `C:\Program Files\Fiji.app`
+- Or manually set path in `percell\config\config.json`:
+  ```json
+  "imagej_path": "C:\\Program Files\\Fiji.app\\ImageJ-win64.exe"
+  ```
+
+#### macOS/Linux-Specific Issues
+
+**`percell` command not found**
 ```bash
-# From the project directory
+# Solution 1: Re-run installer
+cd percell
+./install
+
+# Solution 2: Fix symlink manually
 ./percell/setup/fix_global_install.sh
 ```
 
-**Common issues:**
-- **Permission denied**: Installation script needs permission to create symlink in `/usr/local/bin`
-- **Command not found**: Virtual environment path may not be correctly linked
-- **Dependencies missing**: Run `pip install -e .` from project directory
+**Permission errors**
+```bash
+# Installation may need sudo for symlink creation
+sudo ./install
+
+# Or check symlink manually
+ls -la /usr/local/bin/percell
+```
+
+**ImageJ/Fiji not detected**
+- Install Fiji to `/Applications/Fiji.app` (macOS)
+- Or manually set path in `percell/config/config.json`:
+  ```json
+  "imagej_path": "/Applications/Fiji.app/Contents/MacOS/ImageJ-macosx"
+  ```
+
+#### Common Issues (All Platforms)
+
+**Missing Dependencies**
+```bash
+# Reinstall in virtual environment
+cd percell
+source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate     # Windows
+pip install -e .
+```
 
 ## Running PerCell
 
-Once installed, **run PerCell from any directory**:
+### Windows
 
+**Option 1: Batch wrapper (recommended)**
+```cmd
+cd percell
+percell.bat
+```
+
+**Option 2: With virtual environment**
+```cmd
+cd percell
+venv\Scripts\activate
+python -m percell.main.main
+```
+
+**Option 3: Direct Python call**
+```cmd
+cd percell
+python -m percell.main.main
+```
+
+### macOS/Linux
+
+**Global command (recommended)**
 ```bash
-# Interactive menu (recommended)
+# Works from anywhere after installation
 percell
 
 # Get help
@@ -172,11 +344,18 @@ percell --help
 percell --input /path/to/data --output /path/to/results --complete-workflow
 ```
 
-**Global Command Benefits:**
-- ✅ Works from any terminal location
-- ✅ No need to navigate to project folder
-- ✅ No manual virtual environment activation
-- ✅ Consistent across different sessions
+**Alternative: With virtual environment**
+```bash
+cd percell
+source venv/bin/activate
+percell
+```
+
+**Benefits of installation:**
+- ✅ Works from any terminal location (macOS/Linux)
+- ✅ Auto-detects ImageJ/Fiji paths
+- ✅ No manual virtual environment activation needed
+- ✅ Consistent cross-platform experience
 
 ## Input Directory Structure
 
@@ -567,7 +746,51 @@ Steps: threshold_grouped_cells → analysis → cleanup → threshold_grouped_ce
 
 ## Troubleshooting
 
-### Command Not Found
+### Windows-Specific Issues
+
+#### Python Not Recognized
+```cmd
+# Check if Python is installed
+python --version
+
+# If not found, add Python to PATH or reinstall
+# During installation, check "Add Python to PATH"
+```
+
+#### PowerShell Script Execution Disabled
+```powershell
+# Allow running scripts for current user
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+#### Long Path Errors (>260 characters)
+```powershell
+# Enable long path support (Administrator PowerShell required)
+New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+  -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+```
+
+#### ImageJ/Fiji Not Found on Windows
+```cmd
+# Option 1: Install to default location
+# Download from https://fiji.sc/
+# Install to: C:\Program Files\Fiji.app
+
+# Option 2: Manual configuration
+# Edit: percell\config\config.json
+# Set: "imagej_path": "C:\\Program Files\\Fiji.app\\ImageJ-win64.exe"
+```
+
+#### Spaces in File Paths
+```cmd
+# Use the provided utility to fix spaces
+cd percell
+scripts\replace_spaces.bat "path\to\your\data"
+```
+
+### macOS/Linux-Specific Issues
+
+#### Command Not Found
 ```bash
 # Solution 1: Re-run installer
 cd percell
@@ -575,40 +798,95 @@ cd percell
 
 # Solution 2: Fix symlink manually
 ./percell/setup/fix_global_install.sh
-```
 
-### Permission Errors
-```bash
-# Ensure you have write access to /usr/local/bin
+# Solution 3: Check symlink
 ls -la /usr/local/bin/percell
-
-# Alternative: Run with sudo during installation
-sudo ./install
 ```
 
-### ImageJ/Fiji Not Found
-- Install ImageJ or Fiji
-- Ensure it's in your system PATH
-- Or specify path in PerCell configuration
-
-### Missing Dependencies
+#### Permission Errors
 ```bash
-# Reinstall in virtual environment
+# Option 1: Run with sudo
+sudo ./install
+
+# Option 2: Fix permissions
+sudo chown $(whoami) /usr/local/bin
+```
+
+#### ImageJ/Fiji Not Found on macOS
+```bash
+# Install Fiji to default location
+# Download from https://fiji.sc/
+# Move to: /Applications/Fiji.app
+
+# Or manually configure in percell/config/config.json
+```
+
+### Cross-Platform Issues
+
+#### Missing Dependencies
+```bash
+# macOS/Linux
 cd percell
 source venv/bin/activate
 pip install -e .
+
+# Windows
+cd percell
+venv\Scripts\activate
+pip install -e .
 ```
 
-### Data Structure Issues
-- Verify directory hierarchy matches requirements
-- Remove spaces from all file/folder names
-- Ensure TIFF format for all images
-- Check that channel files exist in each region
+#### Cellpose Installation Issues
+```bash
+# Create Cellpose environment manually
+python -m venv cellpose_venv
 
-### Memory Issues
-- Use cleanup option (Menu 9) to free disk space
+# Activate it
+source cellpose_venv/bin/activate  # macOS/Linux
+cellpose_venv\Scripts\activate     # Windows
+
+# Install Cellpose
+pip install cellpose[gui]==4.0.4
+```
+
+#### Data Structure Issues
+- ✅ Verify directory hierarchy matches requirements
+- ✅ Remove spaces from all file/folder names (use `replace_spaces` utility)
+- ✅ Ensure TIFF format (`.tif` or `.tiff`)
+- ✅ Check that channel files exist in each region
+- ✅ Avoid special characters in filenames
+
+#### Memory Issues
+- Use cleanup option (Utilities → Cleanup) to free disk space
 - Process smaller data subsets
 - Ensure sufficient disk space for output
+- Close other applications
+
+#### File Encoding Issues
+- Ensure filenames use UTF-8 encoding
+- Avoid non-ASCII characters in paths
+- Use standard characters (A-Z, 0-9, underscore, hyphen)
+
+### Platform-Specific Guides
+
+For detailed platform-specific information:
+
+- **Windows Users**: See [Windows User Guide](docs/WINDOWS_GUIDE.md) for comprehensive Windows installation, usage, and troubleshooting
+- **macOS/Linux Users**: Most information is in this README
+
+### Getting Help
+
+If you encounter issues not covered here:
+
+1. **Check platform-specific guide**: [Windows Guide](docs/WINDOWS_GUIDE.md) for Windows users
+2. **Check existing issues**: [GitHub Issues](https://github.com/marcusjoshm/percell/issues)
+3. **Check discussions**: [GitHub Discussions](https://github.com/marcusjoshm/percell/discussions)
+4. **Create new issue**: Provide:
+   - Operating system and version
+   - Python version (`python --version`)
+   - Error message (full traceback)
+   - Steps to reproduce
+   - PerCell version
 
 ## Architecture
 

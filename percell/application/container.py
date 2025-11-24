@@ -58,16 +58,30 @@ def build_container(config_path: Path) -> Container:
         from percell.application.paths_api import get_path_config
         project_root = get_path_config().get_project_root()
 
-        # Get ImageJ path with unified dot-notation access
-        imagej_path = Path(cfg.get("imagej_path") or
-                          cfg.get("paths.imagej") or
-                          "/Applications/ImageJ.app/Contents/MacOS/ImageJ")
+        # Get ImageJ path with unified dot-notation access and cross-platform fallback
+        imagej_path_str = cfg.get("imagej_path") or cfg.get("paths.imagej")
+
+        if imagej_path_str:
+            imagej_path = Path(imagej_path_str)
+        else:
+            # Fallback: try to detect ImageJ using cross-platform utilities
+            from percell.utils.path_utils import get_imagej_executable
+            imagej_path = get_imagej_executable()
+
+            if not imagej_path:
+                logger.warning("ImageJ path not found in config and auto-detection failed")
+                logger.warning("Please set 'imagej_path' in your config file")
+                # Use a dummy path that will fail gracefully if ImageJ is called
+                imagej_path = Path("ImageJ-not-found")
+
         imagej = ImageJMacroAdapter(imagej_path, progress_reporter)
 
         # Resolve cellpose path with new get_resolved_path method
+        # Use cross-platform utility for fallback instead of hardcoded Unix path
+        from percell.utils.path_utils import get_venv_python
         cellpose_python = (cfg.get_resolved_path("cellpose_path", project_root) or
                           cfg.get_resolved_path("paths.cellpose", project_root) or
-                          project_root / "cellpose_venv/bin/python")
+                          get_venv_python("cellpose_venv"))
         cellpose = CellposeSubprocessAdapter(cellpose_python)
 
         fs = LocalFileSystemAdapter()
