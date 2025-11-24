@@ -46,7 +46,6 @@ analysis_artifacts/**
 default/logs/
 test_logger/logs/
 tmp_callgraph/
-docs/architecture/
 refactoring_review/
 pyan3-callgraph-script.py
 
