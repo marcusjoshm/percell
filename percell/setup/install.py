@@ -216,7 +216,7 @@ def print_cellpose_guidance():
         print(f"   {activate_cmd}")
     else:
         print(f"   source {activate_cmd}")
-    print("   pip install cellpose[gui]==4.0.4")
+    print("   pip install cellpose[gui]==4.0.7")
 
     print("\n2. Or use the --skip-cellpose flag to skip this step:")
     print("   python install.py --skip-cellpose")
