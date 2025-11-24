@@ -527,12 +527,57 @@ class MenuFactory:
     @staticmethod
     def create_plugins_menu(ui: UserInterfacePort) -> Menu:
         """Create the plugins submenu."""
-        items = [
-            MenuItem("1", "Auto Image Preprocessing", "Auto preprocessing for downstream analysis",
-                    action=MenuFactory._create_plugin_action("auto_image_preprocessing")),
-            MenuItem("2", "Back to Main Menu", "Return to main menu", Colors.red,
-                    action=lambda ui, args: args),
-        ]
+        from percell.plugins.registry import get_plugin_registry
+        
+        registry = get_plugin_registry()
+        plugin_names = registry.get_plugin_names()
+        
+        items = []
+        
+        # Add plugin menu items
+        for idx, plugin_name in enumerate(sorted(plugin_names), start=1):
+            plugin = registry.get_plugin(plugin_name)
+            if plugin:
+                # Set up plugin with config and container if available
+                try:
+                    from percell.application.paths_api import get_path
+                    from percell.domain.services.configuration_service import create_configuration_service
+                    from percell.application.container import build_container
+                    from pathlib import Path
+                    
+                    try:
+                        config_path = str(get_path("config_default"))
+                    except Exception:
+                        config_path = "percell/config/config.json"
+                    
+                    config = create_configuration_service(config_path, create_if_missing=True)
+                    plugin.set_config(config)
+                    
+                    try:
+                        container = build_container(Path(config_path))
+                        plugin.set_container(container)
+                    except Exception:
+                        pass  # Container is optional
+                except Exception:
+                    pass  # Config is optional for some plugins
+                
+                menu_title = plugin.get_menu_title()
+                menu_description = plugin.get_menu_description()
+                items.append(
+                    MenuItem(
+                        str(idx),
+                        menu_title,
+                        menu_description,
+                        action=MenuFactory._create_plugin_action(plugin_name)
+                    )
+                )
+        
+        # Add back menu item
+        items.append(
+            MenuItem("0", "Back to Main Menu", "Return to main menu", Colors.red,
+                    action=lambda ui, args: args)
+        )
+        
         return Menu("Plugins Menu", items, ui)
 
     @staticmethod
@@ -551,19 +596,56 @@ class MenuFactory:
         """Create an action for loading and running a plugin."""
         def plugin_action(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argparse.Namespace]:
             try:
-                if plugin_name == "auto_image_preprocessing":
-                    from percell.plugins.auto_image_preprocessing import show_auto_image_preprocessing_plugin
-                    result = show_auto_image_preprocessing_plugin(ui, args)
-                    return result
-                else:
-                    ui.error(f"Unknown plugin: {plugin_name}")
+                from percell.plugins.registry import get_plugin_registry
+                
+                registry = get_plugin_registry()
+                plugin = registry.get_plugin(plugin_name)
+                
+                if not plugin:
+                    ui.error(f"Plugin not found: {plugin_name}")
+                    ui.prompt("Press Enter to continue...")
                     return None
+                
+                # Set up plugin with config and container
+                try:
+                    from percell.application.paths_api import get_path
+                    from percell.domain.services.configuration_service import create_configuration_service
+                    from percell.application.container import build_container
+                    from pathlib import Path
+                    
+                    try:
+                        config_path = str(get_path("config_default"))
+                    except Exception:
+                        config_path = "percell/config/config.json"
+                    
+                    config = create_configuration_service(config_path, create_if_missing=True)
+                    plugin.set_config(config)
+                    
+                    try:
+                        container = build_container(Path(config_path))
+                        plugin.set_container(container)
+                    except Exception:
+                        pass  # Container is optional
+                except Exception:
+                    pass  # Config is optional for some plugins
+                
+                # Validate plugin requirements
+                if not plugin.validate(ui, args):
+                    ui.prompt("Press Enter to continue...")
+                    return None
+                
+                # Execute plugin
+                result = plugin.execute(ui, args)
+                return result
+                
             except ImportError as e:
                 ui.error(f"Failed to load plugin {plugin_name}: {e}")
                 ui.prompt("Press Enter to continue...")
                 return None
             except Exception as e:
                 ui.error(f"Error running plugin {plugin_name}: {e}")
+                import traceback
+                ui.error(traceback.format_exc())
                 ui.prompt("Press Enter to continue...")
                 return None
         return plugin_action
