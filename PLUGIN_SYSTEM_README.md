@@ -217,9 +217,12 @@ Legacy plugins (functions matching `show_*_plugin`) are automatically detected a
 
 ## Documentation
 
-- [Plugin Development Guide](docs/PLUGIN_DEVELOPMENT.md) - Comprehensive guide
-- [Architecture Documentation](docs/Architecture.md) - System architecture
-- [API Reference](docs/api.md) - API documentation
+- **[Complete Plugin Guide](docs/PLUGIN_GUIDE.md)** - Comprehensive guide with everything you need
+- [Plugin Development Guide](docs/PLUGIN_DEVELOPMENT.md) - Detailed development documentation
+- [Feature Summary](FEATURE_SUMMARY.md) - Overview of plugin system features
+- [Conversion Summary](CONVERSION_SUMMARY.md) - Guide to converting scripts
+
+> **Note**: For the most complete and up-to-date information, see [docs/PLUGIN_GUIDE.md](docs/PLUGIN_GUIDE.md)
 
 ## Troubleshooting
 
