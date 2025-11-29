@@ -818,13 +818,13 @@ def _find_raw_image_for_roi(roi_file: Path, raw_data_dir: Path) -> Optional[Path
     condition = roi_file.parent.name
     condition_dir = raw_data_dir / condition
 
-    logger.info(f"[DEBUG] _find_raw_image_for_roi called for ROI: {roi_file.name}")
-    logger.info(f"[DEBUG] Condition: {condition}")
-    logger.info(f"[DEBUG] Condition directory: {condition_dir}")
-    logger.info(f"[DEBUG] Condition directory exists: {condition_dir.exists()}")
+    logger.debug(f"_find_raw_image_for_roi called for ROI: {roi_file.name}")
+    logger.debug(f"Condition: {condition}")
+    logger.debug(f"Condition directory: {condition_dir}")
+    logger.debug(f"Condition directory exists: {condition_dir.exists()}")
 
     if not condition_dir.exists():
-        logger.error(f"[DEBUG] Condition directory does not exist: {condition_dir}")
+        logger.error(f"Condition directory does not exist: {condition_dir}")
         return None
 
     tokens = _extract_tokens_from_roi_name(roi_file.name)
@@ -832,7 +832,7 @@ def _find_raw_image_for_roi(roi_file: Path, raw_data_dir: Path) -> Optional[Path
     channel = tokens.get("channel", "")
     timepoint = tokens.get("timepoint", "")
 
-    logger.info(f"[DEBUG] Extracted tokens - region: '{region}', channel: '{channel}', timepoint: '{timepoint}'")
+    logger.debug(f"Extracted tokens - region: '{region}', channel: '{channel}', timepoint: '{timepoint}'")
 
     # Try multiple pattern variations to match raw data files
     patterns = [
@@ -840,34 +840,34 @@ def _find_raw_image_for_roi(roi_file: Path, raw_data_dir: Path) -> Optional[Path
         f"{region}_{channel}_{timepoint}.tif",  # Alternative: Region_ch00_t00.tif
     ]
 
-    logger.info(f"[DEBUG] Trying patterns: {patterns}")
+    logger.debug(f"Trying patterns: {patterns}")
 
     for pattern in patterns:
         search_pattern = f"**/{pattern}"
-        logger.info(f"[DEBUG] Searching with pattern: {search_pattern}")
+        logger.debug(f"Searching with pattern: {search_pattern}")
         matches = list(condition_dir.glob(search_pattern))
-        logger.info(f"[DEBUG] Found {len(matches)} matches for pattern '{pattern}'")
+        logger.debug(f"Found {len(matches)} matches for pattern '{pattern}'")
         if matches:
-            logger.info(f"[DEBUG] Matched file: {matches[0]}")
+            logger.debug(f"Matched file: {matches[0]}")
             return matches[0]
 
     # Fallback: broader search for partial matches
-    logger.info(f"[DEBUG] No exact matches, trying fallback partial matching")
+    logger.debug("No exact matches, trying fallback partial matching")
     # Filter out system metadata files (e.g., ._ files on exFAT)
     all_tifs = [tf for tf in condition_dir.glob("**/*.tif") if not is_system_hidden_file(tf)]
-    logger.info(f"[DEBUG] Found {len(all_tifs)} total TIF files in condition directory")
+    logger.debug(f"Found {len(all_tifs)} total TIF files in condition directory")
 
     for file in all_tifs:
         name = file.name
         ok_region = region in name
         ok_channel = channel in name if channel else True
         ok_time = timepoint in name if timepoint else True
-        logger.info(f"[DEBUG] Checking file: {name} - region:{ok_region}, channel:{ok_channel}, time:{ok_time}")
+        logger.debug(f"Checking file: {name} - region:{ok_region}, channel:{ok_channel}, time:{ok_time}")
         if ok_region and ok_channel and ok_time:
-            logger.info(f"[DEBUG] Partial match found: {file}")
+            logger.debug(f"Partial match found: {file}")
             return file
 
-    logger.error(f"[DEBUG] No matching raw image found for ROI: {roi_file.name}")
+    logger.error(f"No matching raw image found for ROI: {roi_file.name}")
     return None
 
 
@@ -931,22 +931,22 @@ def extract_cells(
     import logging
     logger = logging.getLogger(__name__)
 
-    logger.info(f"[DEBUG] extract_cells called with:")
-    logger.info(f"[DEBUG]   roi_dir: {roi_dir}")
-    logger.info(f"[DEBUG]   raw_data_dir: {raw_data_dir}")
-    logger.info(f"[DEBUG]   output_dir: {output_dir}")
-    logger.info(f"[DEBUG]   regions: {regions}")
-    logger.info(f"[DEBUG]   timepoints: {timepoints}")
-    logger.info(f"[DEBUG]   conditions: {conditions}")
-    logger.info(f"[DEBUG]   channels: {channels}")
+    logger.debug("extract_cells called with:")
+    logger.debug(f"  roi_dir: {roi_dir}")
+    logger.debug(f"  raw_data_dir: {raw_data_dir}")
+    logger.debug(f"  output_dir: {output_dir}")
+    logger.debug(f"  regions: {regions}")
+    logger.debug(f"  timepoints: {timepoints}")
+    logger.debug(f"  conditions: {conditions}")
+    logger.debug(f"  channels: {channels}")
 
     roi_root = Path(roi_dir)
     raw_root = Path(raw_data_dir)
     out_root = Path(output_dir)
     out_root.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"[DEBUG] ROI root exists: {roi_root.exists()}")
-    logger.info(f"[DEBUG] Raw data root exists: {raw_root.exists()}")
+    logger.debug(f"ROI root exists: {roi_root.exists()}")
+    logger.debug(f"Raw data root exists: {raw_root.exists()}")
 
     # Gather ROI zips under all conditions
     roi_files: List[Path] = []
@@ -954,35 +954,35 @@ def extract_cells(
         if condition_dir.is_dir() and not is_system_hidden_file(condition_dir):
             # Filter out system metadata files (e.g., ._ files on exFAT)
             zips = [zf for zf in condition_dir.glob("*.zip") if not is_system_hidden_file(zf)]
-            logger.info(f"[DEBUG] Found {len(zips)} ZIP files in condition: {condition_dir.name}")
+            logger.debug(f"Found {len(zips)} ZIP files in condition: {condition_dir.name}")
             roi_files.extend(zips)
 
-    logger.info(f"[DEBUG] Total ROI files found before filtering: {len(roi_files)}")
+    logger.debug(f"Total ROI files found before filtering: {len(roi_files)}")
     for rf in roi_files[:5]:  # Show first 5
-        logger.info(f"[DEBUG]   - {rf.name}")
+        logger.debug(f"  - {rf.name}")
 
     # Filter by conditions/regions/timepoints/channels as needed
     if conditions:
         before = len(roi_files)
         roi_files = [rf for rf in roi_files if rf.parent.name in conditions]
-        logger.info(f"[DEBUG] After conditions filter: {before} -> {len(roi_files)}")
+        logger.debug(f"After conditions filter: {before} -> {len(roi_files)}")
     if regions:
         before = len(roi_files)
         roi_files = [rf for rf in roi_files if any(r in rf.name for r in regions)]
-        logger.info(f"[DEBUG] After regions filter: {before} -> {len(roi_files)}")
+        logger.debug(f"After regions filter: {before} -> {len(roi_files)}")
     if timepoints:
         before = len(roi_files)
         roi_files = [rf for rf in roi_files if any(t in rf.name for t in timepoints)]
-        logger.info(f"[DEBUG] After timepoints filter: {before} -> {len(roi_files)}")
+        logger.debug(f"After timepoints filter: {before} -> {len(roi_files)}")
     if channels:
         before = len(roi_files)
         roi_files = [rf for rf in roi_files if any(ch in rf.name for ch in channels)]
-        logger.info(f"[DEBUG] After channels filter: {before} -> {len(roi_files)}")
+        logger.debug(f"After channels filter: {before} -> {len(roi_files)}")
 
-    logger.info(f"[DEBUG] Total ROI files after all filters: {len(roi_files)}")
+    logger.debug(f"Total ROI files after all filters: {len(roi_files)}")
 
     if not roi_files:
-        logger.error(f"[DEBUG] No ROI files found after filtering! Returning False.")
+        logger.error("No ROI files found after filtering; nothing to process.")
         return False
 
     any_success = False
@@ -990,16 +990,16 @@ def extract_cells(
     skipped_count = 0
 
     for roi_file in roi_files:
-        logger.info(f"[DEBUG] Processing ROI file {processed_count + 1}/{len(roi_files)}: {roi_file.name}")
+        logger.debug(f"Processing ROI file {processed_count + 1}/{len(roi_files)}: {roi_file.name}")
         img_file = _find_raw_image_for_roi(roi_file, raw_root)
         if not img_file:
-            logger.warning(f"[DEBUG] No matching raw image found for {roi_file.name}, skipping")
+            logger.warning(f"No matching raw image found for {roi_file.name}; skipping.")
             skipped_count += 1
             continue
 
-        logger.info(f"[DEBUG] Found matching raw image: {img_file}")
+        logger.debug(f"Found matching raw image: {img_file}")
         out_dir = _create_cells_output_dir_for_roi(roi_file, out_root)
-        logger.info(f"[DEBUG] Output directory: {out_dir}")
+        logger.debug(f"Output directory: {out_dir}")
 
         macro_file = create_extract_macro_with_parameters(
             macro_template_file=macro_path,
@@ -1009,25 +1009,25 @@ def extract_cells(
             auto_close=auto_close,
         )
         if not macro_file:
-            logger.error(f"[DEBUG] Failed to create macro file for {roi_file.name}")
+            logger.error(f"Failed to create macro file for {roi_file.name}")
             skipped_count += 1
             continue
 
-        logger.info(f"[DEBUG] Created macro file: {macro_file}")
+        logger.debug(f"Created macro file: {macro_file}")
 
         try:
-            logger.info(f"[DEBUG] Running ImageJ macro...")
+            logger.debug("Running ImageJ macro...")
             if run_imagej_macro(imagej_path, macro_file, auto_close, imagej=imagej):
                 cells = list(out_dir.glob("CELL*.tif"))
-                logger.info(f"[DEBUG] ImageJ macro completed. Found {len(cells)} extracted cell files")
+                logger.debug(f"ImageJ macro completed. Found {len(cells)} extracted cell files")
                 if cells:
                     any_success = True
                     processed_count += 1
                 else:
-                    logger.warning(f"[DEBUG] No CELL*.tif files created")
+                    logger.warning("No CELL*.tif files created.")
                     skipped_count += 1
             else:
-                logger.error(f"[DEBUG] ImageJ macro execution failed")
+                logger.error("ImageJ macro execution failed")
                 skipped_count += 1
         finally:
             try:
@@ -1035,7 +1035,7 @@ def extract_cells(
             except Exception:
                 pass
 
-    logger.info(f"[DEBUG] extract_cells summary: processed={processed_count}, skipped={skipped_count}, any_success={any_success}")
+    logger.debug(f"extract_cells summary: processed={processed_count}, skipped={skipped_count}, any_success={any_success}")
     return any_success
 
 
