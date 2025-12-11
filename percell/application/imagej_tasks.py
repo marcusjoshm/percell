@@ -1058,6 +1058,7 @@ def create_threshold_macro_with_parameters(
     input_dir: str | Path,
     output_dir: str | Path,
     channels: Optional[List[str]] = None,
+    regions: Optional[List[str]] = None,
     auto_close: bool = True,
 ) -> Optional[Tuple[Path, Path]]:
     try:
@@ -1068,15 +1069,27 @@ def create_threshold_macro_with_parameters(
         flag_file = Path(output_dir) / "NEED_MORE_BINS.flag"
         flag_clean = _normalize_path_for_imagej(flag_file)
 
-        # Insert channel filter logic
-        channel_logic = ""
+        # Insert channel and region filter logic
+        filter_logic = ""
+
+        # Add channel filter if specified
         if channels:
             conds = [f'indexOf(regionName, "{ch}") >= 0' for ch in channels]
-            channel_logic = (
+            filter_logic += (
                 "        // Check channel filter\n"
                 "        channelMatch = false;\n"
                 f"        if ({' || '.join(conds)}) {{ channelMatch = true; }}\n"
                 "        if (!channelMatch) { continue; }\n"
+            )
+
+        # Add region filter if specified
+        if regions:
+            region_conds = [f'indexOf(regionName, "{region}") >= 0' for region in regions]
+            filter_logic += (
+                "        // Check region filter\n"
+                "        regionMatch = false;\n"
+                f"        if ({' || '.join(region_conds)}) {{ regionMatch = true; }}\n"
+                "        if (!regionMatch) { continue; }\n"
             )
 
         params = (
@@ -1087,7 +1100,7 @@ def create_threshold_macro_with_parameters(
             f"auto_close = {str(bool(auto_close)).lower()};\n"
         )
         content = params + "\n" + "\n".join(lines)
-        content = content.replace('        // CHANNEL_FILTER_PLACEHOLDER', channel_logic)
+        content = content.replace('        // CHANNEL_FILTER_PLACEHOLDER', filter_logic)
         tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".ijm", delete=False)
         try:
             tmp_path = Path(tmp.name)
@@ -1105,6 +1118,7 @@ def threshold_grouped_cells(
     imagej_path: str | Path,
     macro_path: str | Path,
     channels: Optional[List[str]] = None,
+    regions: Optional[List[str]] = None,
     auto_close: bool = True,
     *,
     imagej: Optional[ImageJIntegrationPort] = None,
@@ -1115,6 +1129,7 @@ def threshold_grouped_cells(
         input_dir=input_dir,
         output_dir=output_dir,
         channels=channels,
+        regions=regions,
         auto_close=auto_close,
     )
     if not macro_flag:

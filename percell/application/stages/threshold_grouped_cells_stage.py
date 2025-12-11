@@ -82,6 +82,7 @@ class ThresholdGroupedCellsStage(StageBase):
                 imagej_path=self.config.get('imagej_path'),
                 macro_path=get_path_str("threshold_grouped_cells_macro"),
                 channels=data_selection.get('analysis_channels'),
+                regions=data_selection.get('selected_regions'),
                 auto_close=True,
             )
             if not ok_thresh:
