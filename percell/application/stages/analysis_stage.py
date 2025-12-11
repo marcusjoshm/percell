@@ -80,6 +80,7 @@ class AnalysisStage(StageBase):
                 input_dir=f"{output_dir}/grouped_masks",
                 output_dir=f"{output_dir}/combined_masks",
                 channels=data_selection.get('analysis_channels'),
+                regions=data_selection.get('selected_regions'),
                 imgproc=kwargs.get('imgproc'),
             )
             if not ok_combine:
@@ -98,6 +99,7 @@ class AnalysisStage(StageBase):
                 imagej_path=self.config.get('imagej_path'),
                 macro_path=get_path_str("create_cell_masks_macro"),
                 channels=data_selection.get('analysis_channels'),
+                regions=data_selection.get('selected_regions'),
                 auto_close=True,
                 imagej=kwargs.get('imagej'),
             )

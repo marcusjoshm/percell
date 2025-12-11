@@ -753,6 +753,7 @@ def create_cell_masks(
     imagej_path: str | Path,
     macro_path: str | Path,
     channels: Optional[List[str]] = None,
+    regions: Optional[List[str]] = None,
     auto_close: bool = True,
     *,
     imagej: Optional[ImageJIntegrationPort] = None,
@@ -770,6 +771,17 @@ def create_cell_masks(
             zip_files = [zf for zf in condition_dir.glob("*.zip") if not is_system_hidden_file(zf)]
             roi_files.extend(zip_files)
 
+    # Filter by regions if specified
+    if regions:
+        filtered: List[Path] = []
+        for rf in roi_files:
+            name = rf.name
+            # Check if any selected region is in the ROI filename
+            if any(region in name for region in regions):
+                filtered.append(rf)
+        roi_files = filtered
+
+    # Filter by channels if specified
     if channels:
         filtered: List[Path] = []
         for rf in roi_files:

@@ -307,10 +307,18 @@ def combine_masks(
     input_dir: str | Path,
     output_dir: str | Path,
     channels: Optional[Iterable[str]] = None,
+    regions: Optional[Iterable[str]] = None,
     *,
     imgproc: Optional[ImageProcessingPort] = None,
 ) -> bool:
     """Combine grouped binary masks into single masks under combined_masks.
+
+    Args:
+        input_dir: Directory containing grouped masks
+        output_dir: Directory to write combined masks
+        channels: Optional list of channels to filter by
+        regions: Optional list of regions to filter by
+        imgproc: Optional image processing adapter
 
     Returns True if at least one combined mask was written.
     Preserves TIFF metadata (resolution, units, etc.) from the first mask file
@@ -325,6 +333,9 @@ def combine_masks(
         imgproc = PILImageProcessingAdapter()
     any_written = False
 
+    # Convert regions to set for filtering
+    regions_set = _to_optional_set(regions)
+
     # Expect layout: input_dir/<condition>/<region_timepoint>
     for condition_dir in in_root.glob("*"):
         if not condition_dir.is_dir() or is_system_hidden_file(condition_dir):
@@ -334,6 +345,13 @@ def combine_masks(
                 continue
             if not rt_dir.is_dir():
                 continue
+
+            # Filter by regions if specified
+            if regions_set is not None:
+                # Check if any selected region matches the directory name
+                if not any(region in rt_dir.name for region in regions_set):
+                    continue
+
             groups = _find_mask_groups(rt_dir)
             if not groups:
                 continue
