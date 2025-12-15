@@ -43,6 +43,10 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
     def __init__(self, metadata: Optional[PluginMetadata] = None):
         """Initialize plugin."""
         super().__init__(metadata or METADATA)
+
+    def _is_dot_file(self, path: Path) -> bool:
+        """Check if a file or directory is a dot file (hidden file starting with .)."""
+        return path.name.startswith('.')
     
     def execute(
         self,
@@ -64,9 +68,10 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
                 ui.error(f"Error: Base directory '{base_dir}' does not exist")
                 ui.prompt("Press Enter to continue...")
                 return args
-            
-            # Find all subdirectories containing .tif files
-            subdirs = [d for d in base_path.iterdir() if d.is_dir()]
+
+            # Find all subdirectories, excluding dot files/directories
+            subdirs = [d for d in base_path.iterdir()
+                       if d.is_dir() and not self._is_dot_file(d)]
             
             if len(subdirs) == 0:
                 ui.error(f"Error: No subdirectories found in '{base_dir}'")
@@ -88,9 +93,11 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
                 ui.info(f"Analyzing {dataset_name} Dataset")
                 ui.info("=" * 60)
                 
-                # Get all available files in the directory
-                tif_files = list(data_dir.glob("*.tif"))
-                zip_files = list(data_dir.glob("*.zip"))
+                # Get all available files in the directory, excluding dot files
+                tif_files = [f for f in data_dir.glob("*.tif")
+                            if not self._is_dot_file(f)]
+                zip_files = [f for f in data_dir.glob("*.zip")
+                            if not self._is_dot_file(f)]
                 
                 # Process each analysis configuration
                 for config in analysis_configs:
