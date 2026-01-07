@@ -157,11 +157,13 @@ class BSPreprocessingService:
     ) -> None:
         """Copy ch0 intensity files to Processed directories with renamed convention.
 
+        This method matches ch0 files to existing Processed subdirectories by finding
+        the best matching directory name for each ch0 file.
+
         Args:
             percell_analysis_dir: Path to percell analysis directory
             bs_dir: Path to BS directory with Processed subdirectories
-            condition_map: Optional mapping of filename patterns to condition names.
-                          If None, uses default detection of "1Hr_NaAsO2" and "Untreated"
+            condition_map: Optional mapping (not used, kept for backward compatibility)
         """
         raw_data_dir = percell_analysis_dir / "raw_data"
         processed_dir = bs_dir / "Processed"
@@ -171,12 +173,11 @@ class BSPreprocessingService:
         if not processed_dir.exists():
             raise FileNotFoundError(f"Processed directory not found: {processed_dir}")
 
-        # Default condition detection
-        if condition_map is None:
-            condition_map = {
-                "1Hr_NaAsO2": "1Hr_NaAsO2",
-                "Untreated": "Untreated"
-            }
+        # Get list of all Processed subdirectories
+        processed_subdirs = [d for d in processed_dir.iterdir() if d.is_dir()]
+        if not processed_subdirs:
+            logger.warning("No subdirectories found in Processed directory")
+            return
 
         # Detect channel naming pattern and search for ch0 or ch00 files
         ch_pattern = self._detect_channel_pattern(raw_data_dir)
@@ -187,29 +188,53 @@ class BSPreprocessingService:
         logger.info(f"Found {len(ch0_files)} {ch0_channel} files to copy")
 
         for ch0_file in ch0_files:
-            # Determine condition from filename
-            condition = None
-            for pattern, cond_name in condition_map.items():
-                if pattern in ch0_file.name:
-                    condition = cond_name
+            # Extract base name without channel and suffix
+            # Example: MAX_z-stack_Untreated_Merged_ch0_t00.tif
+            #       -> MAX_z-stack_Untreated_Merged
+            base_name = ch0_file.stem  # Remove .tif extension
+
+            # Remove channel and timepoint suffix (both ch0/ch00 and _t00)
+            if "_ch00_" in base_name:
+                base_name = base_name.split("_ch00_")[0]
+            elif "_ch0_" in base_name:
+                base_name = base_name.split("_ch0_")[0]
+
+            logger.debug(
+                f"Looking for Processed subdirectory matching base: {base_name}"
+            )
+
+            # Find matching Processed subdirectory
+            matched_dir = None
+            for subdir in processed_subdirs:
+                # Check for exact match or substring match
+                if (base_name == subdir.name or
+                    base_name in subdir.name or
+                    subdir.name in base_name):
+                    matched_dir = subdir
+                    logger.debug(
+                        f"Matched {ch0_file.name} to subdirectory: {subdir.name}"
+                    )
                     break
 
-            if condition is None:
-                logger.warning(f"Could not determine condition for {ch0_file.name}, skipping")
-                continue
-
-            # Check if condition subdirectory exists in Processed
-            condition_dir = processed_dir / condition
-            if not condition_dir.exists():
-                logger.warning(f"Condition directory not found: {condition_dir}, skipping")
+            if matched_dir is None:
+                logger.warning(
+                    f"No matching Processed subdirectory found for "
+                    f"{ch0_file.name} (base: {base_name})"
+                )
+                logger.warning(
+                    f"Available subdirectories: "
+                    f"{[d.name for d in processed_subdirs]}"
+                )
                 continue
 
             # Create new filename: {condition}_Cap_Intensity.tif
-            new_filename = f"{condition}_Cap_Intensity.tif"
-            dest_file = condition_dir / new_filename
+            # Use the subdirectory name as the condition name
+            condition_name = matched_dir.name
+            new_filename = f"{condition_name}_Cap_Intensity.tif"
+            dest_file = matched_dir / new_filename
 
             shutil.copy2(ch0_file, dest_file)
-            logger.info(f"Copied {ch0_file.name} -> {condition}/{new_filename}")
+            logger.info(f"Copied {ch0_file.name} -> {condition_name}/{new_filename}")
 
     def extract_condition_from_filename(self, filename: str) -> Optional[str]:
         """Extract condition identifier from a mask or raw data filename.

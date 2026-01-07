@@ -14,29 +14,37 @@ from percell.plugins.base import PerCellPlugin, PluginMetadata
 from percell.ports.driving.user_interface_port import UserInterfacePort
 
 # Import the original plugin function
-from percell.plugins.auto_image_preprocessing import run_auto_image_preprocessing_workflow
+from percell.plugins._auto_image_preprocessing_legacy import (
+    run_auto_image_preprocessing_workflow
+)
 
 # Plugin metadata
-METADATA = PluginMetadata(
-    name="auto_image_preprocessing",
+_PLUGIN_METADATA = PluginMetadata(
+    name="a_auto_image_preprocessing",
     version="1.0.0",
-    description="Comprehensive microscopy image preprocessing workflow",
+    description="z-stack, max projection, merge",
     author="PerCell Team",
     requires_input_dir=False,  # Plugin prompts for directories
     requires_output_dir=False,  # Plugin prompts for directories
     requires_config=False,
     category="preprocessing",
     menu_title="Auto Image Preprocessing",
-    menu_description="Auto preprocessing for downstream analysis (metadata extraction, z-stacks, max projections, channel merging, tile stitching)"
+    menu_description="z-stack, max projection, merge"
 )
+
+# For backwards compatibility
+METADATA = _PLUGIN_METADATA
 
 
 class AutoImagePreprocessingPlugin(PerCellPlugin):
     """Auto Image Preprocessing plugin."""
-    
+
+    # Class-level METADATA for plugin registry discovery
+    METADATA = _PLUGIN_METADATA
+
     def __init__(self, metadata: Optional[PluginMetadata] = None):
         """Initialize plugin."""
-        super().__init__(metadata or METADATA)
+        super().__init__(metadata or _PLUGIN_METADATA)
     
     def execute(
         self,

@@ -21,8 +21,9 @@ from percell.plugins.base import PerCellPlugin, PluginMetadata
 from percell.ports.driving.user_interface_port import UserInterfacePort
 
 
-# Plugin metadata
-METADATA = PluginMetadata(
+# Base metadata for inheritance (not registered as standalone plugin)
+# This class is only used as a base for IntensityAnalysisBSAutoPlugin
+BASE_METADATA = PluginMetadata(
     name="intensity_analysis_bs",
     version="1.0.0",
     description="Analyzes intensity measurements in ROIs using per-ROI local background subtraction",
@@ -38,11 +39,17 @@ METADATA = PluginMetadata(
 
 
 class IntensityAnalysisBSPlugin(PerCellPlugin):
-    """Intensity analysis plugin with background subtraction."""
-    
+    """Intensity analysis plugin with background subtraction.
+
+    This is a base class for other plugins and should not be registered directly.
+    """
+
+    # Marker to prevent plugin registry from auto-discovering this base class
+    _INTERNAL_BASE_CLASS = True
+
     def __init__(self, metadata: Optional[PluginMetadata] = None):
         """Initialize plugin."""
-        super().__init__(metadata or METADATA)
+        super().__init__(metadata or BASE_METADATA)
 
     def _is_dot_file(self, path: Path) -> bool:
         """Check if a file or directory is a dot file (hidden file starting with .)."""
@@ -102,7 +109,6 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
                 # Process each analysis configuration
                 for config in analysis_configs:
                     ui.info(f"\n--- Processing {config['name']} analysis ---")
-                    ui.info(f"  Background multiplication factor: {config['bg_factor']}")
                     ui.info(f"  ROI enlargement: {config['enlarge_rois']} pixels")
                     ui.info(f"  Maximum background constraint: {config['max_background']}")
                     
@@ -160,7 +166,6 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
                     results = self._analyze_roi_intensity_from_rois(
                         mask_rois, background_rois, intensity_image,
                         image_shape, method=method,
-                        bg_multiplication_factor=config['bg_factor'],
                         max_background=config['max_background']
                     )
                     
@@ -367,7 +372,6 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
         intensity_image: np.ndarray,
         image_shape: tuple,
         method: str = 'gaussian_peaks',
-        bg_multiplication_factor: float = 1.0,
         max_background: Optional[float] = None
     ) -> Dict:
         """Analyze intensity measurements for each ROI using local background subtraction."""
@@ -386,15 +390,14 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
                 continue
             
             if method == 'minimum':
-                background_raw = np.min(background_intensities)
+                background = np.min(background_intensities)
                 peak_info = None
             elif method == 'gaussian_peaks':
                 peak_info = self._find_gaussian_peaks(background_intensities, max_background=max_background)
-                background_raw = peak_info['background_value'] if peak_info else np.mean(background_intensities)
+                background = peak_info['background_value'] if peak_info else np.mean(background_intensities)
             else:
                 raise ValueError(f"Unknown method: {method}")
-            
-            background = background_raw * bg_multiplication_factor
+
             bg_subtracted = roi_intensities - background
             
             roi_result = {
@@ -550,7 +553,6 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
                 'mask_exclude_keywords': ['Dilated'],
                 'dilated_keywords': ['PB', 'Dilated', 'Mask'],
                 'output_name': 'PB_Cap',
-                'bg_factor': None,
                 'enlarge_rois': None,
                 'max_background': None
             },
@@ -561,7 +563,6 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
                 'mask_exclude_keywords': ['Dilated'],
                 'dilated_keywords': ['PB', 'Dilated', 'Mask'],
                 'output_name': 'DDX6',
-                'bg_factor': None,
                 'enlarge_rois': None,
                 'max_background': None
             },
@@ -572,7 +573,6 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
                 'mask_exclude_keywords': ['Dilated'],
                 'dilated_keywords': ['SG', 'Dilated', 'Mask'],
                 'output_name': 'SG_Cap',
-                'bg_factor': None,
                 'enlarge_rois': None,
                 'max_background': None
             },
@@ -583,7 +583,6 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
                 'mask_exclude_keywords': ['Dilated'],
                 'dilated_keywords': ['SG', 'Dilated', 'Mask'],
                 'output_name': 'G3BP1',
-                'bg_factor': None,
                 'enlarge_rois': None,
                 'max_background': None
             }
@@ -596,26 +595,10 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
         ui.info("=" * 60)
         ui.info("Please enter parameters for each analysis configuration.")
         ui.info("Press Enter to use default values shown in brackets.\n")
-        
+
         for config in configs:
             ui.info(f"\n--- {config['name']} Configuration ---")
-            
-            # Background factor
-            while True:
-                try:
-                    bg_input = ui.prompt("  Background multiplication factor [1.0]: ").strip()
-                    if bg_input == "":
-                        config['bg_factor'] = 1.0
-                        break
-                    bg_val = float(bg_input)
-                    if bg_val < 0:
-                        ui.error("    Error: Background factor must be non-negative. Please try again.")
-                        continue
-                    config['bg_factor'] = bg_val
-                    break
-                except ValueError:
-                    ui.error("    Error: Please enter a valid number.")
-            
+
             # ROI enlargement
             while True:
                 try:
@@ -628,7 +611,7 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
                     break
                 except ValueError:
                     ui.error("    Error: Please enter a valid integer.")
-            
+
             # Max background
             while True:
                 try:
@@ -644,16 +627,15 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
                     break
                 except ValueError:
                     ui.error("    Error: Please enter a valid number or 'None'.")
-        
+
         ui.info("\n" + "=" * 60)
         ui.info("CONFIGURATION SUMMARY")
         ui.info("=" * 60)
         for config in configs:
             ui.info(f"\n{config['name']}:")
-            ui.info(f"  Background factor: {config['bg_factor']}")
             ui.info(f"  ROI enlargement: {config['enlarge_rois']} pixels")
             ui.info(f"  Max background: {config['max_background']}")
         ui.info("=" * 60 + "\n")
-        
+
         return configs
 

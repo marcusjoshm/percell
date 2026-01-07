@@ -2,8 +2,11 @@
 
 Coordinates the full preprocessing workflow for BS intensity analysis:
 1. Copy percell analysis outputs to BS directory structure
-2. Run ImageJ macros for P-body and stress granule processing
-3. Copy ch0 files to processed directories
+2. Detect presence of stress granule (ch1) files
+3. Run appropriate ImageJ macros:
+   - If ch1 files exist: P-body with SG subtraction + SG processing
+   - If no ch1 files: P-body only (no subtraction)
+4. Copy ch0 files to processed directories
 """
 
 from __future__ import annotations
@@ -70,17 +73,29 @@ class BSWorkflow:
         )
         logger.info(f"BS directory created at: {bs_dir}")
 
-        # Step 2: Run P-body macro
-        logger.info("Step 2: Processing P-body data with ImageJ")
-        pb_macro_path = self._get_macro_path("pb_background_subtraction.ijm")
-        self._imagej.run_macro(pb_macro_path, [str(bs_dir)])
-        logger.info("P-body processing complete")
+        # Step 2: Check if ch1 files exist to determine which macros to run
+        has_stress_granules = self._check_for_ch1_files(bs_dir)
 
-        # Step 3: Run stress granule macro
-        logger.info("Step 3: Processing stress granule data with ImageJ")
-        sg_macro_path = self._get_macro_path("sg_background_subtraction.ijm")
-        self._imagej.run_macro(sg_macro_path, [str(bs_dir)])
-        logger.info("Stress granule processing complete")
+        if has_stress_granules:
+            # Step 2a: Run P-body macro with SG subtraction
+            logger.info("Step 2: Processing P-body data with SG subtraction")
+            pb_macro_path = self._get_macro_path("pb_background_subtraction.ijm")
+            self._imagej.run_macro(pb_macro_path, [str(bs_dir)])
+            logger.info("P-body processing complete")
+
+            # Step 3: Run stress granule macro
+            logger.info("Step 3: Processing stress granule data")
+            sg_macro_path = self._get_macro_path("sg_background_subtraction.ijm")
+            self._imagej.run_macro(sg_macro_path, [str(bs_dir)])
+            logger.info("Stress granule processing complete")
+        else:
+            # Step 2b: Run P-body only macro (no SG subtraction)
+            logger.info("Step 2: No ch1 files detected, processing P-body only")
+            pb_only_macro_path = self._get_macro_path(
+                "pb_only_background_subtraction.ijm"
+            )
+            self._imagej.run_macro(pb_only_macro_path, [str(bs_dir)])
+            logger.info("P-body only processing complete")
 
         # Step 4: Copy ch0 files to processed directories
         logger.info("Step 4: Copying ch0 files to processed directories")
@@ -93,6 +108,35 @@ class BSWorkflow:
 
         logger.info(f"BS preprocessing complete. Output: {bs_dir}")
         return bs_dir
+
+    def _check_for_ch1_files(self, bs_dir: Path) -> bool:
+        """Check if ch1/ch01 files exist in Masks or Raw Data directories.
+
+        Args:
+            bs_dir: BS directory containing Masks/ and Raw Data/
+
+        Returns:
+            True if ch1/ch01 files are found, False otherwise
+        """
+        masks_dir = bs_dir / "Masks"
+        raw_data_dir = bs_dir / "Raw Data"
+
+        # Check both directories for ch1 or ch01 files
+        for directory in [masks_dir, raw_data_dir]:
+            if directory.exists():
+                # Look for files containing ch1 or ch01
+                ch1_files = list(directory.glob("*ch1*.tif"))
+                ch01_files = list(directory.glob("*ch01*.tif"))
+
+                if ch1_files or ch01_files:
+                    logger.info(
+                        f"Found {len(ch1_files) + len(ch01_files)} ch1 files "
+                        f"in {directory.name}"
+                    )
+                    return True
+
+        logger.info("No ch1/ch01 files found, will use PB-only workflow")
+        return False
 
     def _get_macro_path(self, macro_name: str) -> Path:
         """Get the path to a bundled ImageJ macro.

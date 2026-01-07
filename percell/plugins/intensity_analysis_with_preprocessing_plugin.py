@@ -14,7 +14,7 @@ import argparse
 from pathlib import Path
 from typing import Optional
 
-from percell.plugins.intensity_analysis_plugin import IntensityAnalysisBSPlugin, METADATA as BASE_METADATA
+from percell.plugins._intensity_analysis_base import IntensityAnalysisBSPlugin, BASE_METADATA
 from percell.plugins.base import PluginMetadata
 from percell.ports.driving.user_interface_port import UserInterfacePort
 from percell.domain.services.bs_preprocessing_service import BSPreprocessingService
@@ -22,27 +22,39 @@ from percell.application.bs_workflow import BSWorkflow
 from percell.domain.services.package_resource_service import PackageResourceService
 
 # Enhanced plugin metadata
-METADATA = PluginMetadata(
-    name="intensity_analysis_bs_auto",
+# Name starts with "m_" to sort after auto plugins, appearing as option 3 in menu
+_PLUGIN_METADATA = PluginMetadata(
+    name="m_cap_enrichment_analysis",
     version="2.0.0",
-    description="Analyzes intensity with automatic preprocessing from percell outputs",
+    description="cap analysis for PB and SG",
     author="PerCell Team",
     dependencies=BASE_METADATA.dependencies,
-    requires_input_dir=True,
-    requires_output_dir=False,
+    requires_input_dir=False,  # Plugin prompts for directories
+    requires_output_dir=False,  # Plugin prompts for directories
     requires_config=True,  # Needs ImageJ path
     category="analysis",
-    menu_title="Intensity Analysis BS (Auto-Prep)",
-    menu_description="Automatically preprocess percell outputs and run intensity analysis"
+    menu_title="m7G Cap Enrichment Analysis",
+    menu_description="PB and SG cap analysis"
 )
+
+# For backwards compatibility and plugin discovery
+METADATA = _PLUGIN_METADATA
 
 
 class IntensityAnalysisBSAutoPlugin(IntensityAnalysisBSPlugin):
     """Enhanced intensity analysis plugin with automatic preprocessing."""
 
+    # Class-level METADATA for plugin registry discovery
+    METADATA = _PLUGIN_METADATA
+
+    # Override parent's internal marker - this is NOT an internal base class
+    _INTERNAL_BASE_CLASS = False
+
     def __init__(self, metadata: Optional[PluginMetadata] = None):
         """Initialize plugin."""
-        super().__init__(metadata or METADATA)
+        if metadata is None:
+            metadata = _PLUGIN_METADATA
+        super().__init__(metadata)
         self._preprocessing_service = BSPreprocessingService()
 
         # Initialize resource service with percell package root
@@ -115,25 +127,6 @@ class IntensityAnalysisBSAutoPlugin(IntensityAnalysisBSPlugin):
                 self._resource_service
             )
 
-            # Ask about condition mapping for ch0 files
-            ui.info("\n⚙️  Ch0 File Configuration")
-            ui.info("Default condition detection: '1Hr_NaAsO2' and 'Untreated'")
-            use_default = ui.prompt("Use default condition mapping? (Y/n): ").strip().lower()
-
-            condition_map = None
-            if use_default not in ['', 'y', 'yes']:
-                ui.info("Custom condition mapping not yet implemented")
-                ui.info("Using default mapping")
-                condition_map = {
-                    "1Hr_NaAsO2": "1Hr_NaAsO2",
-                    "Untreated": "Untreated"
-                }
-            else:
-                condition_map = {
-                    "1Hr_NaAsO2": "1Hr_NaAsO2",
-                    "Untreated": "Untreated"
-                }
-
             # Ask about output directory
             default_output = percell_path.parent / f"{percell_path.name}_BS"
             ui.info(f"\n📂 Output directory: {default_output}")
@@ -149,8 +142,7 @@ class IntensityAnalysisBSAutoPlugin(IntensityAnalysisBSPlugin):
             try:
                 bs_dir = workflow.run_full_preprocessing(
                     percell_path,
-                    output_dir=output_dir,
-                    condition_map=condition_map
+                    output_dir=output_dir
                 )
                 ui.info(f"✅ Preprocessing complete! Output: {bs_dir}")
             except Exception as e:

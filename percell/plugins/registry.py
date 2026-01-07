@@ -203,9 +203,14 @@ class PluginRegistry:
         
         # Look for plugin classes
         for name, obj in inspect.getmembers(module):
-            if (inspect.isclass(obj) and 
-                issubclass(obj, PerCellPlugin) and 
+            if (inspect.isclass(obj) and
+                issubclass(obj, PerCellPlugin) and
                 obj is not PerCellPlugin):
+                # Skip internal base classes marked with _INTERNAL_BASE_CLASS
+                if hasattr(obj, '_INTERNAL_BASE_CLASS') and obj._INTERNAL_BASE_CLASS:
+                    logger.debug(f"Skipping internal base class: {name}")
+                    continue
+
                 # Check if it has METADATA attribute
                 if hasattr(obj, 'METADATA'):
                     self.register_class(obj, obj.METADATA)
