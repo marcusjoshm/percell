@@ -29,22 +29,26 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
         self._progress = progress_reporter
 
     def run_macro(self, macro_path: Path, args: List[str]) -> int:
-        # Prefer -batch for headless macro execution
-        cmd: List[str] = [str(self._exe), "-batch", str(macro_path)]
+        # Use -macro without --headless to enable ROI Manager support
+        # setBatchMode(true) in the macro will hide the GUI
+        cmd: List[str] = [str(self._exe), "-macro", str(macro_path)]
         if args:
-            # ImageJ -batch takes only a single string parameter;
+            # ImageJ -macro takes only a single string parameter;
             # join args appropriately if needed
-            # Many macros handle a single arg; 
+            # Many macros handle a single arg;
             # callers can pre-serialize if required
             cmd.append(" ".join(args))
 
         try:
             # Start process with piped stdout to stream lines
+            # Use temp directory as cwd to avoid "getcwd" errors
+            import tempfile
             process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
+                cwd=tempfile.gettempdir(),
             )
             title = f"ImageJ: {Path(macro_path).stem}"
             print(title)
