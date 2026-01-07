@@ -169,10 +169,8 @@ class IntensityAnalysisBSAutoPlugin(IntensityAnalysisBSPlugin):
             analysis_args.input = str(bs_dir / "Processed")
 
             # Run the parent class's execute method for intensity analysis
+            # Note: Parent's execute already prompts user to return to main menu
             result = super().execute(ui, analysis_args)
-
-            ui.info("\n✅ Complete workflow finished successfully!")
-            ui.prompt("Press Enter to return to main menu...")
 
             return args
 

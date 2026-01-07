@@ -11,6 +11,7 @@ tqdm>=4.62.0
 tifffile>=2022.7.28
 natsort>=8.0.0
 read-roi>=1.6.0  # For reading ImageJ ROIs
+roifile>=2024.1.0  # For reading ImageJ ROI zip files
 pillow>=9.0.0    # For image processing
 scikit-image>=0.19.1  # For image analysis
 
