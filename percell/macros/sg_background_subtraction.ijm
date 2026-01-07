@@ -1,10 +1,15 @@
 // ImageJ Macro for Stress Granule Analysis
 // Automated version for percell integration - no user interaction required
 //
+// This macro is filename-agnostic and works with any naming convention as long as:
+//   - Files in Masks/ and Raw Data/ contain channel identifiers (ch1 or ch01)
+//   - Corresponding mask and raw files have the same base name with different prefixes
+//   - Stress granule files contain ch1 or ch01
+//
 // Expected directory structure:
 // mainDir/
-//   ├── Masks/           (containing MASK_MAX_z-stack_*_ch1_*.tif)
-//   ├── Raw Data/        (containing MAX_z-stack_*_ch1_*.tif)
+//   ├── Masks/           (containing mask files with ch1/ch01 channel identifiers)
+//   ├── Raw Data/        (containing raw files with ch1/ch01 channel identifiers)
 //   └── Processed/       (output directory, created automatically)
 //
 // Parameters passed via macro argument:
@@ -42,40 +47,58 @@ if (!File.exists(rawDataDir)) {
 // Create output directory if it doesn't exist
 File.makeDirectory(outputBaseDir);
 
-// Get list of all mask files
+// Get list of all mask and raw files
 maskFiles = getFileList(masksDir);
+rawFiles = getFileList(rawDataDir);
 
-// Create an array to store unique condition strings
-conditionList = newArray();
-
-// Extract unique conditions from ch1 files (stress granules)
+// Build arrays to store ch1 mask files (Stress granules)
+ch1MaskFiles = newArray();
 for (i = 0; i < maskFiles.length; i++) {
-    if (indexOf(maskFiles[i], "_ch1_") > 0 && endsWith(maskFiles[i], ".tif")) {
-        // Extract the unique string part
-        filename = maskFiles[i];
-        // Remove "MASK_MAX_z-stack_" prefix
-        temp = replace(filename, "MASK_MAX_z-stack_", "");
-        // Remove "_Merged_ch1_t00.tif" suffix
-        condition = replace(temp, "_Merged_ch1_t00.tif", "");
-        conditionList = Array.concat(conditionList, condition);
+    // Look for any file containing ch1 or ch01 (case insensitive for SG channel)
+    if ((indexOf(toLowerCase(maskFiles[i]), "ch1") > 0 || indexOf(toLowerCase(maskFiles[i]), "ch01") > 0) && endsWith(maskFiles[i], ".tif")) {
+        ch1MaskFiles = Array.concat(ch1MaskFiles, maskFiles[i]);
     }
 }
 
-print("SG_TOTAL: " + conditionList.length);
+print("SG_TOTAL: " + ch1MaskFiles.length);
 
-// Process each condition
-for (c = 0; c < conditionList.length; c++) {
-    condition = conditionList[c];
-    print("SG_CONDITION: " + (c + 1) + "/" + conditionList.length);
+// Process each ch1 mask file
+for (fileIdx = 0; fileIdx < ch1MaskFiles.length; fileIdx++) {
+    ch1MaskFile = ch1MaskFiles[fileIdx];
+    print("SG_CONDITION: " + (fileIdx + 1) + "/" + ch1MaskFiles.length);
+
+    ch1MaskPath = masksDir + ch1MaskFile;
+
+    // Derive ch1 raw filename by removing "MASK_" prefix if present
+    ch1RawFile = replace(ch1MaskFile, "MASK_", "");
+    ch1RawPath = rawDataDir + ch1RawFile;
+
+    // Extract condition name for output (remove MASK_ prefix and channel suffix)
+    condition = ch1MaskFile;
+    condition = replace(condition, "MASK_", "");
+    condition = replace(condition, ".tif", "");
+    // Remove channel and timepoint suffixes (works for both ch1 and ch01)
+    if (indexOf(condition, "ch01") > 0) {
+        idx = indexOf(condition, "ch01");
+        condition = substring(condition, 0, idx - 1);  // -1 to remove underscore before ch
+    } else if (indexOf(condition, "ch1") > 0) {
+        idx = indexOf(condition, "ch1");
+        condition = substring(condition, 0, idx - 1);
+    }
+
     print("Processing condition: " + condition);
-
-    // Define file paths
-    ch1MaskPath = masksDir + "MASK_MAX_z-stack_" + condition + "_Merged_ch1_t00.tif";
-    ch1RawPath = rawDataDir + "MAX_z-stack_" + condition + "_Merged_ch1_t00.tif";
+    print("  Ch1 mask: " + ch1MaskFile);
+    print("  Ch1 raw: " + ch1RawFile);
 
     // Check if all required files exist
-    if (!File.exists(ch1MaskPath) || !File.exists(ch1RawPath)) {
-        print("Skipping " + condition + " - missing files");
+    if (!File.exists(ch1MaskPath)) {
+        print("  WARNING: Ch1 mask not found: " + ch1MaskFile);
+        print("  Skipping " + condition);
+        continue;
+    }
+    if (!File.exists(ch1RawPath)) {
+        print("  WARNING: Ch1 raw not found: " + ch1RawFile);
+        print("  Skipping " + condition);
         continue;
     }
 

@@ -20,6 +20,33 @@ logger = logging.getLogger(__name__)
 class BSPreprocessingService:
     """Service for preparing percell data for background subtraction intensity analysis."""
 
+    def _detect_channel_pattern(self, data_dir: Path) -> str:
+        """Detect whether files use ch0/ch1/ch2 or ch00/ch01/ch02 naming.
+
+        Args:
+            data_dir: Directory to search for channel files
+
+        Returns:
+            Channel pattern prefix: either "ch" or "ch0"
+        """
+        # Look for any tif files in the directory tree
+        sample_files = list(data_dir.glob("**/*.tif"))[:20]  # Check first 20 files
+
+        for f in sample_files:
+            if not f.name.startswith("._"):
+                # Check for zero-padded pattern (ch00, ch01, ch02)
+                if "_ch00_" in f.name or "_ch01_" in f.name or "_ch02_" in f.name:
+                    logger.info(f"Detected zero-padded channel naming (ch00/ch01/ch02)")
+                    return "ch0"
+                # Check for non-padded pattern (ch0, ch1, ch2)
+                elif "_ch0_" in f.name or "_ch1_" in f.name or "_ch2_" in f.name:
+                    logger.info(f"Detected standard channel naming (ch0/ch1/ch2)")
+                    return "ch"
+
+        # Default to standard naming if nothing detected
+        logger.warning("Could not detect channel naming pattern, defaulting to ch0/ch1/ch2")
+        return "ch"
+
     def prepare_bs_directory(
         self,
         percell_analysis_dir: Path,
@@ -65,11 +92,15 @@ class BSPreprocessingService:
 
         logger.info(f"Created BS directory structure at {output_dir}")
 
+        # Detect channel naming pattern
+        ch_pattern = self._detect_channel_pattern(raw_data_dir)
+
         # Copy mask files
         self._copy_masks(combined_masks_dir, masks_dir)
 
-        # Copy ch1 and ch2 raw data files
-        self._copy_channel_data(raw_data_dir, raw_dir, channels=["ch1", "ch2"])
+        # Copy ch1 and ch2 raw data files (or ch01 and ch02 if zero-padded)
+        channels = [f"{ch_pattern}1", f"{ch_pattern}2"]
+        self._copy_channel_data(raw_data_dir, raw_dir, channels=channels)
 
         logger.info(f"Copied masks and raw data to {output_dir}")
 
@@ -147,9 +178,13 @@ class BSPreprocessingService:
                 "Untreated": "Untreated"
             }
 
-        # Find all ch0 files recursively, excluding macOS dot files
-        ch0_files = [f for f in raw_data_dir.glob("**/*ch0*.tif") if not f.name.startswith("._")]
-        logger.info(f"Found {len(ch0_files)} ch0 files to copy")
+        # Detect channel naming pattern and search for ch0 or ch00 files
+        ch_pattern = self._detect_channel_pattern(raw_data_dir)
+        ch0_channel = f"{ch_pattern}0" if ch_pattern == "ch0" else "ch0"
+
+        # Find all ch0/ch00 files recursively, excluding macOS dot files
+        ch0_files = [f for f in raw_data_dir.glob(f"**/*{ch0_channel}*.tif") if not f.name.startswith("._")]
+        logger.info(f"Found {len(ch0_files)} {ch0_channel} files to copy")
 
         for ch0_file in ch0_files:
             # Determine condition from filename

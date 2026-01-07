@@ -1,10 +1,15 @@
 // ImageJ Macro for P-body Analysis with Stress Granule Subtraction
 // Automated version for percell integration - no user interaction required
 //
+// This macro is filename-agnostic and works with any naming convention as long as:
+//   - Files in Masks/ and Raw Data/ contain channel identifiers (ch1/ch2 or ch01/ch02)
+//   - Corresponding mask and raw files have the same base name with different prefixes
+//   - P-body files contain ch2 or ch02, stress granule files contain ch1 or ch01
+//
 // Expected directory structure:
 // mainDir/
-//   ├── Masks/           (containing MASK_MAX_z-stack_*_ch1_*.tif and *_ch2_*.tif)
-//   ├── Raw Data/        (containing MAX_z-stack_*_ch1_*.tif and *_ch2_*.tif)
+//   ├── Masks/           (containing mask files with ch1/ch01 and ch2/ch02 channel identifiers)
+//   ├── Raw Data/        (containing raw files with ch1/ch01 and ch2/ch02 channel identifiers)
 //   └── Processed/       (output directory, created automatically)
 //
 // Parameters passed via macro argument:
@@ -42,41 +47,74 @@ if (!File.exists(rawDataDir)) {
 // Create output directory if it doesn't exist
 File.makeDirectory(outputBaseDir);
 
-// Get list of all mask files
+// Get list of all mask and raw files
 maskFiles = getFileList(masksDir);
+rawFiles = getFileList(rawDataDir);
 
-// Create an array to store unique condition strings
-conditionList = newArray();
-
-// Extract unique conditions from ch2 files (p-bodies)
+// Build arrays to store ch2 mask files (P-bodies)
+ch2MaskFiles = newArray();
 for (i = 0; i < maskFiles.length; i++) {
-    if (indexOf(maskFiles[i], "_ch2_") > 0 && endsWith(maskFiles[i], ".tif")) {
-        // Extract the unique string part
-        filename = maskFiles[i];
-        // Remove "MASK_MAX_z-stack_" prefix
-        temp = replace(filename, "MASK_MAX_z-stack_", "");
-        // Remove "_Merged_ch2_t00.tif" suffix
-        condition = replace(temp, "_Merged_ch2_t00.tif", "");
-        conditionList = Array.concat(conditionList, condition);
+    // Look for any file containing ch2 or ch02 (case insensitive for P-body channel)
+    if ((indexOf(toLowerCase(maskFiles[i]), "ch2") > 0 || indexOf(toLowerCase(maskFiles[i]), "ch02") > 0) && endsWith(maskFiles[i], ".tif")) {
+        ch2MaskFiles = Array.concat(ch2MaskFiles, maskFiles[i]);
     }
 }
 
-print("PB_TOTAL: " + conditionList.length);
+print("PB_TOTAL: " + ch2MaskFiles.length);
 
-// Process each condition
-for (c = 0; c < conditionList.length; c++) {
-    condition = conditionList[c];
-    print("PB_CONDITION: " + (c + 1) + "/" + conditionList.length);
+// Process each ch2 mask file
+for (fileIdx = 0; fileIdx < ch2MaskFiles.length; fileIdx++) {
+    ch2MaskFile = ch2MaskFiles[fileIdx];
+    print("PB_CONDITION: " + (fileIdx + 1) + "/" + ch2MaskFiles.length);
+
+    // Determine which channel naming is used (ch2 vs ch02)
+    ch2MaskPath = masksDir + ch2MaskFile;
+
+    // Derive ch1 mask filename by replacing ch2->ch1 or ch02->ch01
+    ch1MaskFile = "";
+    if (indexOf(ch2MaskFile, "ch02") > 0) {
+        ch1MaskFile = replace(ch2MaskFile, "ch02", "ch01");
+    } else if (indexOf(ch2MaskFile, "ch2") > 0) {
+        ch1MaskFile = replace(ch2MaskFile, "ch2", "ch1");
+    }
+    ch1MaskPath = masksDir + ch1MaskFile;
+
+    // Derive ch2 raw filename by removing "MASK_" prefix if present
+    ch2RawFile = replace(ch2MaskFile, "MASK_", "");
+    ch2RawPath = rawDataDir + ch2RawFile;
+
+    // Extract condition name for output (remove MASK_ prefix and channel suffix)
+    condition = ch2MaskFile;
+    condition = replace(condition, "MASK_", "");
+    condition = replace(condition, ".tif", "");
+    // Remove channel and timepoint suffixes (works for both ch1/ch2 and ch01/ch02)
+    if (indexOf(condition, "ch02") > 0) {
+        idx = indexOf(condition, "ch02");
+        condition = substring(condition, 0, idx - 1);  // -1 to remove underscore before ch
+    } else if (indexOf(condition, "ch2") > 0) {
+        idx = indexOf(condition, "ch2");
+        condition = substring(condition, 0, idx - 1);
+    }
+
     print("Processing condition: " + condition);
-
-    // Define file paths
-    ch1MaskPath = masksDir + "MASK_MAX_z-stack_" + condition + "_Merged_ch1_t00.tif";
-    ch2MaskPath = masksDir + "MASK_MAX_z-stack_" + condition + "_Merged_ch2_t00.tif";
-    ch2RawPath = rawDataDir + "MAX_z-stack_" + condition + "_Merged_ch2_t00.tif";
+    print("  Ch1 mask: " + ch1MaskFile);
+    print("  Ch2 mask: " + ch2MaskFile);
+    print("  Ch2 raw: " + ch2RawFile);
 
     // Check if all required files exist
-    if (!File.exists(ch1MaskPath) || !File.exists(ch2MaskPath) || !File.exists(ch2RawPath)) {
-        print("Skipping " + condition + " - missing files");
+    if (!File.exists(ch1MaskPath)) {
+        print("  WARNING: Ch1 mask not found: " + ch1MaskFile);
+        print("  Skipping " + condition);
+        continue;
+    }
+    if (!File.exists(ch2MaskPath)) {
+        print("  WARNING: Ch2 mask not found: " + ch2MaskFile);
+        print("  Skipping " + condition);
+        continue;
+    }
+    if (!File.exists(ch2RawPath)) {
+        print("  WARNING: Ch2 raw not found: " + ch2RawFile);
+        print("  Skipping " + condition);
         continue;
     }
 
