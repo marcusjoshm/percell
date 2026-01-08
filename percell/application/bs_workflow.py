@@ -110,32 +110,35 @@ class BSWorkflow:
         return bs_dir
 
     def _check_for_ch1_files(self, bs_dir: Path) -> bool:
-        """Check if ch1/ch01 files exist in Masks or Raw Data directories.
+        """Check if ch1/ch01 MASK files exist in Masks directory.
+
+        The presence of ch1 masks determines if we can do SG analysis with
+        background subtraction. Raw ch1 files alone are not sufficient.
 
         Args:
-            bs_dir: BS directory containing Masks/ and Raw Data/
+            bs_dir: BS directory containing Masks/ subdirectory
 
         Returns:
-            True if ch1/ch01 files are found, False otherwise
+            True if ch1/ch01 mask files are found, False otherwise
         """
+        import re
+
         masks_dir = bs_dir / "Masks"
-        raw_data_dir = bs_dir / "Raw Data"
 
-        # Check both directories for ch1 or ch01 files
-        for directory in [masks_dir, raw_data_dir]:
-            if directory.exists():
-                # Look for files containing ch1 or ch01
-                ch1_files = list(directory.glob("*ch1*.tif"))
-                ch01_files = list(directory.glob("*ch01*.tif"))
+        # Pattern to match ch1 or ch01 but not ch10, ch12-19, ch02, etc.
+        # Matches: _ch1_ or _ch01_ (with underscores or period as delimiters)
+        ch1_pattern = re.compile(r'_ch0?1[_\.]', re.IGNORECASE)
 
-                if ch1_files or ch01_files:
+        # Check ONLY the Masks directory for ch1/ch01 mask files
+        if masks_dir.exists():
+            for tif_file in masks_dir.glob("*.tif"):
+                if ch1_pattern.search(tif_file.name):
                     logger.info(
-                        f"Found {len(ch1_files) + len(ch01_files)} ch1 files "
-                        f"in {directory.name}"
+                        f"Found ch1/ch01 mask file: {tif_file.name}"
                     )
                     return True
 
-        logger.info("No ch1/ch01 files found, will use PB-only workflow")
+        logger.info("No ch1/ch01 mask files found, will use PB-only workflow")
         return False
 
     def _get_macro_path(self, macro_name: str) -> Path:
