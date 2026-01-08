@@ -156,7 +156,7 @@ for (fileIdx = 0; fileIdx < ch2MaskFiles.length; fileIdx++) {
     close(ch2Title);
 
     // Step 6: Copy the ch2 raw data image to output directory
-    rawOutputPath = conditionOutputDir + condition + "_G3BP1_Intensity.tif";
+    rawOutputPath = conditionOutputDir + condition + "_DDX6_Intensity.tif";
     File.copy(ch2RawPath, rawOutputPath);
     print("  Copied raw data: " + rawOutputPath);
 
