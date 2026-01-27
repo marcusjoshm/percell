@@ -68,7 +68,6 @@ def _populate_default_config(config: ConfigurationService) -> None:
             "channels": [],
             "region_to_channels": {},
             "datatype_inferred": None,
-            "directory_timepoints": [],
         })
 
     config.save()

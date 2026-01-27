@@ -833,7 +833,6 @@ def _find_raw_image_for_roi(roi_file: Path, raw_data_dir: Path) -> Optional[Path
     logger.debug(f"_find_raw_image_for_roi called for ROI: {roi_file.name}")
     logger.debug(f"Condition: {condition}")
     logger.debug(f"Condition directory: {condition_dir}")
-    logger.debug(f"Condition directory exists: {condition_dir.exists()}")
 
     if not condition_dir.exists():
         logger.error(f"Condition directory does not exist: {condition_dir}")
@@ -852,31 +851,45 @@ def _find_raw_image_for_roi(roi_file: Path, raw_data_dir: Path) -> Optional[Path
         f"{region}_{channel}_{timepoint}.tif",  # Alternative: Region_ch00_t00.tif
     ]
 
-    logger.debug(f"Trying patterns: {patterns}")
+    # First, try direct (flat) lookup - much faster than recursive glob
+    for pattern in patterns:
+        direct_path = condition_dir / pattern
+        if direct_path.exists() and not is_system_hidden_file(direct_path):
+            logger.debug(f"Direct match found: {direct_path}")
+            return direct_path
 
+    # If flat lookup fails, try recursive glob (for nested structures)
+    logger.debug("No direct matches, trying recursive search...")
     for pattern in patterns:
         search_pattern = f"**/{pattern}"
-        logger.debug(f"Searching with pattern: {search_pattern}")
         matches = list(condition_dir.glob(search_pattern))
-        logger.debug(f"Found {len(matches)} matches for pattern '{pattern}'")
+        matches = [m for m in matches if not is_system_hidden_file(m)]
         if matches:
-            logger.debug(f"Matched file: {matches[0]}")
+            logger.debug(f"Recursive match found: {matches[0]}")
             return matches[0]
 
-    # Fallback: broader search for partial matches
-    logger.debug("No exact matches, trying fallback partial matching")
-    # Filter out system metadata files (e.g., ._ files on exFAT)
-    all_tifs = [tf for tf in condition_dir.glob("**/*.tif") if not is_system_hidden_file(tf)]
-    logger.debug(f"Found {len(all_tifs)} total TIF files in condition directory")
+    # Fallback: check files directly in condition_dir first (flat structure)
+    logger.debug("No exact matches, trying fallback partial matching (flat first)...")
+    direct_tifs = [tf for tf in condition_dir.glob("*.tif") if not is_system_hidden_file(tf)]
+    for file in direct_tifs:
+        name = file.name
+        ok_region = region in name
+        ok_channel = channel in name if channel else True
+        ok_time = timepoint in name if timepoint else True
+        if ok_region and ok_channel and ok_time:
+            logger.debug(f"Partial match found (flat): {file}")
+            return file
 
+    # Last resort: recursive search for partial matches
+    logger.debug("Trying recursive fallback partial matching...")
+    all_tifs = [tf for tf in condition_dir.glob("**/*.tif") if not is_system_hidden_file(tf)]
     for file in all_tifs:
         name = file.name
         ok_region = region in name
         ok_channel = channel in name if channel else True
         ok_time = timepoint in name if timepoint else True
-        logger.debug(f"Checking file: {name} - region:{ok_region}, channel:{ok_channel}, time:{ok_time}")
         if ok_region and ok_channel and ok_time:
-            logger.debug(f"Partial match found: {file}")
+            logger.debug(f"Partial match found (recursive): {file}")
             return file
 
     logger.error(f"No matching raw image found for ROI: {roi_file.name}")

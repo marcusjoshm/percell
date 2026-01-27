@@ -4,9 +4,11 @@ Prepare Input Structure - Cross-Platform Version
 
 This script prepares the input directory structure for the microscopy analysis workflow.
 It handles three possible input structures:
-1. .tif files directly in the input directory
-2. One layer of subdirectories containing .tif files
-3. Two layers of subdirectories containing .tif files (already properly formatted)
+1. .tif files directly in the input directory -> moves to condition_1/
+2. One layer of subdirectories containing .tif files -> keeps as condition directories
+3. Two layers of subdirectories containing .tif files -> flattens timepoint subdirs into condition
+
+Timepoint information is now extracted from filename tokens (_tNN) rather than directory structure.
 
 Replaces the bash script with a cross-platform Python implementation.
 """
@@ -104,19 +106,20 @@ def has_channel_pattern(filename: str) -> bool:
     return bool(re.search(r'ch\d+', filename))
 
 
-def process_timepoint_directory(timepoint_dir: Path):
+def process_condition_directory(condition_dir: Path):
     """
-    Process files in a timepoint directory.
+    Process files in a condition directory.
 
     Adds required patterns (timepoint and channel) to filenames if missing.
+    Timepoint information is stored in the filename, not directory structure.
 
     Args:
-        timepoint_dir: Path to timepoint directory
+        condition_dir: Path to condition directory containing .tif files
     """
-    print_color(f"Processing files in: {timepoint_dir}", Colors.BLUE)
+    print_color(f"Processing files in: {condition_dir}", Colors.BLUE)
     region_counter = 1
 
-    for tif_file in timepoint_dir.glob("*.tif"):
+    for tif_file in condition_dir.glob("*.tif"):
         if tif_file.is_file():
             filename = tif_file.name
             new_filename = filename
@@ -135,7 +138,7 @@ def process_timepoint_directory(timepoint_dir: Path):
 
             # Rename file if needed
             if new_filename != filename:
-                new_path = timepoint_dir / new_filename
+                new_path = condition_dir / new_filename
                 tif_file.rename(new_path)
                 filename = new_filename
 
@@ -226,11 +229,11 @@ def prepare_input_structure(input_dir: Path):
 
     if tif_count > 0:
         # Case 1: .tif files are directly in the input directory
-        print_color(f"Found {tif_count} .tif files directly in the input directory", Colors.BLUE)
-        print_color("Creating condition_1/timepoint_1/ structure and moving files", Colors.YELLOW)
+        print_color(f"Found {tif_count} .tif files directly in input directory", Colors.BLUE)
+        print_color("Creating condition_1/ structure and moving files", Colors.YELLOW)
 
-        # Create the directory structure
-        target_dir = input_dir / "condition_1" / "timepoint_1"
+        # Create the directory structure (flat - no timepoint subdirectory)
+        target_dir = input_dir / "condition_1"
         target_dir.mkdir(parents=True, exist_ok=True)
 
         # Move all .tif files into the new structure
@@ -238,10 +241,10 @@ def prepare_input_structure(input_dir: Path):
             if tif_file.is_file():
                 shutil.move(str(tif_file), str(target_dir / tif_file.name))
 
-        # Process files in the timepoint directory
-        process_timepoint_directory(target_dir)
+        # Process files in the condition directory
+        process_condition_directory(target_dir)
 
-        print_color("Successfully reorganized .tif files into condition_1/timepoint_1/", Colors.GREEN)
+        print_color("Successfully reorganized .tif files into condition_1/", Colors.GREEN)
 
     else:
         # Check for subdirectories in the input dir
@@ -258,52 +261,75 @@ def prepare_input_structure(input_dir: Path):
 
                 if subdir_tif_count > 0:
                     # Case 2: One layer of subdirectories with .tif files
+                    # Files are already in the right place (condition directory)
                     condition_name = subdir.name
-                    print_color(f"Found {subdir_tif_count} .tif files in subdirectory: {condition_name}", Colors.BLUE)
-                    print_color(f"Creating timepoint_1/ under {condition_name} and moving files", Colors.YELLOW)
+                    print_color(f"Found {subdir_tif_count} .tif files in: {condition_name}", Colors.BLUE)
 
-                    # Create timepoint directory
-                    timepoint_dir = subdir / "timepoint_1"
-                    timepoint_dir.mkdir(parents=True, exist_ok=True)
+                    # Process files in the condition directory (add tokens if missing)
+                    process_condition_directory(subdir)
 
-                    # Move all .tif files into the timepoint directory
-                    for tif_file in subdir.glob("*.tif"):
-                        if tif_file.is_file():
-                            shutil.move(str(tif_file), str(timepoint_dir / tif_file.name))
-
-                    # Process files in the timepoint directory
-                    process_timepoint_directory(timepoint_dir)
-
-                    print_color(f"Successfully reorganized .tif files into {condition_name}/timepoint_1/", Colors.GREEN)
+                    print_color(f"Condition {condition_name}/ structure is correct", Colors.GREEN)
 
                 else:
-                    # Check if this might be a condition directory with timepoint subdirectories
+                    # Check if this might be a condition directory with subdirectories
                     if has_subdirectories(subdir):
                         condition_name = subdir.name
-                        print_color(f"Subdirectory {condition_name} has its own subdirectories", Colors.BLUE)
+                        print_color(f"Subdirectory {condition_name} has nested subdirs", Colors.BLUE)
 
-                        # Check if any of those subdirectories have .tif files
+                        # Check subdirectories for .tif files and flatten them
                         tif_files_found = False
 
-                        for timepoint_dir in subdir.iterdir():
-                            if timepoint_dir.is_dir():
-                                tp_tif_count = count_tif_files(timepoint_dir)
+                        for nested_dir in subdir.iterdir():
+                            if nested_dir.is_dir():
+                                nested_tif_count = count_tif_files(nested_dir)
 
-                                if tp_tif_count > 0:
+                                if nested_tif_count > 0:
                                     tif_files_found = True
-                                    tp_dir_name = timepoint_dir.name
-                                    print_color(f"Found {tp_tif_count} .tif files in {tp_dir_name}", Colors.BLUE)
+                                    nested_name = nested_dir.name
+                                    print_color(
+                                        f"Found {nested_tif_count} .tif files in "
+                                        f"{condition_name}/{nested_name}",
+                                        Colors.BLUE
+                                    )
+                                    print_color(
+                                        f"Flattening: moving files to {condition_name}/",
+                                        Colors.YELLOW
+                                    )
 
-                                    # Process files in the timepoint directory
-                                    process_timepoint_directory(timepoint_dir)
+                                    # Move files up to condition directory
+                                    for tif_file in nested_dir.glob("*.tif"):
+                                        if tif_file.is_file():
+                                            dest = subdir / tif_file.name
+                                            shutil.move(str(tif_file), str(dest))
+
+                                    # Remove empty nested directory
+                                    try:
+                                        nested_dir.rmdir()
+                                        print_color(
+                                            f"Removed empty directory: {nested_name}",
+                                            Colors.BLUE
+                                        )
+                                    except OSError:
+                                        # Directory not empty, leave it
+                                        pass
 
                         if tif_files_found:
-                            # Case 3: Two layers of subdirectories with .tif files
-                            print_color(f"Directory structure for {condition_name} already correct (has timepoint directories)", Colors.GREEN)
+                            # Process all files now in condition directory
+                            process_condition_directory(subdir)
+                            print_color(
+                                f"Flattened {condition_name}/ structure",
+                                Colors.GREEN
+                            )
                         else:
-                            print_color(f"No .tif files found in timepoint directories for {condition_name}", Colors.YELLOW)
+                            print_color(
+                                f"No .tif files found in subdirs of {condition_name}",
+                                Colors.YELLOW
+                            )
                     else:
-                        print_color(f"No .tif files or subdirectories found in {subdir.name}", Colors.YELLOW)
+                        print_color(
+                            f"No .tif files or subdirs found in {subdir.name}",
+                            Colors.YELLOW
+                        )
         else:
             print_color("No .tif files or subdirectories found in the input directory", Colors.YELLOW)
 

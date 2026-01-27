@@ -60,6 +60,149 @@ print("Processing channel: " + channel);
 print("Edge margin: " + edge_margin + " pixels");
 print("Auto close: " + auto_close);
 
+// Helper function to process ROI files in a directory
+// This function processes all ROI files in the given directory
+function processDirectory(dir_path, output_path) {
+    // Get all files in the directory
+    dir_files = getFileList(dir_path);
+    local_processed = 0;
+
+    for (i = 0; i < dir_files.length; i++) {
+        roi_file = dir_files[i];
+
+        // Process only files ending with _rois.zip and containing the specified channel
+        if (!endsWith(roi_file, "_rois.zip") || indexOf(roi_file, channel) == -1) {
+            continue;
+        }
+
+        // Find corresponding image file
+        base_name = substring(roi_file, 0, indexOf(roi_file, "_rois.zip"));
+        image_file = base_name + ".tif";
+        image_path = dir_path + "/" + image_file;
+
+        if (!File.exists(image_path)) {
+            print("Image file not found: " + image_path);
+            continue;
+        }
+
+        roi_path = dir_path + "/" + roi_file;
+        output_roi_path = output_path + "/" + roi_file;
+
+        print("Processing: " + base_name);
+        print("  ROI file: " + roi_path);
+        print("  Image file: " + image_path);
+        print("  Output ROI file: " + output_roi_path);
+
+        // ----- Process the Image and ROIs -----
+        print("  Opening image: " + image_path);
+        open(image_path);
+        image_title = getTitle();
+
+        // Get image dimensions for edge detection
+        image_width = getWidth();
+        image_height = getHeight();
+        print("  Image dimensions: " + image_width + " x " + image_height);
+
+        print("  Opening ROI file: " + roi_path);
+        // Initialize ROI Manager
+        roiManager("reset");
+
+        // Open ROIs
+        roiManager("open", roi_path);
+
+        num_original_rois = roiManager("count");
+        print("FILTER_TOTAL: " + num_original_rois);
+        print("  Found " + num_original_rois + " ROIs to process");
+
+        // Track which ROIs to keep (non-edge ROIs)
+        rois_to_keep = newArray(num_original_rois);
+        num_kept = 0;
+        num_removed = 0;
+
+        // First pass: identify edge ROIs
+        for (j = 0; j < num_original_rois; j++) {
+            roiManager("Select", j);
+
+            // Get ROI bounding box
+            Roi.getBounds(rx, ry, rw, rh);
+
+            // Check if ROI is within edge_margin pixels of any edge
+            near_left = (rx <= edge_margin);
+            near_top = (ry <= edge_margin);
+            near_right = (rx + rw >= image_width - edge_margin);
+            near_bottom = (ry + rh >= image_height - edge_margin);
+
+            touches_edge = near_left || near_top || near_right || near_bottom;
+
+            if (touches_edge) {
+                print("  ROI " + j + " touches edge (bounds: x=" + rx + ", y=" + ry + ", w=" + rw + ", h=" + rh + ") - REMOVING");
+                num_removed++;
+            } else {
+                rois_to_keep[num_kept] = j;
+                num_kept++;
+            }
+
+            // Report progress
+            print("FILTER_ROI: " + (j+1) + "/" + num_original_rois);
+        }
+
+        print("  Kept " + num_kept + " ROIs, removed " + num_removed + " edge ROIs");
+        total_rois_kept = total_rois_kept + num_kept;
+        total_rois_removed = total_rois_removed + num_removed;
+
+        // Only save if there are ROIs to keep
+        if (num_kept > 0) {
+            // Create new ROI set with only non-edge ROIs
+            roiManager("Deselect");
+
+            // Mark ROIs to delete
+            rois_to_delete = newArray(num_removed);
+            delete_idx = 0;
+            for (j = 0; j < num_original_rois; j++) {
+                is_kept = false;
+                for (k = 0; k < num_kept; k++) {
+                    if (rois_to_keep[k] == j) {
+                        is_kept = true;
+                        break;
+                    }
+                }
+                if (!is_kept) {
+                    rois_to_delete[delete_idx] = j;
+                    delete_idx++;
+                }
+            }
+
+            // Delete ROIs from end to beginning to preserve indices
+            for (j = num_removed - 1; j >= 0; j--) {
+                roiManager("Select", rois_to_delete[j]);
+                roiManager("Delete");
+            }
+
+            // Save the filtered ROIs
+            print("  Saving " + roiManager("count") + " filtered ROIs to: " + output_roi_path);
+            roiManager("Save", output_roi_path);
+
+            // Copy the image file to output directory (needed for resize step)
+            output_image_path = output_path + "/" + image_file;
+            print("  Copying image to: " + output_image_path);
+            File.copy(image_path, output_image_path);
+        } else {
+            print("  WARNING: No ROIs remaining after edge filtering for " + base_name);
+        }
+
+        // Close the image
+        selectWindow(image_title);
+        close();
+
+        // Reset ROI Manager for next round
+        roiManager("reset");
+
+        local_processed++;
+    }
+
+    return local_processed;
+}
+
 // Process all condition directories in input directory
 condition_dirs = getFileList(input_dir);
 num_processed = 0;
@@ -83,19 +226,28 @@ for (c = 0; c < condition_dirs.length; c++) {
         File.makeDirectory(output_condition_dir);
     }
 
-    // Get all subdirectories in the condition directory
-    subdirs = getFileList(condition_path);
+    // Single pass: process ROI files and collect subdirectories
+    condition_files = getFileList(condition_path);
+    subdirs_to_process = newArray(condition_files.length);
+    num_subdirs = 0;
 
-    // Process each subdirectory
-    for (s = 0; s < subdirs.length; s++) {
-        subdir = subdirs[s];
-        if (!File.isDirectory(condition_path + "/" + subdir) || indexOf(subdir, ".") == 0) {
-            continue;
+    // Process files directly in condition directory (flat structure)
+    // and collect subdirectories in a single pass
+    num_processed = num_processed + processDirectory(condition_path, output_condition_dir);
+
+    // Collect subdirectories for processing
+    for (f = 0; f < condition_files.length; f++) {
+        fname = condition_files[f];
+        if (File.isDirectory(condition_path + "/" + fname) && indexOf(fname, ".") != 0) {
+            subdirs_to_process[num_subdirs] = fname;
+            num_subdirs = num_subdirs + 1;
         }
+    }
 
-        // Full path to the subdirectory
+    // Process subdirectories (legacy nested structure)
+    for (s = 0; s < num_subdirs; s++) {
+        subdir = subdirs_to_process[s];
         subdir_path = condition_path + "/" + subdir;
-        print("Processing subdirectory: " + subdir_path);
 
         // Create corresponding output subdirectory
         output_subdir = output_condition_dir + "/" + subdir;
@@ -103,143 +255,7 @@ for (c = 0; c < condition_dirs.length; c++) {
             File.makeDirectory(output_subdir);
         }
 
-        // Get all ROI zip files in the subdirectory
-        subdir_files = getFileList(subdir_path);
-        for (i = 0; i < subdir_files.length; i++) {
-            roi_file = subdir_files[i];
-
-            // Process only files ending with _rois.zip and containing the specified channel
-            if (!endsWith(roi_file, "_rois.zip") || indexOf(roi_file, channel) == -1) {
-                continue;
-            }
-
-            // Find corresponding image file
-            base_name = substring(roi_file, 0, indexOf(roi_file, "_rois.zip"));
-            image_file = base_name + ".tif";
-            image_path = subdir_path + "/" + image_file;
-
-            if (!File.exists(image_path)) {
-                print("Image file not found: " + image_path);
-                continue;
-            }
-
-            roi_path = subdir_path + "/" + roi_file;
-            output_roi_path = output_subdir + "/" + roi_file;
-
-            print("Processing: " + base_name);
-            print("  ROI file: " + roi_path);
-            print("  Image file: " + image_path);
-            print("  Output ROI file: " + output_roi_path);
-
-            // ----- Process the Image and ROIs -----
-            print("  Opening image: " + image_path);
-            open(image_path);
-            image_title = getTitle();
-
-            // Get image dimensions for edge detection
-            image_width = getWidth();
-            image_height = getHeight();
-            print("  Image dimensions: " + image_width + " x " + image_height);
-
-            print("  Opening ROI file: " + roi_path);
-            // Initialize ROI Manager
-            roiManager("reset");
-
-            // Open ROIs
-            roiManager("open", roi_path);
-
-            num_original_rois = roiManager("count");
-            print("FILTER_TOTAL: " + num_original_rois);
-            print("  Found " + num_original_rois + " ROIs to process");
-
-            // Track which ROIs to keep (non-edge ROIs)
-            rois_to_keep = newArray(num_original_rois);
-            num_kept = 0;
-            num_removed = 0;
-
-            // First pass: identify edge ROIs
-            for (j = 0; j < num_original_rois; j++) {
-                roiManager("Select", j);
-
-                // Get ROI bounding box
-                Roi.getBounds(rx, ry, rw, rh);
-
-                // Check if ROI is within edge_margin pixels of any edge
-                // This catches partial cells that are near but not touching the edge
-                near_left = (rx <= edge_margin);
-                near_top = (ry <= edge_margin);
-                near_right = (rx + rw >= image_width - edge_margin);
-                near_bottom = (ry + rh >= image_height - edge_margin);
-
-                touches_edge = near_left || near_top || near_right || near_bottom;
-
-                if (touches_edge) {
-                    print("  ROI " + j + " touches edge (bounds: x=" + rx + ", y=" + ry + ", w=" + rw + ", h=" + rh + ") - REMOVING");
-                    num_removed++;
-                } else {
-                    rois_to_keep[num_kept] = j;
-                    num_kept++;
-                }
-
-                // Report progress
-                print("FILTER_ROI: " + (j+1) + "/" + num_original_rois);
-            }
-
-            print("  Kept " + num_kept + " ROIs, removed " + num_removed + " edge ROIs");
-            total_rois_kept += num_kept;
-            total_rois_removed += num_removed;
-
-            // Only save if there are ROIs to keep
-            if (num_kept > 0) {
-                // Create new ROI set with only non-edge ROIs
-                // Select all ROIs to keep
-                roiManager("Deselect");
-
-                // We need to select multiple ROIs and delete the others
-                // First, mark ROIs to delete
-                rois_to_delete = newArray(num_removed);
-                delete_idx = 0;
-                for (j = 0; j < num_original_rois; j++) {
-                    is_kept = false;
-                    for (k = 0; k < num_kept; k++) {
-                        if (rois_to_keep[k] == j) {
-                            is_kept = true;
-                            break;
-                        }
-                    }
-                    if (!is_kept) {
-                        rois_to_delete[delete_idx] = j;
-                        delete_idx++;
-                    }
-                }
-
-                // Delete ROIs from end to beginning to preserve indices
-                for (j = num_removed - 1; j >= 0; j--) {
-                    roiManager("Select", rois_to_delete[j]);
-                    roiManager("Delete");
-                }
-
-                // Save the filtered ROIs
-                print("  Saving " + roiManager("count") + " filtered ROIs to: " + output_roi_path);
-                roiManager("Save", output_roi_path);
-
-                // Copy the image file to output directory (needed for resize step)
-                output_image_path = output_subdir + "/" + image_file;
-                print("  Copying image to: " + output_image_path);
-                File.copy(image_path, output_image_path);
-            } else {
-                print("  WARNING: No ROIs remaining after edge filtering for " + base_name);
-            }
-
-            // Close the image
-            selectWindow(image_title);
-            close();
-
-            // Reset ROI Manager for next round
-            roiManager("reset");
-
-            num_processed++;
-        }
+        num_processed = num_processed + processDirectory(subdir_path, output_subdir);
     }
 }
 

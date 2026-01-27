@@ -136,7 +136,11 @@ class DataSelectionStage(StageBase):
             return False
 
     def _create_selected_condition_directories(self) -> bool:
-        """Create raw_data subdirectories only for selected conditions."""
+        """Create raw_data subdirectories only for selected conditions.
+
+        Directory structure is flat: raw_data/{condition}/ with no timepoint subdirs.
+        Timepoint information is extracted from filename tokens (_tNN).
+        """
         try:
             self.logger.info("Creating directories for selected conditions...")
 
@@ -145,30 +149,21 @@ class DataSelectionStage(StageBase):
                 self.logger.warning("No conditions selected, skipping directory creation")
                 return True
 
-            # Get directory timepoints for creating subdirectory structure
-            directory_timepoints = self.experiment_metadata.get('directory_timepoints', [])
-
             for condition in selected_conditions:
                 condition_input_dir = self.input_dir / condition
                 condition_output_dir = self.output_dir / "raw_data" / condition
 
-                self.logger.info(f"Creating directory structure for condition: {condition}")
+                self.logger.info(f"Creating directory for condition: {condition}")
 
                 if not condition_input_dir.exists():
-                    self.logger.warning(f"Condition directory not found in input: {condition_input_dir}")
+                    self.logger.warning(
+                        f"Condition directory not found in input: {condition_input_dir}"
+                    )
                     continue
 
-                # Create condition directory in raw_data
+                # Create condition directory in raw_data (flat structure)
                 condition_output_dir.mkdir(parents=True, exist_ok=True)
                 self.logger.info(f"Created: {condition_output_dir}")
-
-                # Create subdirectories for timepoints if they exist in the input
-                for timepoint_dir in condition_input_dir.iterdir():
-                    if timepoint_dir.is_dir() and not is_system_hidden_file(timepoint_dir):
-                        timepoint_name = timepoint_dir.name
-                        timepoint_output_dir = condition_output_dir / timepoint_name
-                        timepoint_output_dir.mkdir(parents=True, exist_ok=True)
-                        self.logger.info(f"Created: {timepoint_output_dir}")
 
             self.logger.info("Directory creation for selected conditions completed")
             return True
@@ -178,136 +173,122 @@ class DataSelectionStage(StageBase):
             return False
 
     def _copy_selected_files(self) -> bool:
-        """Copy only the selected files to the output directory after data selection."""
+        """Copy only the selected files to the output directory after data selection.
+
+        Files are copied to a flat structure: raw_data/{condition}/*.tif
+        Filtering by timepoint uses filename tokens (_tNN), not directory structure.
+        """
         try:
             self.logger.info("Copying selected files to output directory...")
-            
+
             # Use the instance variables that were set during interactive selection
             selected_conditions = self.selected_conditions
             selected_timepoints = self.selected_timepoints
             selected_regions = self.selected_regions
-            
+
             self.logger.info(f"Selected conditions: {selected_conditions}")
             self.logger.info(f"Selected timepoints: {selected_timepoints}")
             self.logger.info(f"Selected regions: {selected_regions}")
-            
+
             if not selected_conditions:
                 self.logger.warning("No conditions selected, skipping file copy")
                 return True
-            
-            # Get directory timepoints for mapping
-            directory_timepoints = self.experiment_metadata.get('directory_timepoints', [])
-            self.logger.info(f"Available directory timepoints: {directory_timepoints}")
-            
+
             total_copied = 0
-            
+
             for condition in selected_conditions:
                 condition_input_dir = self.input_dir / condition
                 condition_output_dir = self.output_dir / "raw_data" / condition
-                
+
                 self.logger.info(f"Processing condition: {condition}")
                 self.logger.info(f"Input directory: {condition_input_dir}")
                 self.logger.info(f"Output directory: {condition_output_dir}")
-                
+
                 if not condition_input_dir.exists():
-                    self.logger.warning(f"Condition directory not found: {condition_input_dir}")
+                    self.logger.warning(
+                        f"Condition directory not found: {condition_input_dir}"
+                    )
                     continue
-                
-                # Create condition directory in output
+
+                # Create condition directory in output (flat structure)
                 condition_output_dir.mkdir(parents=True, exist_ok=True)
-                
-                # Check what's in the condition directory (filter out system files)
-                condition_items = [item for item in condition_input_dir.iterdir() if not is_system_hidden_file(item)]
-                self.logger.info(f"Items in condition directory: {[item.name for item in condition_items]}")
-                
-                # Copy files based on selections
-                if selected_timepoints and directory_timepoints:
-                    # Copy specific timepoints - map filename timepoints to directory timepoints
-                    for timepoint in selected_timepoints:
-                        timepoint_number = timepoint.replace('t', '')
-                        directory_timepoint = f"timepoint_{int(timepoint_number) + 1}"
-                        
-                        if directory_timepoint in directory_timepoints:
-                            timepoint_input_dir = condition_input_dir / directory_timepoint
-                            timepoint_output_dir = condition_output_dir / directory_timepoint
-                            
-                            self.logger.info(f"Mapping {timepoint} to directory {directory_timepoint}")
-                            self.logger.info(f"Timepoint input directory: {timepoint_input_dir}")
-                            
-                            if timepoint_input_dir.exists():
-                                timepoint_output_dir.mkdir(parents=True, exist_ok=True)
-                                
-                                # Copy TIF files from this timepoint
-                                tif_files = list(timepoint_input_dir.glob("*.tif"))
-                                self.logger.info(f"Found {len(tif_files)} TIF files in {directory_timepoint}")
-                                
-                                copied_in_timepoint = 0
-                                for tif_file in tif_files:
-                                    # Check if this file matches selected regions (if specified)
-                                    if selected_regions:
-                                        filename = tif_file.stem
-                                        if not any(region in filename for region in selected_regions):
-                                            self.logger.debug(f"Skipping file {filename} - doesn't match selected regions")
-                                            continue
-                                    
-                                    # Copy the file
-                                    output_file = timepoint_output_dir / tif_file.name
-                                    fs_port = getattr(self, '_fs', None)
-                                    if fs_port is not None:
-                                        fs_port.copy(tif_file, output_file, overwrite=True)
-                                    else:
-                                        from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
-                                        LocalFileSystemAdapter().copy(tif_file, output_file, overwrite=True)
-                                    total_copied += 1
-                                    copied_in_timepoint += 1
-                                    self.logger.debug(f"Copied: {tif_file.name}")
-                                    
-                                self.logger.info(f"Copied {copied_in_timepoint} files from {condition}/{directory_timepoint}")
-                            else:
-                                self.logger.warning(f"Timepoint directory not found: {timepoint_input_dir}")
-                        else:
-                            self.logger.warning(f"No directory timepoint found for {timepoint}")
-                else:
-                    # Copy all TIF files from condition directory
-                    tif_files = list(condition_input_dir.glob("*.tif"))
-                    self.logger.info(f"Found {len(tif_files)} TIF files directly in condition directory")
-                    
-                    copied_in_condition = 0
-                    for tif_file in tif_files:
-                        # Check if this file matches selected regions (if specified)
-                        if selected_regions:
-                            filename = tif_file.stem
-                            if not any(region in filename for region in selected_regions):
-                                self.logger.debug(f"Skipping file {filename} - doesn't match selected regions")
+
+                # Find all TIF files recursively under condition directory
+                tif_files = [
+                    f for f in condition_input_dir.rglob("*.tif")
+                    if not is_system_hidden_file(f)
+                ]
+                self.logger.info(
+                    f"Found {len(tif_files)} TIF files in {condition}"
+                )
+
+                copied_in_condition = 0
+                for tif_file in tif_files:
+                    filename = tif_file.stem
+
+                    # Filter by timepoint token in filename (if timepoints selected)
+                    if selected_timepoints:
+                        # Extract timepoint from filename using naming service
+                        try:
+                            meta = self._naming_service.parse_microscopy_filename(
+                                tif_file.name
+                            )
+                            if meta.timepoint and meta.timepoint not in selected_timepoints:
+                                self.logger.debug(
+                                    f"Skipping {filename} - timepoint {meta.timepoint} "
+                                    f"not in {selected_timepoints}"
+                                )
                                 continue
-                        
-                        # Copy the file
-                        output_file = condition_output_dir / tif_file.name
-                        fs_port = getattr(self, '_fs', None)
-                        if fs_port is not None:
-                            fs_port.copy(tif_file, output_file, overwrite=True)
-                        else:
-                            from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
-                            LocalFileSystemAdapter().copy(tif_file, output_file, overwrite=True)
-                        total_copied += 1
-                        copied_in_condition += 1
-                        self.logger.debug(f"Copied: {tif_file.name}")
-                    
-                    self.logger.info(f"Copied {copied_in_condition} files from {condition}")
-            
+                        except Exception:
+                            # If parsing fails, skip timepoint filter for this file
+                            pass
+
+                    # Filter by region (if regions selected)
+                    if selected_regions:
+                        if not any(region in filename for region in selected_regions):
+                            self.logger.debug(
+                                f"Skipping {filename} - doesn't match selected regions"
+                            )
+                            continue
+
+                    # Copy the file to flat condition directory
+                    output_file = condition_output_dir / tif_file.name
+                    fs_port = getattr(self, '_fs', None)
+                    if fs_port is not None:
+                        fs_port.copy(tif_file, output_file, overwrite=True)
+                    else:
+                        from percell.adapters.local_filesystem_adapter import (
+                            LocalFileSystemAdapter
+                        )
+                        LocalFileSystemAdapter().copy(
+                            tif_file, output_file, overwrite=True
+                        )
+                    total_copied += 1
+                    copied_in_condition += 1
+                    self.logger.debug(f"Copied: {tif_file.name}")
+
+                self.logger.info(
+                    f"Copied {copied_in_condition} files from {condition}"
+                )
+
             self.logger.info(f"File copy completed. Total files copied: {total_copied}")
-            
+
             # Check if any files were actually copied
             if total_copied == 0:
-                self.logger.error("No files were copied. This indicates a problem with file selection or copying.")
+                self.logger.error(
+                    "No files were copied. This indicates a problem with file "
+                    "selection or copying."
+                )
                 self.logger.error("Please check that:")
-                self.logger.error("1. The selected conditions, timepoints, and regions exist in the input directory")
+                self.logger.error(
+                    "1. The selected conditions, timepoints, and regions exist"
+                )
                 self.logger.error("2. The files match the expected naming patterns")
                 self.logger.error("3. The file extensions are correct (.tif)")
                 return False
-            
+
             return True
-            
+
         except Exception as e:
             self.logger.error(f"Error copying selected files: {e}")
             return False
@@ -380,7 +361,11 @@ class DataSelectionStage(StageBase):
         return bool(re.search(r'ch[0-9]+', filename))
     
     def _extract_experiment_metadata(self, input_dir: str) -> bool:
-        """Extract experiment metadata from the directory structure."""
+        """Extract experiment metadata from filenames.
+
+        Timepoint information is extracted from filename tokens (_tNN),
+        not from directory structure.
+        """
         try:
             input_path = Path(input_dir)
             metadata = {
@@ -390,29 +375,26 @@ class DataSelectionStage(StageBase):
                 'channels': set(),
                 'region_to_channels': {},
                 'datatype_inferred': 'multi_timepoint',
-                'directory_timepoints': set()
             }
-            
+
             self.logger.info(f"Scanning input directory: {input_path}")
             if not input_path.exists():
                 self.logger.error(f"Input directory does not exist: {input_path}")
                 return False
-                
+
             # Discover conditions from top-level directories
             input_items = list(input_path.glob("*"))
-            input_dirs = [item for item in input_items if item.is_dir() and not item.name.startswith('.')]
+            input_dirs = [
+                item for item in input_items
+                if item.is_dir() and not item.name.startswith('.')
+            ]
             if not input_dirs:
-                self.logger.warning("No subdirectories found in input directory. Expected at least one condition directory.")
+                self.logger.warning(
+                    "No subdirectories found in input directory. "
+                    "Expected at least one condition directory."
+                )
                 return False
             metadata['conditions'].extend([d.name for d in input_dirs])
-
-            # Track directory-based timepoints for copy step
-            for d in input_dirs:
-                for sub in d.iterdir():
-                    if sub.is_dir():
-                        name = sub.name
-                        if name.startswith('timepoint_') or re.match(r't[0-9]+', name):
-                            metadata['directory_timepoints'].add(name)
 
             # Use adapter-provided file list when available to avoid domain IO
             try:
@@ -442,17 +424,15 @@ class DataSelectionStage(StageBase):
             metadata['regions'] = sorted(list(metadata['regions']))
             metadata['timepoints'] = sorted(list(metadata['timepoints']))
             metadata['channels'] = sorted(list(metadata['channels']))
-            metadata['directory_timepoints'] = sorted(list(metadata['directory_timepoints']))
-            
-            # Infer datatype based on timepoints
+
+            # Infer datatype based on timepoints (from filename tokens)
             if len(metadata['timepoints']) <= 1:
                 metadata['datatype_inferred'] = 'single_timepoint'
             else:
                 metadata['datatype_inferred'] = 'multi_timepoint'
-            
+
             self.experiment_metadata = metadata
             self.logger.info(f"Extracted metadata: {metadata}")
-            self.logger.info(f"Directory timepoints (for file copying): {metadata['directory_timepoints']}")
             return True
             
         except Exception as e:
