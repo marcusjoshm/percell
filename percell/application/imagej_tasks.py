@@ -199,13 +199,13 @@ def filter_edge_rois(
         return False
 
     try:
-        ok = run_imagej_macro(imagej_path, temp_macro, auto_close, imagej=imagej)
-        return ok
+        success = run_imagej_macro(imagej_path, temp_macro, auto_close, imagej=imagej)
     finally:
         try:
             Path(temp_macro).unlink(missing_ok=True)
         except Exception:
             pass
+    return success
 
 
 def validate_resize_inputs(
