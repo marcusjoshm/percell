@@ -354,12 +354,8 @@ def create_z_stacks_structured(input_dir: Path, output_dir: Path, ui: UserInterf
                 # Group files by channel and timepoint
                 files_by_ch_t = {}
                 for file_path in relevant_files:
-                    if is_stitched_input:
-                        # Parse stitched filename
-                        parsed = MicroscopyMetadataExtractor(input_dir).parse_filename(file_path.name)
-                    else:
-                        # Use original parsing
-                        parsed = MicroscopyMetadataExtractor(input_dir).parse_filename(file_path.name)
+                    # Parse filename (same logic for both stitched and original files)
+                    parsed = MicroscopyMetadataExtractor(input_dir).parse_filename(file_path.name)
 
                     channel = parsed['channel'] if parsed['channel'] is not None else 0
                     timepoint = parsed['timepoint'] if parsed['timepoint'] is not None else 0
