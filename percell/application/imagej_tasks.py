@@ -20,6 +20,9 @@ from percell.domain.utils.filesystem_filters import is_system_hidden_file
 # Suffix for ROI archive files
 _ROIS_ZIP_SUFFIX = "_rois.zip"
 
+# Regex pattern for matching channel identifiers in filenames (e.g., _ch00_)
+_CHANNEL_PATTERN = r"_(ch\d+)_"
+
 
 def _normalize_path_for_imagej(p: str | Path) -> str:
     return str(p).replace("\\", "/")
@@ -407,7 +410,7 @@ def find_roi_image_pairs(
             for rf in roi_files:
                 name = rf.name
                 # Match _chNN_ pattern in filename
-                m = re.search(r"_(ch\d+)_", name)
+                m = re.search(_CHANNEL_PATTERN, name)
                 if m and m.group(1) in channels:
                     channel_filtered.append(rf)
             roi_files = channel_filtered
@@ -586,7 +589,7 @@ def find_mask_files(
             channel = None
             # Try to match directory name pattern: {region}_{channel}_{timepoint}
             # e.g., "R_1_ch00_t1" or "condition_ch00_t1"
-            ch_match = re.search(r"_(ch\d+)_", dir_name)
+            ch_match = re.search(_CHANNEL_PATTERN, dir_name)
             if ch_match:
                 channel = ch_match.group(1)
             m = re.match(r"(R_\d+)_(t\d+)", dir_name)
@@ -817,7 +820,7 @@ def create_cell_masks(
         for rf in roi_files:
             name = rf.name
             # Expect pattern contains _chNN_
-            m = re.search(r"_(ch\d+)_", name)
+            m = re.search(_CHANNEL_PATTERN, name)
             if m and m.group(1) in channels:
                 filtered.append(rf)
         roi_files = filtered
