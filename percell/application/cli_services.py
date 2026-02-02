@@ -139,6 +139,68 @@ def validate_args(args: argparse.Namespace, ui: Optional[UserInterfacePort] = No
     _apply_directory_default(args, "output", default_output, ui)
 
 
+def _get_config_path() -> str:
+    """Get the configuration file path, with fallback to default."""
+    from percell.application.paths_api import get_path
+    try:
+        return str(get_path("config_default"))
+    except Exception:
+        return _DEFAULT_CONFIG_PATH
+
+
+def _load_data_selection_config(config) -> dict:
+    """Load data selection configuration values."""
+    return {
+        "conditions": config.get("data_selection.selected_conditions", []),
+        "timepoints": config.get("data_selection.selected_timepoints", []),
+        "regions": config.get("data_selection.selected_regions", []),
+        "channels": config.get("data_selection.analysis_channels", []),
+    }
+
+
+def _adjust_selection_to_available(
+    configured: list, available: list
+) -> list:
+    """Use configured values if any match available data, otherwise use all available."""
+    if any(item in available for item in configured):
+        return configured
+    return available
+
+
+def _find_masks_directory(output_dir, ui: UserInterfacePort):
+    """Find the masks directory from known locations."""
+    from pathlib import Path
+
+    ui.info(f"Looking for masks in output directory: {output_dir}")
+
+    mask_locations = [
+        output_dir / "combined_masks",
+        output_dir / "masks",
+        output_dir / "segmentation",
+        output_dir / "cellpose_output",
+    ]
+
+    for potential_masks in mask_locations:
+        if potential_masks.exists():
+            ui.info(f"Found masks directory: {potential_masks}")
+            return potential_masks
+        ui.info(f"Checked: {potential_masks} (does not exist)")
+
+    ui.info("No masks directory found. Showing raw images only.")
+    return Path("/nonexistent")
+
+
+def _log_sample_files(ui: UserInterfacePort, files: list, label: str) -> None:
+    """Log sample files for debugging."""
+    if not files:
+        return
+    ui.info(f"Sample {label}:")
+    for f in files[:3]:
+        ui.info(f"  {f.name if hasattr(f, 'name') else f}")
+        if hasattr(f, 'parent'):
+            ui.info(f"    Parent dir: {f.parent.name}")
+
+
 def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace) -> None:
     """Run the combined visualization feature.
 
@@ -148,9 +210,11 @@ def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace)
     try:
         from percell.domain.services.visualization_service import VisualizationService
         from percell.domain.models import DatasetSelection
+        from percell.domain.services.configuration_service import create_configuration_service
+        from percell.domain.services.data_selection_service import DataSelectionService
+        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
         from pathlib import Path
 
-        # Get directories from args
         if not hasattr(args, 'input') or not hasattr(args, 'output'):
             raise ValueError("Input and output directories must be specified")
 
@@ -160,121 +224,62 @@ def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace)
         if not input_dir.exists():
             raise ValueError(f"Input directory does not exist: {input_dir}")
 
-        # Create visualization service with image processor
-        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
-        image_processor = PILImageProcessingAdapter()
-        viz_service = VisualizationService(image_processor)
-
-        # Create data selection service to discover available data
-        from percell.domain.services.data_selection_service import DataSelectionService
+        # Create services
+        viz_service = VisualizationService(PILImageProcessingAdapter())
         data_service = DataSelectionService()
 
-        # First scan all available data
+        # Scan available data
         all_files = data_service.scan_available_data(input_dir)
-
         if not all_files:
             ui.error(f"No .tif/.tiff files found in {input_dir}")
             return
 
-        # Get configuration using the same approach as Napari
-        from percell.domain.services.configuration_service import create_configuration_service
-        from percell.application.paths_api import get_path
+        # Load configuration
+        config = create_configuration_service(_get_config_path())
+        cfg = _load_data_selection_config(config)
 
-        try:
-            config_path = str(get_path("config_default"))
-        except Exception:
-            config_path = _DEFAULT_CONFIG_PATH
+        ui.info("Using configured selection:")
+        ui.info(f"  Conditions: {cfg['conditions']}")
+        ui.info(f"  Timepoints: {cfg['timepoints']}")
+        ui.info(f"  Regions: {cfg['regions']}")
+        ui.info(f"  Channels: {cfg['channels']}")
 
-        config = create_configuration_service(config_path)
-
-        # Get configured data selection using dot notation like Napari
-        config_conditions = config.get("data_selection.selected_conditions", [])
-        config_timepoints = config.get("data_selection.selected_timepoints", [])
-        config_regions = config.get("data_selection.selected_regions", [])
-        config_channels = config.get("data_selection.analysis_channels", [])
-
-        ui.info(f"Using configured selection:")
-        ui.info(f"  Conditions: {config_conditions}")
-        ui.info(f"  Timepoints: {config_timepoints}")
-        ui.info(f"  Regions: {config_regions}")
-        ui.info(f"  Channels: {config_channels}")
-
-        # Debug by showing what files are actually available (like Napari does)
         ui.info(f"Found {len(all_files)} total .tif/.tiff files")
+        _log_sample_files(ui, all_files, "files found")
 
-        if all_files:
-            ui.info("Sample files found:")
-            for i, f in enumerate(all_files[:3]):  # Show first 3 files
-                ui.info(f"  {f}")
-                ui.info(f"    Parent dir: {f.parent.name}")
-                ui.info(f"    Filename: {f.name}")
+        # Parse available data
+        avail_cond, avail_time, avail_reg = data_service.parse_conditions_timepoints_regions(all_files)
+        ui.info(f"Available conditions: {avail_cond}")
+        ui.info(f"Available timepoints: {avail_time}")
+        ui.info(f"Available regions: {avail_reg}")
 
-        # Parse what conditions/timepoints/regions are actually available
-        available_conditions, available_timepoints, available_regions = data_service.parse_conditions_timepoints_regions(all_files)
-        ui.info(f"Available conditions: {available_conditions}")
-        ui.info(f"Available timepoints: {available_timepoints}")
-        ui.info(f"Available regions: {available_regions}")
+        # Adjust selection to match available data
+        use_conditions = _adjust_selection_to_available(cfg['conditions'], avail_cond)
+        use_timepoints = _adjust_selection_to_available(cfg['timepoints'], avail_time)
+        use_regions = _adjust_selection_to_available(cfg['regions'], avail_reg)
 
-        # Use smart fallback logic like Napari: use configured values if they match available data
-        use_conditions = config_conditions if any(c in available_conditions for c in config_conditions) else available_conditions
-        use_timepoints = config_timepoints if any(t in available_timepoints for t in config_timepoints) else available_timepoints
-        use_regions = config_regions if any(r in available_regions for r in config_regions) else available_regions
-
-        ui.info(f"Adjusted selection to match available data:")
+        ui.info("Adjusted selection to match available data:")
         ui.info(f"  Conditions: {use_conditions}")
         ui.info(f"  Timepoints: {use_timepoints}")
         ui.info(f"  Regions: {use_regions}")
-        ui.info(f"  Channels: {config_channels}")
+        ui.info(f"  Channels: {cfg['channels']}")
 
-        selected_conditions = use_conditions
-        selected_timepoints = use_timepoints
-        selected_regions = use_regions
-        selected_channels = config_channels
-
-        # Create a selection using configured filters
         selection = DatasetSelection(
             root=input_dir,
-            conditions=selected_conditions,
-            timepoints=selected_timepoints,
-            regions=selected_regions,
-            channels=selected_channels if selected_channels else []
+            conditions=use_conditions,
+            timepoints=use_timepoints,
+            regions=use_regions,
+            channels=cfg['channels'] if cfg['channels'] else [],
         )
 
-        # Find masks directory using same approach as Napari (check multiple locations)
-        ui.info(f"Looking for masks in output directory: {output_dir}")
-
-        masks_dir = None
-        mask_locations = [
-            output_dir / "combined_masks",  # Combined masks first (like Napari)
-            output_dir / "masks",
-            output_dir / "segmentation",
-            output_dir / "cellpose_output"
-        ]
-
-        for potential_masks in mask_locations:
-            if potential_masks.exists():
-                ui.info(f"Found masks directory: {potential_masks}")
-                masks_dir = potential_masks
-                break
-            else:
-                ui.info(f"Checked: {potential_masks} (does not exist)")
-
-        if not masks_dir:
-            ui.info("No masks directory found. Showing raw images only.")
-            masks_dir = Path("/nonexistent")  # Ensure it doesn't exist
-        else:
-            # Show some mask files for debugging
+        masks_dir = _find_masks_directory(output_dir, ui)
+        if masks_dir.exists():
             mask_files = list(masks_dir.rglob("*.tif*"))
             ui.info(f"Found {len(mask_files)} potential mask files in {masks_dir}")
-            if mask_files:
-                ui.info("Sample mask files:")
-                for mask_file in mask_files[:3]:
-                    ui.info(f"  {mask_file.name}")
+            _log_sample_files(ui, mask_files, "mask files")
 
         ui.info("Starting interactive visualization...")
         ui.info("Use the sliders to adjust image intensity. Close windows to navigate between images.")
-
-        # Run visualization with default overlay alpha
         viz_service.create_visualization_data(input_dir, masks_dir, selection)
 
     except Exception as e:
