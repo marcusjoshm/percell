@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List
 
-from percell.domain import WorkflowStep, WorkflowConfig
+from percell.domain import WorkflowStep, WorkflowConfig, WorkflowState
 from percell.domain.services.workflow_orchestration_service import WorkflowOrchestrationService
 
 
@@ -21,17 +21,15 @@ class WorkflowCoordinator:
     def run(self, steps: List[WorkflowStep], config: WorkflowConfig) -> bool:
         # Validate and normalize steps using the domain orchestrator
         try:
-            valid = self.orchestrator.validate_workflow_steps(steps)
-            if not valid:
-                return False
-            self.orchestrator.manage_workflow_state(start_step=steps[0] if steps else None)
+            self.orchestrator.validate_workflow_steps(steps)
+            self.orchestrator.manage_workflow_state(WorkflowState.PENDING, "start")
         except Exception:
             return False
 
         # Placeholder: delegate to existing pipeline or stage runner
         # In future iterations, inject and call specific step handlers here.
         try:
-            self.orchestrator.coordinate_step_execution(steps)
+            self.orchestrator.coordinate_step_execution(steps, config)
             return True
         except Exception:
             return False
