@@ -27,7 +27,7 @@ echo "Starting ImageJ..."
 IMAGEJ_PID=$!
 
 # Check if ImageJ started successfully
-if [ $? -ne 0 ]; then
+if [[ $? -ne 0 ]]; then
     handle_error "Failed to start ImageJ"
 fi
 
@@ -35,7 +35,7 @@ fi
 cd "$WORKSPACE_DIR" || handle_error "Could not change to workspace directory"
 
 # Activate the Cellpose virtual environment
-if [ ! -f "$CELLPOSE_ENV/bin/activate" ]; then
+if [[ ! -f "$CELLPOSE_ENV/bin/activate" ]]; then
     handle_error "Cellpose virtual environment not found at $CELLPOSE_ENV"
 fi
 
@@ -71,7 +71,7 @@ python -m cellpose &
 CELLPOSE_PID=$!
 
 # Check if Cellpose started successfully
-if [ $? -ne 0 ]; then
+if [[ $? -ne 0 ]]; then
     # Kill ImageJ if Cellpose fails to start
     kill $IMAGEJ_PID 2>/dev/null
     deactivate

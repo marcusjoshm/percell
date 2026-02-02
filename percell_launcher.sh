@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_PATH="$SCRIPT_DIR/venv"
 
 # Check if virtual environment exists
-if [ ! -d "$VENV_PATH" ]; then
+if [[ ! -d "$VENV_PATH" ]]; then
     echo "Error: Virtual environment not found at $VENV_PATH"
     echo "Please ensure the virtual environment is set up correctly."
     exit 1

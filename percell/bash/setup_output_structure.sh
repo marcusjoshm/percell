@@ -22,7 +22,7 @@ usage() {
 }
 
 # Check if both directories are provided
-if [ $# -ne 2 ]; then
+if [[ $# -ne 2 ]]; then
     echo -e "${RED}Error: Missing required arguments${NC}"
     usage
     exit 1
@@ -32,7 +32,7 @@ INPUT_DIR="$1"
 OUTPUT_DIR="$2"
 
 # Check if input directory exists
-if [ ! -d "$INPUT_DIR" ]; then
+if [[ ! -d "$INPUT_DIR" ]]; then
     echo -e "${RED}Error: Input directory does not exist: $INPUT_DIR${NC}"
     exit 1
 fi

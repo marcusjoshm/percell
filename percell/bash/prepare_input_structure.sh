@@ -23,7 +23,7 @@ usage() {
 }
 
 # Check if input directory is provided
-if [ $# -ne 1 ]; then
+if [[ $# -ne 1 ]]; then
     echo -e "${RED}Error: Missing input directory${NC}"
     usage
     exit 1
@@ -32,7 +32,7 @@ fi
 INPUT_DIR="$1"
 
 # Check if input directory exists
-if [ ! -d "$INPUT_DIR" ]; then
+if [[ ! -d "$INPUT_DIR" ]]; then
     echo -e "${RED}Error: Input directory does not exist: $INPUT_DIR${NC}"
     exit 1
 fi
@@ -76,7 +76,7 @@ process_timepoint_directory() {
     
     echo -e "${BLUE}Processing files in: $timepoint_dir${NC}"
     for tif_file in "$timepoint_dir"/*.tif; do
-        if [ -f "$tif_file" ]; then
+        if [[ -f "$tif_file" ]]; then
             local filename=$(basename "$tif_file")
             local dirname=$(dirname "$tif_file")
             
@@ -113,7 +113,7 @@ done
 
 # Report how many were removed
 metadata_count=$(find "$INPUT_DIR" -type d -name "MetaData" | wc -l)
-if [ "$metadata_count" -eq 0 ]; then
+if [[ "$metadata_count" -eq 0 ]]; then
     echo -e "${GREEN}No MetaData directories found or all have been successfully removed${NC}"
 else
     echo -e "${RED}Warning: $metadata_count MetaData directories could not be removed${NC}"
@@ -122,7 +122,7 @@ fi
 # Count .tif files directly in the input directory
 TIF_COUNT=$(count_tif_files "$INPUT_DIR")
 
-if [ $TIF_COUNT -gt 0 ]; then
+if [[ $TIF_COUNT -gt 0 ]]; then
     # Case 1: .tif files are directly in the input directory
     echo -e "${BLUE}Found $TIF_COUNT .tif files directly in the input directory${NC}"
     echo -e "${YELLOW}Creating condition_1/timepoint_1/ structure and moving files${NC}"
@@ -144,11 +144,11 @@ else
         
         # Iterate through each subdirectory
         for SUBDIR in "$INPUT_DIR"/*; do
-            if [ -d "$SUBDIR" ] && [[ "$(basename "$SUBDIR")" != "MetaData" ]]; then
+            if [[ -d "$SUBDIR" ]] && [[ "$(basename "$SUBDIR")" != "MetaData" ]]; then
                 # Count .tif files in this subdirectory
                 SUBDIR_TIF_COUNT=$(count_tif_files "$SUBDIR")
                 
-                if [ $SUBDIR_TIF_COUNT -gt 0 ]; then
+                if [[ $SUBDIR_TIF_COUNT -gt 0 ]]; then
                     # Case 2: One layer of subdirectories with .tif files
                     CONDITION_NAME=$(basename "$SUBDIR")
                     echo -e "${BLUE}Found $SUBDIR_TIF_COUNT .tif files in subdirectory: $CONDITION_NAME${NC}"
@@ -173,9 +173,9 @@ else
                         # Check if any of those subdirectories have .tif files
                         TIF_FILES_FOUND=0
                         for TIMEPOINT_DIR in "$SUBDIR"/*; do
-                            if [ -d "$TIMEPOINT_DIR" ]; then
+                            if [[ -d "$TIMEPOINT_DIR" ]]; then
                                 TP_TIF_COUNT=$(count_tif_files "$TIMEPOINT_DIR")
-                                if [ $TP_TIF_COUNT -gt 0 ]; then
+                                if [[ $TP_TIF_COUNT -gt 0 ]]; then
                                     TIF_FILES_FOUND=1
                                     TP_DIR_NAME=$(basename "$TIMEPOINT_DIR")
                                     echo -e "${BLUE}Found $TP_TIF_COUNT .tif files in $TP_DIR_NAME${NC}"
@@ -186,7 +186,7 @@ else
                             fi
                         done
                         
-                        if [ $TIF_FILES_FOUND -eq 1 ]; then
+                        if [[ $TIF_FILES_FOUND -eq 1 ]]; then
                             # Case 3: Two layers of subdirectories with .tif files
                             echo -e "${GREEN}Directory structure for $CONDITION_NAME already correct (has timepoint directories)${NC}"
                         else

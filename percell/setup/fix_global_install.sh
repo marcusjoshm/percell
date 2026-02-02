@@ -16,7 +16,7 @@ echo "Virtual environment percell: $VENV_PERCELL"
 echo "Global percell: $GLOBAL_PERCELL"
 
 # Check if the virtual environment percell exists
-if [ ! -f "$VENV_PERCELL" ]; then
+if [[ ! -f "$VENV_PERCELL" ]]; then
     echo "Error: Percell not found in virtual environment at $VENV_PERCELL"
     echo "Please ensure the package is installed:"
     echo "  source venv/bin/activate"
@@ -27,7 +27,7 @@ fi
 echo "✅ Found percell in virtual environment"
 
 # Remove existing global link if it exists
-if [ -L "$GLOBAL_PERCELL" ]; then
+if [[ -L "$GLOBAL_PERCELL" ]]; then
     echo "Removing existing global link..."
     sudo rm "$GLOBAL_PERCELL"
 fi
@@ -37,7 +37,7 @@ echo "Creating global symbolic link..."
 sudo ln -sf "$VENV_PERCELL" "$GLOBAL_PERCELL"
 
 # Verify the installation
-if [ -L "$GLOBAL_PERCELL" ]; then
+if [[ -L "$GLOBAL_PERCELL" ]]; then
     echo "✅ Global percell link created successfully"
     echo "Testing global command..."
     if command -v percell >/dev/null 2>&1; then
