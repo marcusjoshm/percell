@@ -17,6 +17,9 @@ from percell.ports.driven.file_management_port import FileManagementPort
 from percell.ports.driven.imagej_integration_port import ImageJIntegrationPort
 from percell.domain.utils.filesystem_filters import is_system_hidden_file
 
+# Suffix for ROI archive files
+_ROIS_ZIP_SUFFIX = "_rois.zip"
+
 
 def _normalize_path_for_imagej(p: str | Path) -> str:
     return str(p).replace("\\", "/")
@@ -394,7 +397,7 @@ def find_roi_image_pairs(
         filtered: List[Path] = []
         for rf in roi_files:
             name = rf.name
-            if name.endswith("_rois.zip"):
+            if name.endswith(_ROIS_ZIP_SUFFIX):
                 filtered.append(rf)
         roi_files = filtered
 
@@ -411,9 +414,9 @@ def find_roi_image_pairs(
 
         for roi_file in roi_files:
             roi_name = roi_file.name
-            if roi_name.startswith("ROIs_") and roi_name.endswith("_rois.zip"):
+            if roi_name.startswith("ROIs_") and roi_name.endswith(_ROIS_ZIP_SUFFIX):
                 base_name = roi_name[5:-9]
-            elif roi_name.endswith("_rois.zip"):
+            elif roi_name.endswith(_ROIS_ZIP_SUFFIX):
                 base_name = roi_name[:-9]
             elif roi_name.endswith(".zip"):
                 base_name = roi_name[:-4]
