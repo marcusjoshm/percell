@@ -461,6 +461,160 @@ def combine_masks(
 
 # ------------------------- Group Cells -------------------------
 
+def _filter_region_dirs_by_channels(
+    region_dirs: list[Path], channels: Optional[Iterable[str]]
+) -> list[Path]:
+    """Filter region directories by channel names if channels are specified."""
+    if not channels:
+        return region_dirs
+    filtered = [d for d in region_dirs if any(ch in str(d) for ch in channels)]
+    return filtered if filtered else region_dirs
+
+
+def _count_total_cells(region_dirs: list[Path]) -> int:
+    """Count total cell files across all region directories."""
+    total = 0
+    for region_dir in region_dirs:
+        cell_files = [cf for cf in region_dir.glob(_CELL_FILE_PATTERN) if not is_system_hidden_file(cf)]
+        total += len(cell_files)
+    return total
+
+
+def _load_cell_images(
+    region_dir: Path, imgproc: ImageProcessingPort
+) -> tuple[list[tuple[Path, np.ndarray, float]], Optional[ImageMetadata]]:
+    """Load cell images from a region directory with intensity metrics.
+
+    Returns:
+        Tuple of (list of (path, image, metric), reference_metadata)
+    """
+    cell_files = [cf for cf in region_dir.glob(_CELL_FILE_PATTERN) if not is_system_hidden_file(cf)]
+    images: list[tuple[Path, np.ndarray, float]] = []
+    reference_metadata = None
+
+    for f in cell_files:
+        try:
+            img = imgproc.read_image(f)
+            metric = float(np.mean(img))
+            images.append((f, img, metric))
+            if reference_metadata is None:
+                reference_metadata = _extract_tiff_metadata(f)
+        except Exception:
+            continue
+
+    return images, reference_metadata
+
+
+def _sum_group_images(group: list[tuple[Path, np.ndarray, float]]) -> Optional[np.ndarray]:
+    """Sum images in a group and normalize to uint16.
+
+    Returns:
+        Normalized uint16 image or None if group is empty.
+    """
+    if not group:
+        return None
+
+    acc = None
+    for _, img, _ in group:
+        gi = img.astype(np.float64)
+        if acc is None:
+            acc = gi
+        else:
+            acc = acc + gi
+
+    if acc is None:
+        return None
+
+    acc_min = np.min(acc)
+    acc_max = np.max(acc)
+    if acc_max > acc_min:
+        norm = (acc - acc_min) / (acc_max - acc_min)
+    else:
+        norm = acc * 0
+
+    return (norm * 65535).astype(np.uint16)
+
+
+def _record_group_metadata(
+    rows: list[dict[str, object]],
+    group: list[tuple[Path, np.ndarray, float]],
+    bin_index: int,
+) -> None:
+    """Record metadata rows for cells assigned to a bin."""
+    group_metrics = [metric for _, __, metric in group]
+    group_mean = float(np.mean(group_metrics)) if group_metrics else 0.0
+
+    for path_obj, __, ___ in group:
+        rows.append({
+            'cell_id': path_obj.name,
+            'group_id': bin_index + 1,
+            'group_name': f"bin_{bin_index + 1}",
+            'group_mean_auc': group_mean,
+        })
+
+
+def _write_group_csv(out_condition: Path, region_name: str, rows: list[dict[str, object]]) -> None:
+    """Write group metadata to CSV file."""
+    if not rows:
+        return
+    try:
+        import pandas as _pd
+        csv_path = out_condition / f"{region_name}_cell_groups.csv"
+        _pd.DataFrame(rows).to_csv(csv_path, index=False)
+    except Exception:
+        pass
+
+
+def _process_region_bins(
+    images: list[tuple[Path, np.ndarray, float]],
+    bins: int,
+    out_condition: Path,
+    region_name: str,
+    reference_metadata: Optional[ImageMetadata],
+    imgproc: ImageProcessingPort,
+    rows: list[dict[str, object]],
+) -> bool:
+    """Process a region's images into bins and write summed images.
+
+    Returns:
+        True if any image was written successfully.
+    """
+    images.sort(key=lambda x: x[2])
+    n = len(images)
+    k = max(1, min(bins, n))
+    base = n // k
+    rem = n % k
+    start = 0
+    any_written = False
+
+    for i in range(k):
+        size = base + (1 if i < rem else 0)
+        end = start + size
+        group = images[start:end]
+        start = end
+
+        if not group:
+            continue
+
+        _record_group_metadata(rows, group, i)
+
+        try:
+            out_img = _sum_group_images(group)
+            if out_img is None:
+                continue
+
+            out_path = out_condition / f"{region_name}_bin_{i + 1}.tif"
+            print(f"Saving grouped image: {out_path.name} (shape: {out_img.shape}, dtype: {out_img.dtype})")
+
+            if not _write_tiff_with_metadata(out_path, out_img, reference_metadata):
+                imgproc.write_image(out_path, out_img)
+            any_written = True
+        except Exception:
+            continue
+
+    return any_written
+
+
 def _find_cell_dirs(cells_dir: Path) -> list[Path]:
     dirs: list[Path] = []
     for condition_dir in cells_dir.glob("*"):
@@ -474,6 +628,44 @@ def _find_cell_dirs(cells_dir: Path) -> list[Path]:
             if cell_files:
                 dirs.append(region_dir)
     return dirs
+
+
+def _create_progress_context(
+    progress: Optional[ProgressReportPort], regions_count: int, title: str
+):
+    """Create a progress context manager for region processing."""
+    if progress:
+        return progress.create_progress_bar(total=regions_count, title=title, manual=False)
+    from contextlib import nullcontext
+    print(title)
+    return nullcontext(lambda _: None)
+
+
+def _process_single_region(
+    region_dir: Path,
+    out_root: Path,
+    bins: int,
+    imgproc: ImageProcessingPort,
+) -> bool:
+    """Process a single region directory: load images, bin them, write outputs.
+
+    Returns:
+        True if any image was written successfully.
+    """
+    out_condition = out_root / region_dir.parent.name / region_dir.name
+    out_condition.mkdir(parents=True, exist_ok=True)
+
+    images, reference_metadata = _load_cell_images(region_dir, imgproc)
+    if not images:
+        return False
+
+    rows: list[dict[str, object]] = []
+    any_written = _process_region_bins(
+        images, bins, out_condition, region_dir.name, reference_metadata, imgproc, rows
+    )
+
+    _write_group_csv(out_condition, region_dir.name, rows)
+    return any_written
 
 
 def group_cells(
@@ -490,7 +682,7 @@ def group_cells(
 
     Produces files named "<region_dir_name>_bin_<i>.tif" under
     <output_dir>/<condition>/<region_dir_name>/ for i in 1..bins.
-    
+
     Preserves TIFF metadata (resolution, units, etc.) from the first cell image
     in each region when writing the summed images, if tifffile is available.
     """
@@ -499,140 +691,22 @@ def group_cells(
     out_root.mkdir(parents=True, exist_ok=True)
 
     if imgproc is None:
-        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter  # type: ignore
+        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
         imgproc = PILImageProcessingAdapter()
-    any_written = False
-    # Collect per-region group metadata rows as we assign cells to bins
-    region_to_rows: dict[Path, list[dict[str, object]]] = {}
 
-    # Find all cell directories first to know the total count
     region_dirs = _find_cell_dirs(cells_root)
-    
-    # Filter by channels if specified
-    if channels:
-        filtered_dirs = []
-        for region_dir in region_dirs:
-            if any(ch in str(region_dir) for ch in channels):
-                filtered_dirs.append(region_dir)
-        region_dirs = filtered_dirs if filtered_dirs else region_dirs
+    region_dirs = _filter_region_dirs_by_channels(region_dirs, channels)
+    total_cells = _count_total_cells(region_dirs)
 
-    # Count total cells for progress info
-    total_cells = 0
-    for region_dir in region_dirs:
-        # Filter out system metadata files
-        cell_files = [cf for cf in region_dir.glob(_CELL_FILE_PATTERN) if not is_system_hidden_file(cf)]
-        total_cells += len(cell_files)
-
-    
-    # Progress reporting if available
     regions_count = len(region_dirs)
     title = f"Grouping {total_cells} cells into {bins} bins across {regions_count} regions"
+    progress_ctx = _create_progress_context(progress, regions_count, title)
 
-    # Use progress reporter if provided, otherwise just print title
-    if progress:
-        progress_ctx = progress.create_progress_bar(total=regions_count, title=title, manual=False)
-    else:
-        from contextlib import nullcontext
-        print(title)
-        progress_ctx = nullcontext(lambda _: None)
-
+    any_written = False
     with progress_ctx as update:
         for region_dir in region_dirs:
-            condition = region_dir.parent.name
-            out_condition = out_root / condition / region_dir.name
-            out_condition.mkdir(parents=True, exist_ok=True)
-
-            # Gather images and simple intensity metric
-            # Filter out system metadata files
-            cell_files = [cf for cf in region_dir.glob(_CELL_FILE_PATTERN) if not is_system_hidden_file(cf)]
-            if not cell_files:
-                continue
-            images: list[tuple[Path, np.ndarray, float]] = []
-            reference_metadata = None  # Store metadata from first image for this region
-            
-            for f in cell_files:
-                try:
-                    img = imgproc.read_image(f)
-                    metric = float(np.mean(img))
-                    images.append((f, img, metric))
-                    
-                    # Extract metadata from the first image we successfully read
-                    if reference_metadata is None:
-                        reference_metadata = _extract_tiff_metadata(f)
-                except Exception:
-                    continue
-            if not images:
-                continue
-
-            # Sort by intensity and split into bins
-            images.sort(key=lambda x: x[2])
-            n = len(images)
-            k = max(1, min(bins, n))
-            base = n // k
-            rem = n % k
-            start = 0
-            for i in range(k):
-                size = base + (1 if i < rem else 0)
-                end = start + size
-                group = images[start:end]
-                start = end
-                if not group:
-                    continue
-                # Record metadata rows for cells in this group/bin
-                rows = region_to_rows.setdefault(out_condition, [])
-                group_metrics = [metric for _, __, metric in group]
-                group_mean = float(np.mean(group_metrics)) if group_metrics else 0.0
-                for path_obj, __, ___ in group:
-                    rows.append({
-                        'cell_id': path_obj.name,
-                        'group_id': i + 1,
-                        'group_name': f"bin_{i+1}",
-                        'group_mean_auc': group_mean,
-                    })
-                # Sum images (resize not handled; assume uniform dims per dir)
-                try:
-                    acc = None
-                    for _, img, _ in group:
-                        gi = img.astype(np.float64)
-                        if acc is None:
-                            acc = gi
-                        else:
-                            acc = acc + gi
-                    if acc is None:
-                        continue
-                    # Normalize to uint16 range for safety
-                    acc_min = np.min(acc)
-                    acc_max = np.max(acc)
-                    if acc_max > acc_min:
-                        norm = (acc - acc_min) / (acc_max - acc_min)
-                    else:
-                        norm = acc * 0
-                    out_img = (norm * 65535).astype(np.uint16)
-                    out_path = out_condition / f"{region_dir.name}_bin_{i+1}.tif"
-
-                    # Ensure clean image data without any ROI information
-                    # The grouped images should be pure intensity data for thresholding
-                    print(f"Saving grouped image: {out_path.name} (shape: {out_img.shape}, dtype: {out_img.dtype})")
-
-                    # Try to write with metadata preservation first
-                    if not _write_tiff_with_metadata(out_path, out_img, reference_metadata):
-                        # Fallback to original imgproc.write_image if tifffile fails
-                        imgproc.write_image(out_path, out_img)
-                    any_written = True
-                except Exception:
-                    continue
-
-            # After processing this region, write group metadata CSV if we collected rows
-            rows = region_to_rows.get(out_condition)
-            if rows:
-                try:
-                    import pandas as _pd
-                    csv_path = out_condition / f"{region_dir.name}_cell_groups.csv"
-                    _pd.DataFrame(rows).to_csv(csv_path, index=False)
-                except Exception:
-                    pass
-            
-            # Update progress after processing each region
+            if _process_single_region(region_dir, out_root, bins, imgproc):
+                any_written = True
             update(1)
 
     return any_written
