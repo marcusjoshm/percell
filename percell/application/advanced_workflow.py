@@ -108,177 +108,194 @@ class AdvancedWorkflowStage(StageBase):
 
     def _execute_step(self, step_key: str, registry, **kwargs) -> bool:
         """Execute a single higher-level step by delegating to a stage or module."""
+        # Dispatch table mapping step keys to handler methods
+        step_handlers = {
+            "data_selection": self._step_data_selection,
+            "segmentation": self._step_segmentation,
+            "threshold_cells": self._step_threshold_cells,
+            "measure_roi_area": self._step_measure_roi_area,
+            "analyze_masks": self._step_analyze_masks,
+            "cleanup": self._step_cleanup,
+            "track_rois": self._step_track_rois,
+            "filter_edge_rois": self._step_filter_edge_rois,
+            "resize_rois": self._step_resize_rois,
+            "duplicate_rois": self._step_duplicate_rois,
+            "extract_cells": self._step_extract_cells,
+            "group_cells": self._step_group_cells,
+        }
 
-        # Stage-based steps
-        if step_key == "data_selection":
-            stage_class = registry.get_stage_class('data_selection')
-            if not stage_class:
-                self.logger.error("DataSelectionStage not registered")
-                return False
-            return stage_class(self.config, self.pipeline_logger, 'data_selection').execute(**kwargs)
+        handler = step_handlers.get(step_key)
+        if handler is None:
+            self.logger.error(f"Unknown step: {step_key}")
+            return False
 
-        if step_key == "segmentation":
-            stage_class = registry.get_stage_class('segmentation')
-            if not stage_class:
-                self.logger.error("SegmentationStage not registered")
-                return False
-            return stage_class(self.config, self.pipeline_logger, 'segmentation').execute(**kwargs)
+        return handler(registry, **kwargs)
 
-        if step_key == "threshold_cells":
-            stage_class = registry.get_stage_class('threshold_grouped_cells')
-            if not stage_class:
-                self.logger.error("ThresholdGroupedCellsStage not registered")
-                return False
-            return stage_class(self.config, self.pipeline_logger, 'threshold_grouped_cells').execute(**kwargs)
+    def _execute_stage(self, registry, stage_key: str, stage_name: str, **kwargs) -> bool:
+        """Helper to execute a registered stage."""
+        stage_class = registry.get_stage_class(stage_key)
+        if not stage_class:
+            self.logger.error(f"{stage_name} not registered")
+            return False
+        return stage_class(self.config, self.pipeline_logger, stage_key).execute(**kwargs)
 
-        if step_key == "measure_roi_area":
-            stage_class = registry.get_stage_class('measure_roi_area')
-            if not stage_class:
-                self.logger.error("MeasureROIAreaStage not registered")
-                return False
-            return stage_class(self.config, self.pipeline_logger, 'measure_roi_area').execute(**kwargs)
+    def _step_data_selection(self, registry, **kwargs) -> bool:
+        return self._execute_stage(registry, 'data_selection', 'DataSelectionStage', **kwargs)
 
-        if step_key == "analyze_masks":
-            stage_class = registry.get_stage_class('analysis')
-            if not stage_class:
-                self.logger.error("AnalysisStage not registered")
-                return False
-            return stage_class(self.config, self.pipeline_logger, 'analysis').execute(**kwargs)
+    def _step_segmentation(self, registry, **kwargs) -> bool:
+        return self._execute_stage(registry, 'segmentation', 'SegmentationStage', **kwargs)
 
-        if step_key == "cleanup":
-            stage_class = registry.get_stage_class('cleanup')
-            if not stage_class:
-                self.logger.error("CleanupStage not registered")
-                return False
-            return stage_class(self.config, self.pipeline_logger, 'cleanup').execute(**kwargs)
+    def _step_threshold_cells(self, registry, **kwargs) -> bool:
+        return self._execute_stage(
+            registry, 'threshold_grouped_cells', 'ThresholdGroupedCellsStage', **kwargs
+        )
 
-        # Application-task steps
-        from percell.application.paths_api import get_path, get_path_str
+    def _step_measure_roi_area(self, registry, **kwargs) -> bool:
+        return self._execute_stage(registry, 'measure_roi_area', 'MeasureROIAreaStage', **kwargs)
 
-        if step_key == "track_rois":
-            data_selection = self.config.get('data_selection') or {}
-            timepoints = data_selection.get('selected_timepoints', [])
-            if not timepoints or len(timepoints) <= 1:
-                self.logger.info("Skipping ROI tracking (single timepoint or none selected)")
-                return True
-            from percell.application.image_processing_tasks import track_rois as _track
-            output_dir = kwargs.get('output_dir')
-            return _track(input_dir=f"{output_dir}/preprocessed", timepoints=timepoints, recursive=True)
+    def _step_analyze_masks(self, registry, **kwargs) -> bool:
+        return self._execute_stage(registry, 'analysis', 'AnalysisStage', **kwargs)
 
-        if step_key == "filter_edge_rois":
-            data_selection = self.config.get('data_selection') or {}
-            output_dir = kwargs.get('output_dir')
-            edge_margin = self._prompt_for_edge_margin()
-            from percell.application.imagej_tasks import filter_edge_rois as _filter_edge_rois
-            ok = _filter_edge_rois(
-                input_dir=f"{output_dir}/preprocessed",
-                output_dir=f"{output_dir}/preprocessed_filtered",
-                imagej_path=self.config.get('imagej_path'),
-                channel=data_selection.get('segmentation_channel', ''),
-                macro_path=get_path_str("filter_edge_rois_macro"),
-                edge_margin=edge_margin,
-                auto_close=True,
+    def _step_cleanup(self, registry, **kwargs) -> bool:
+        return self._execute_stage(registry, 'cleanup', 'CleanupStage', **kwargs)
+
+    def _step_track_rois(self, registry, **kwargs) -> bool:
+        data_selection = self.config.get('data_selection') or {}
+        timepoints = data_selection.get('selected_timepoints', [])
+        if not timepoints or len(timepoints) <= 1:
+            self.logger.info("Skipping ROI tracking (single timepoint or none selected)")
+            return True
+        from percell.application.image_processing_tasks import track_rois as _track
+        output_dir = kwargs.get('output_dir')
+        return _track(
+            input_dir=f"{output_dir}/preprocessed", timepoints=timepoints, recursive=True
+        )
+
+    def _step_filter_edge_rois(self, registry, **kwargs) -> bool:
+        from percell.application.paths_api import get_path_str
+        data_selection = self.config.get('data_selection') or {}
+        output_dir = kwargs.get('output_dir')
+        edge_margin = self._prompt_for_edge_margin()
+        from percell.application.imagej_tasks import filter_edge_rois as _filter_edge_rois
+        ok = _filter_edge_rois(
+            input_dir=f"{output_dir}/preprocessed",
+            output_dir=f"{output_dir}/preprocessed_filtered",
+            imagej_path=self.config.get('imagej_path'),
+            channel=data_selection.get('segmentation_channel', ''),
+            macro_path=get_path_str("filter_edge_rois_macro"),
+            edge_margin=edge_margin,
+            auto_close=True,
+        )
+        if not ok:
+            self.logger.error("filter_edge_rois failed")
+        return ok
+
+    def _step_resize_rois(self, registry, **kwargs) -> bool:
+        from percell.application.paths_api import get_path_str
+        data_selection = self.config.get('data_selection') or {}
+        output_dir = kwargs.get('output_dir')
+        # Use filtered ROIs if available, otherwise use preprocessed
+        filtered_dir = Path(output_dir) / "preprocessed_filtered"
+        if filtered_dir.exists() and any(filtered_dir.rglob("*_rois.zip")):
+            input_dir = str(filtered_dir)
+            self.logger.info("Using filtered ROIs from preprocessed_filtered/")
+        else:
+            input_dir = f"{output_dir}/preprocessed"
+            self.logger.info("Using ROIs from preprocessed/ (no filtered ROIs found)")
+        from percell.application.imagej_tasks import resize_rois as _resize_rois
+        ok = _resize_rois(
+            input_dir=input_dir,
+            output_dir=f"{output_dir}/ROIs",
+            imagej_path=self.config.get('imagej_path'),
+            channel=data_selection.get('segmentation_channel', ''),
+            macro_path=get_path_str("resize_rois_macro"),
+            auto_close=True,
+        )
+        if not ok:
+            self.logger.error("resize_rois failed")
+        return ok
+
+    def _step_duplicate_rois(self, registry, **kwargs) -> bool:
+        data_selection = self.config.get('data_selection') or {}
+        output_dir = kwargs.get('output_dir')
+        from percell.application.image_processing_tasks import duplicate_rois_for_channels as _dup
+        ok = _dup(
+            roi_dir=f"{output_dir}/ROIs",
+            channels=data_selection.get('analysis_channels', []),
+            verbose=True,
+        )
+        if not ok:
+            self.logger.error("duplicate_rois failed")
+        return ok
+
+    def _step_extract_cells(self, registry, **kwargs) -> bool:
+        from percell.application.paths_api import get_path_str
+        data_selection = self.config.get('data_selection') or {}
+        output_dir = kwargs.get('output_dir')
+        channels = data_selection.get('analysis_channels', [])
+        from percell.application.imagej_tasks import extract_cells as _extract_cells
+        ok = _extract_cells(
+            roi_dir=f"{output_dir}/ROIs",
+            raw_data_dir=f"{output_dir}/raw_data",
+            output_dir=f"{output_dir}/cells",
+            imagej_path=self.config.get('imagej_path'),
+            macro_path=get_path_str("extract_cells_macro"),
+            channels=channels,
+            auto_close=True,
+        )
+        if not ok:
+            self.logger.error("extract_cells failed")
+        return ok
+
+    def _step_group_cells(self, registry, **kwargs) -> bool:
+        data_selection = self.config.get('data_selection') or {}
+        output_dir = kwargs.get('output_dir')
+        channels = data_selection.get('analysis_channels', [])
+        # Allow the user to override and set the default bins for this Advanced session
+        current_default = kwargs.get('bins', self.default_bins)
+        bins = self._prompt_for_bins(current_default)
+        # Persist chosen bins as new default for subsequent Group Cells steps
+        self.default_bins = bins
+
+        if not self._ensure_extracted_cells_exist(registry, output_dir, **kwargs):
+            return False
+
+        from percell.application.image_processing_tasks import group_cells as _group_cells
+        ok = _group_cells(
+            cells_dir=f"{output_dir}/cells",
+            output_dir=f"{output_dir}/grouped_cells",
+            bins=int(bins),
+            force_clusters=True,
+            channels=channels,
+        )
+        if not ok:
+            self.logger.error("group_cells failed")
+        return ok
+
+    def _ensure_extracted_cells_exist(self, registry, output_dir, **kwargs) -> bool:
+        """Check for extracted cells; optionally run extract_cells if missing."""
+        cells_dir = Path(output_dir) / "cells"
+        has_cells = cells_dir.exists() and any(cells_dir.rglob("*.tif"))
+        if has_cells:
+            return True
+
+        self.logger.warning("No extracted cells found. Grouping requires extracted cells.")
+        try:
+            choice = input("Run 'Extract Cells' now? [Y/n]: ").strip().lower()
+        except EOFError:
+            choice = 'n'
+
+        if choice not in ("", "y", "yes"):
+            self.logger.error(
+                "Cannot group without extracted cells. Aborting Group Cells step."
             )
-            if not ok:
-                self.logger.error("filter_edge_rois failed")
-            return ok
+            return False
 
-        if step_key == "resize_rois":
-            data_selection = self.config.get('data_selection') or {}
-            output_dir = kwargs.get('output_dir')
-            # Use filtered ROIs if available, otherwise use preprocessed
-            filtered_dir = Path(output_dir) / "preprocessed_filtered"
-            if filtered_dir.exists() and any(filtered_dir.rglob("*_rois.zip")):
-                input_dir = str(filtered_dir)
-                self.logger.info("Using filtered ROIs from preprocessed_filtered/")
-            else:
-                input_dir = f"{output_dir}/preprocessed"
-                self.logger.info("Using ROIs from preprocessed/ (no filtered ROIs found)")
-            from percell.application.imagej_tasks import resize_rois as _resize_rois
-            ok = _resize_rois(
-                input_dir=input_dir,
-                output_dir=f"{output_dir}/ROIs",
-                imagej_path=self.config.get('imagej_path'),
-                channel=data_selection.get('segmentation_channel', ''),
-                macro_path=get_path_str("resize_rois_macro"),
-                auto_close=True,
-            )
-            if not ok:
-                self.logger.error("resize_rois failed")
-            return ok
-
-        if step_key == "duplicate_rois":
-            data_selection = self.config.get('data_selection') or {}
-            output_dir = kwargs.get('output_dir')
-            from percell.application.image_processing_tasks import duplicate_rois_for_channels as _dup
-            ok = _dup(
-                roi_dir=f"{output_dir}/ROIs",
-                channels=data_selection.get('analysis_channels', []),
-                verbose=True,
-            )
-            if not ok:
-                self.logger.error("duplicate_rois failed")
-            return ok
-
-        if step_key == "extract_cells":
-            data_selection = self.config.get('data_selection') or {}
-            output_dir = kwargs.get('output_dir')
-            channels = data_selection.get('analysis_channels', [])
-            from percell.application.imagej_tasks import extract_cells as _extract_cells
-            ok = _extract_cells(
-                roi_dir=f"{output_dir}/ROIs",
-                raw_data_dir=f"{output_dir}/raw_data",
-                output_dir=f"{output_dir}/cells",
-                imagej_path=self.config.get('imagej_path'),
-                macro_path=get_path_str("extract_cells_macro"),
-                channels=channels,
-                auto_close=True,
-            )
-            if not ok:
-                self.logger.error("extract_cells failed")
-            return ok
-
-        if step_key == "group_cells":
-            data_selection = self.config.get('data_selection') or {}
-            output_dir = kwargs.get('output_dir')
-            channels = data_selection.get('analysis_channels', [])
-            # Allow the user to override and set the default bins for this Advanced session
-            current_default = kwargs.get('bins', self.default_bins)
-            bins = self._prompt_for_bins(current_default)
-            # Persist chosen bins as new default for subsequent Group Cells steps in this Advanced session
-            self.default_bins = bins
-            # Ensure prerequisite: extracted cells exist
-            cells_dir = Path(output_dir) / "cells"
-            has_cells = cells_dir.exists() and any(cells_dir.rglob("*.tif"))
-            if not has_cells:
-                self.logger.warning("No extracted cells found. Grouping requires extracted cells.")
-                try:
-                    choice = input("Run 'Extract Cells' now? [Y/n]: ").strip().lower()
-                except EOFError:
-                    choice = 'n'
-                if choice in ("", "y", "yes"):
-                    # Attempt to run extract_cells step automatically
-                    ok = self._execute_step("extract_cells", registry, **kwargs)
-                    if not ok:
-                        self.logger.error("Extract Cells failed; cannot proceed to Group Cells")
-                        return False
-                else:
-                    self.logger.error("Cannot group without extracted cells. Aborting Group Cells step.")
-                    return False
-            from percell.application.image_processing_tasks import group_cells as _group_cells
-            ok = _group_cells(
-                cells_dir=f"{output_dir}/cells",
-                output_dir=f"{output_dir}/grouped_cells",
-                bins=int(bins),
-                force_clusters=True,
-                channels=channels,
-            )
-            if not ok:
-                self.logger.error("group_cells failed")
-            return ok
-
-        self.logger.error(f"Unknown step: {step_key}")
-        return False
+        ok = self._step_extract_cells(registry, **kwargs)
+        if not ok:
+            self.logger.error("Extract Cells failed; cannot proceed to Group Cells")
+            return False
+        return True
 
     def _run_py_module(self, script_path: Path, args: List[str]) -> bool:
         try:
