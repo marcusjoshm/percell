@@ -287,6 +287,57 @@ def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace)
         ui.error(f"Failed to run combined visualization: {e}")
 
 
+def _find_mask_for_raw_file(raw_file, output_dir, ui: UserInterfacePort):
+    """Find a matching mask file for a raw image file."""
+    from pathlib import Path
+
+    mask_dirs = [
+        (output_dir / "combined_masks", "combined"),
+        (output_dir / "masks", "individual"),
+    ]
+
+    for mask_dir, mask_type in mask_dirs:
+        if not mask_dir.exists():
+            continue
+        candidates = list(mask_dir.rglob(f"*{raw_file.stem}*"))
+        tiff_files = [
+            m for m in candidates
+            if m.is_file() and m.suffix.lower() in ['.tif', '.tiff']
+        ]
+        if tiff_files:
+            ui.info(f"Found {mask_type} mask: {tiff_files[0]}")
+            return tiff_files[0]
+
+    return None
+
+
+def _load_image_and_mask_to_napari(
+    viewer, raw_file, output_dir, ui: UserInterfacePort
+) -> bool:
+    """Load a raw image and its mask (if found) into Napari viewer."""
+    import numpy as np
+    from PIL import Image
+
+    try:
+        image = np.array(Image.open(raw_file))
+        viewer.add_image(image, name=f"Raw_{raw_file.name}", colormap='viridis')
+
+        mask_file = _find_mask_for_raw_file(raw_file, output_dir, ui)
+        if mask_file:
+            try:
+                mask_image = np.array(Image.open(mask_file))
+                viewer.add_labels(
+                    mask_image.astype(np.int32), name=f"Mask_{raw_file.name}"
+                )
+            except Exception as e:
+                ui.info(f"Could not load mask {mask_file}: {e}")
+        return True
+
+    except Exception as e:
+        logger.warning(f"Could not load {raw_file}: {e}")
+        return False
+
+
 def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
     """Run the Napari viewer feature.
 
@@ -296,11 +347,9 @@ def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
         import napari
         from percell.domain.services.data_selection_service import DataSelectionService
         from percell.domain.models import DatasetSelection
+        from percell.domain.services.configuration_service import create_configuration_service
         from pathlib import Path
-        import numpy as np
-        from PIL import Image
 
-        # Get directories from args
         if not hasattr(args, 'input') or not hasattr(args, 'output'):
             raise ValueError("Input and output directories must be specified")
 
@@ -310,73 +359,48 @@ def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
         if not input_dir.exists():
             raise ValueError(f"Input directory does not exist: {input_dir}")
 
-        # Get configuration to use actual configured selection
-        from percell.domain.services.configuration_service import create_configuration_service
-        from percell.application.paths_api import get_path
+        # Load configuration
+        config = create_configuration_service(_get_config_path())
+        cfg = _load_data_selection_config(config)
 
-        try:
-            config_path = str(get_path("config_default"))
-        except Exception:
-            config_path = _DEFAULT_CONFIG_PATH
+        ui.info("Using configured selection:")
+        ui.info(f"  Conditions: {cfg['conditions']}")
+        ui.info(f"  Timepoints: {cfg['timepoints']}")
+        ui.info(f"  Regions: {cfg['regions']}")
+        ui.info(f"  Channels: {cfg['channels']}")
 
-        config = create_configuration_service(config_path)
-
-        # Get configured data selection
-        config_conditions = config.get("data_selection.selected_conditions", [])
-        config_timepoints = config.get("data_selection.selected_timepoints", [])
-        config_regions = config.get("data_selection.selected_regions", [])
-        config_channels = config.get("data_selection.analysis_channels", [])
-
-        ui.info(f"Using configured selection:")
-        ui.info(f"  Conditions: {config_conditions}")
-        ui.info(f"  Timepoints: {config_timepoints}")
-        ui.info(f"  Regions: {config_regions}")
-        ui.info(f"  Channels: {config_channels}")
-
-        # Create data selection service
+        # Scan available data
         data_service = DataSelectionService()
-
-        # First, let's debug by seeing what files are actually available
         all_files = data_service.scan_available_data(input_dir)
         ui.info(f"Found {len(all_files)} total .tif/.tiff files")
+        _log_sample_files(ui, all_files, "files found")
 
-        if all_files:
-            ui.info("Sample files found:")
-            for i, f in enumerate(all_files[:3]):  # Show first 3 files
-                ui.info(f"  {f}")
-                ui.info(f"    Parent dir: {f.parent.name}")
-                ui.info(f"    Filename: {f.name}")
+        # Parse available data
+        avail_cond, avail_time, avail_reg = data_service.parse_conditions_timepoints_regions(all_files)
+        ui.info(f"Available conditions: {avail_cond}")
+        ui.info(f"Available timepoints: {avail_time}")
+        ui.info(f"Available regions: {avail_reg}")
 
-        # Parse what conditions/timepoints/regions are actually available
-        available_conditions, available_timepoints, available_regions = data_service.parse_conditions_timepoints_regions(all_files)
-        ui.info(f"Available conditions: {available_conditions}")
-        ui.info(f"Available timepoints: {available_timepoints}")
-        ui.info(f"Available regions: {available_regions}")
+        # Adjust selection - for Napari, always use available conditions
+        use_conditions = avail_cond
+        use_timepoints = _adjust_selection_to_available(cfg['timepoints'], avail_time)
+        use_regions = _adjust_selection_to_available(cfg['regions'], avail_reg)
 
-        # Create selection using available data (adjust configured selection to match reality)
-        # The issue is that conditions in config are A549_As_treated but files show timepoint_1
-        # Use available conditions instead of configured ones for now
-        use_conditions = available_conditions  # Use what's actually available
-        use_timepoints = config_timepoints if any(t in available_timepoints for t in config_timepoints) else available_timepoints
-        use_regions = config_regions if any(r in available_regions for r in config_regions) else available_regions
-
-        ui.info(f"Adjusted selection to match available data:")
+        ui.info("Adjusted selection to match available data:")
         ui.info(f"  Conditions: {use_conditions}")
         ui.info(f"  Timepoints: {use_timepoints}")
         ui.info(f"  Regions: {use_regions}")
-        ui.info(f"  Channels: {config_channels}")
+        ui.info(f"  Channels: {cfg['channels']}")
 
         selection = DatasetSelection(
             root=input_dir,
             conditions=use_conditions,
             timepoints=use_timepoints,
             regions=use_regions,
-            channels=config_channels if config_channels else None
+            channels=cfg['channels'] if cfg['channels'] else None,
         )
 
-        # Get file lists using the configured selection
         raw_files = data_service.generate_file_lists(selection)
-
         if not raw_files:
             ui.error("No raw data files found matching configured selection criteria")
             ui.info("This might be a mismatch between configured selection and available data")
@@ -384,56 +408,11 @@ def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
 
         ui.info(f"Found {len(raw_files)} images. Loading into Napari...")
 
-        # Create napari viewer
         viewer = napari.Viewer()
+        for raw_file in raw_files[:10]:
+            _load_image_and_mask_to_napari(viewer, raw_file, output_dir, ui)
 
-        # Load images into napari
-        for i, raw_file in enumerate(raw_files[:10]):  # Limit to first 10 for performance
-            try:
-                # Use PIL to read image
-                image = np.array(Image.open(raw_file))
-                viewer.add_image(image, name=f"Raw_{raw_file.name}", colormap='viridis')
-
-                # Try to load corresponding mask if available
-                masks_dir = output_dir / "masks"
-                combined_masks_dir = output_dir / "combined_masks"
-
-                # Check both masks and combined_masks directories
-                mask_file = None
-
-                if combined_masks_dir.exists():
-                    # Look for combined mask files first
-                    mask_candidates = list(combined_masks_dir.rglob(f"*{raw_file.stem}*"))
-                    # Filter to get actual files, not directories
-                    mask_files = [m for m in mask_candidates if m.is_file() and m.suffix.lower() in ['.tif', '.tiff']]
-                    if mask_files:
-                        mask_file = mask_files[0]
-                        ui.info(f"Found combined mask: {mask_file}")
-
-                if not mask_file and masks_dir.exists():
-                    # Look in individual masks directory
-                    mask_candidates = list(masks_dir.rglob(f"*{raw_file.stem}*"))
-                    # Filter to get actual files, not directories
-                    mask_files = [m for m in mask_candidates if m.is_file() and m.suffix.lower() in ['.tif', '.tiff']]
-                    if mask_files:
-                        mask_file = mask_files[0]
-                        ui.info(f"Found individual mask: {mask_file}")
-
-                if mask_file:
-                    try:
-                        mask_image = np.array(Image.open(mask_file))
-                        viewer.add_labels(mask_image.astype(np.int32),
-                                        name=f"Mask_{raw_file.name}")
-                    except Exception as e:
-                        ui.info(f"Could not load mask {mask_file}: {e}")
-
-            except Exception as e:
-                logger.warning(f"Could not load {raw_file}: {e}")
-                continue
-
-        # Reset view to fit all loaded layers to screen
         viewer.reset_view()
-
         ui.info("Napari viewer launched. Close the viewer window when done.")
         napari.run()
 
