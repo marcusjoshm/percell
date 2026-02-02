@@ -689,6 +689,12 @@ def include_group_metadata(
     analysis_path = Path(analysis_dir)
     out_dir = Path(output_dir) if output_dir is not None else None
 
+    # Validate input directories exist
+    if not grouped_dir.exists():
+        return False
+    if not analysis_path.exists():
+        return False
+
     metadata_files = _find_group_metadata_files(grouped_dir)
     if channels:
         mf: list[Path] = []
@@ -717,21 +723,21 @@ def include_group_metadata(
             df['condition'] = condition
         frames.append(df)
     if not frames:
-        # Nothing to merge; treat as no-op
-        return True
+        # Could not read any metadata files
+        return False
     meta_df = pd.concat(frames, ignore_index=True)
 
     # Find analysis file
     analysis_file = _find_analysis_file(analysis_path, out_dir)
     if analysis_file is None:
-        # No analysis to merge into; treat as no-op
-        return True
+        # No analysis file found to merge into
+        return False
 
     # Load analysis
     ana_df = _read_csv_robust(analysis_file)
     if ana_df is None:
-        # Cannot read analysis; treat as no-op
-        return True
+        # Cannot read analysis file
+        return False
 
     # Derive cell_id_clean in both frames
     # Derive a canonical id for metadata frame
@@ -745,8 +751,8 @@ def include_group_metadata(
         meta_df['cell_id_clean'] = meta_df['filename'].apply(lambda x: str(x).replace('CELL', '').replace('.tif', '').strip())
     id_column = next((c for c in ['Label', 'Slice', 'ROI', 'Name', 'Filename', 'Title', 'Image'] if c in ana_df.columns), None)
     if id_column is None:
-        # No compatible id column; treat as no-op
-        return True
+        # No compatible id column found in analysis file
+        return False
     def _extract_cell_id(x: object) -> str:
         s = str(x)
         m = _re.search(r"CELL(\d+)[a-zA-Z]*$", s)
