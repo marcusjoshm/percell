@@ -23,6 +23,9 @@ from percell.domain.services.image_metadata_service import ImageMetadataService
 from percell.domain.models import ImageMetadata
 from percell.domain.utils.filesystem_filters import is_system_hidden_file
 
+# Glob pattern for individual cell image files
+_CELL_FILE_PATTERN = "CELL*.tif"
+
 
 def _to_optional_set(values: Optional[Iterable[str]]) -> Optional[Set[str]]:
     """Convert an iterable to an optional set, handling 'all' keyword."""
@@ -467,7 +470,7 @@ def _find_cell_dirs(cells_dir: Path) -> list[Path]:
             if not region_dir.is_dir() or is_system_hidden_file(region_dir):
                 continue
             # Filter out system metadata files when checking for CELL files
-            cell_files = [cf for cf in region_dir.glob("CELL*.tif") if not is_system_hidden_file(cf)]
+            cell_files = [cf for cf in region_dir.glob(_CELL_FILE_PATTERN) if not is_system_hidden_file(cf)]
             if cell_files:
                 dirs.append(region_dir)
     return dirs
@@ -517,7 +520,7 @@ def group_cells(
     total_cells = 0
     for region_dir in region_dirs:
         # Filter out system metadata files
-        cell_files = [cf for cf in region_dir.glob("CELL*.tif") if not is_system_hidden_file(cf)]
+        cell_files = [cf for cf in region_dir.glob(_CELL_FILE_PATTERN) if not is_system_hidden_file(cf)]
         total_cells += len(cell_files)
 
     
@@ -541,7 +544,7 @@ def group_cells(
 
             # Gather images and simple intensity metric
             # Filter out system metadata files
-            cell_files = [cf for cf in region_dir.glob("CELL*.tif") if not is_system_hidden_file(cf)]
+            cell_files = [cf for cf in region_dir.glob(_CELL_FILE_PATTERN) if not is_system_hidden_file(cf)]
             if not cell_files:
                 continue
             images: list[tuple[Path, np.ndarray, float]] = []
