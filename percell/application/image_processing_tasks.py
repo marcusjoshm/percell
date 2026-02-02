@@ -844,6 +844,168 @@ def _find_analysis_file(analysis_dir: Path, output_dir: Path | None) -> Path | N
     return None
 
 
+def _filter_metadata_by_channels(
+    metadata_files: list[Path], channels: Optional[Iterable[str]]
+) -> list[Path]:
+    """Filter metadata files by channel names if specified."""
+    if not channels:
+        return metadata_files
+    filtered = [p for p in metadata_files if any(ch in str(p) for ch in channels)]
+    return filtered if filtered else metadata_files
+
+
+def _load_single_metadata_file(p: Path) -> Optional[pd.DataFrame]:
+    """Load a single metadata file and add region/condition columns."""
+    df = _read_csv_robust(p)
+    if df is None:
+        return None
+
+    parent = p.parent
+    region = parent.name
+    condition = parent.parent.name if parent.parent.name != "grouped_cells" else ""
+
+    df = df.copy()
+    df['region'] = region
+    if condition:
+        df['condition'] = condition
+    return df
+
+
+def _load_and_augment_metadata(metadata_files: list[Path]) -> Optional[pd.DataFrame]:
+    """Load all metadata files and combine into a single DataFrame."""
+    frames = [_load_single_metadata_file(p) for p in metadata_files]
+    frames = [f for f in frames if f is not None]
+    if not frames:
+        return None
+    return pd.concat(frames, ignore_index=True)
+
+
+def _clean_cell_id_value(x: object) -> str:
+    """Clean a cell ID value by removing common prefixes/suffixes."""
+    s = str(x) if isinstance(x, str) else str(x)
+    return s.replace('CELL', '').replace('.tif', '').strip()
+
+
+def _derive_meta_cell_id(meta_df: pd.DataFrame) -> pd.DataFrame:
+    """Derive cell_id_clean column in metadata DataFrame."""
+    for col in ['cell_id', 'cell', 'filename']:
+        if col in meta_df.columns:
+            meta_df['cell_id_clean'] = meta_df[col].apply(_clean_cell_id_value)
+            break
+    return meta_df
+
+
+def _extract_cell_id_from_analysis(x: object) -> str:
+    """Extract cell ID from analysis DataFrame column value."""
+    s = str(x)
+    m = _re.search(r"CELL(\d+)[a-zA-Z]*$", s)
+    if m:
+        return m.group(1)
+    if '_' in s:
+        last = s.split('_')[-1]
+        if any(c.isdigit() for c in last):
+            return ''.join(c for c in last if c.isdigit())
+        return last
+    digits = ''.join(c for c in s if c.isdigit())
+    return digits or s
+
+
+def _derive_analysis_cell_id(ana_df: pd.DataFrame) -> tuple[pd.DataFrame, bool]:
+    """Derive cell_id_clean column in analysis DataFrame.
+
+    Returns:
+        Tuple of (DataFrame, success). success is False if no ID column found.
+    """
+    id_columns = ['Label', 'Slice', 'ROI', 'Name', 'Filename', 'Title', 'Image']
+    id_column = next((c for c in id_columns if c in ana_df.columns), None)
+    if id_column is None:
+        return ana_df, False
+    ana_df['cell_id_clean'] = ana_df[id_column].apply(_extract_cell_id_from_analysis)
+    return ana_df, True
+
+
+def _merge_group_metadata(
+    ana_df: pd.DataFrame,
+    meta_df: pd.DataFrame,
+    replace: bool,
+) -> pd.DataFrame:
+    """Merge group metadata into analysis DataFrame."""
+    group_col_names = ['group_id', 'group_name', 'group_mean_auc']
+    group_cols = [c for c in group_col_names if c in meta_df.columns]
+
+    # Deduplicate metadata
+    if 'cell_id_clean' in meta_df.columns and not meta_df.empty:
+        meta_df = meta_df.drop_duplicates(subset=['cell_id_clean'], keep='first')
+
+    existing_group_cols = [c for c in group_col_names if c in ana_df.columns]
+
+    # Handle replacement of existing columns
+    if existing_group_cols and replace:
+        ana_df = ana_df.drop(columns=existing_group_cols)
+        existing_group_cols = []
+
+    # Merge appropriately
+    if existing_group_cols and not replace:
+        merged_df = _merge_new_columns_only(
+            ana_df, meta_df, group_cols, existing_group_cols
+        )
+    else:
+        merged_df = pd.merge(
+            ana_df,
+            meta_df[['cell_id_clean'] + group_cols],
+            on='cell_id_clean',
+            how='left',
+        )
+
+    # Cleanup temporary column
+    if 'cell_id_clean' in merged_df.columns:
+        merged_df = merged_df.drop(columns=['cell_id_clean'])
+
+    return merged_df
+
+
+def _merge_new_columns_only(
+    ana_df: pd.DataFrame,
+    meta_df: pd.DataFrame,
+    group_cols: list[str],
+    existing_cols: list[str],
+) -> pd.DataFrame:
+    """Merge only new columns that don't already exist."""
+    new_cols = [c for c in group_cols if c not in existing_cols]
+    if new_cols:
+        temp = pd.merge(
+            ana_df[['cell_id_clean']],
+            meta_df[['cell_id_clean'] + new_cols],
+            on='cell_id_clean',
+            how='left',
+        )
+        for c in new_cols:
+            ana_df[c] = temp[c]
+    return ana_df.copy()
+
+
+def _save_merged_results(
+    merged_df: pd.DataFrame,
+    analysis_file: Path,
+    output_file: Optional[Path],
+    out_dir: Optional[Path],
+    overwrite: bool,
+) -> None:
+    """Save merged results to appropriate file(s)."""
+    if overwrite:
+        merged_df.to_csv(analysis_file, index=False)
+
+    if output_file is not None:
+        out_path = output_file
+    elif out_dir is not None:
+        out_path = out_dir / analysis_file.name
+    else:
+        out_path = analysis_file
+
+    if str(out_path) != str(analysis_file):
+        merged_df.to_csv(out_path, index=False)
+
+
 def include_group_metadata(
     grouped_cells_dir: str | Path,
     analysis_dir: str | Path,
@@ -853,135 +1015,49 @@ def include_group_metadata(
     replace: bool = True,
     channels: Optional[Iterable[str]] = None,
 ) -> bool:
+    """Include group metadata in analysis results.
+
+    Merges cell grouping information from grouped_cells directory into
+    the analysis CSV file.
+    """
     grouped_dir = Path(grouped_cells_dir)
     analysis_path = Path(analysis_dir)
     out_dir = Path(output_dir) if output_dir is not None else None
+    out_file = Path(output_file) if output_file is not None else None
 
-    # Validate input directories exist
-    if not grouped_dir.exists():
-        return False
-    if not analysis_path.exists():
+    # Validate input directories
+    if not grouped_dir.exists() or not analysis_path.exists():
         return False
 
+    # Load metadata files
     metadata_files = _find_group_metadata_files(grouped_dir)
-    if channels:
-        mf: list[Path] = []
-        for p in metadata_files:
-            if any(ch in str(p) for ch in channels):
-                mf.append(p)
-        # If filtering removed all files, fall back to unfiltered list
-        if mf:
-            metadata_files = mf
+    metadata_files = _filter_metadata_by_channels(metadata_files, channels)
     if not metadata_files:
-        # No metadata available; treat as no-op so pipeline can continue
-        return True
+        return True  # No metadata is a no-op, not an error
 
-    # Load and augment metadata
-    frames: list[pd.DataFrame] = []
-    for p in metadata_files:
-        df = _read_csv_robust(p)
-        if df is None:
-            continue
-        parent = p.parent
-        region = parent.name
-        condition = parent.parent.name if parent.parent.name != "grouped_cells" else ""
-        df = df.copy()
-        df['region'] = region
-        if condition:
-            df['condition'] = condition
-        frames.append(df)
-    if not frames:
-        # Could not read any metadata files
+    meta_df = _load_and_augment_metadata(metadata_files)
+    if meta_df is None:
         return False
-    meta_df = pd.concat(frames, ignore_index=True)
 
-    # Find analysis file
+    # Load analysis file
     analysis_file = _find_analysis_file(analysis_path, out_dir)
     if analysis_file is None:
-        # No analysis file found to merge into
         return False
 
-    # Load analysis
     ana_df = _read_csv_robust(analysis_file)
     if ana_df is None:
-        # Cannot read analysis file
         return False
 
-    # Derive cell_id_clean in both frames
-    # Derive a canonical id for metadata frame
-    if 'cell_id' in meta_df.columns:
-        meta_df['cell_id_clean'] = meta_df['cell_id'].apply(
-            lambda x: str(x).replace('CELL', '').replace('.tif', '').strip() if isinstance(x, str) else str(x)
-        )
-    elif 'cell' in meta_df.columns:
-        meta_df['cell_id_clean'] = meta_df['cell'].apply(lambda x: str(x).replace('CELL', '').replace('.tif', '').strip())
-    elif 'filename' in meta_df.columns:
-        meta_df['cell_id_clean'] = meta_df['filename'].apply(lambda x: str(x).replace('CELL', '').replace('.tif', '').strip())
-    id_column = next((c for c in ['Label', 'Slice', 'ROI', 'Name', 'Filename', 'Title', 'Image'] if c in ana_df.columns), None)
-    if id_column is None:
-        # No compatible id column found in analysis file
+    # Derive cell IDs in both DataFrames
+    meta_df = _derive_meta_cell_id(meta_df)
+    ana_df, success = _derive_analysis_cell_id(ana_df)
+    if not success:
         return False
-    def _extract_cell_id(x: object) -> str:
-        s = str(x)
-        m = _re.search(r"CELL(\d+)[a-zA-Z]*$", s)
-        if m:
-            return m.group(1)
-        if '_' in s:
-            last = s.split('_')[-1]
-            if any(c.isdigit() for c in last):
-                return ''.join(c for c in last if c.isdigit())
-            return last
-        digits = ''.join(c for c in s if c.isdigit())
-        return digits or s
-    ana_df['cell_id_clean'] = ana_df[id_column].apply(_extract_cell_id)
 
-    # Choose group columns
-    group_cols = [c for c in ['group_id', 'group_name', 'group_mean_auc'] if c in meta_df.columns]
-    # Drop duplicate cell ids in meta
-    if 'cell_id_clean' in meta_df.columns and not meta_df.empty:
-        meta_df = meta_df.drop_duplicates(subset=['cell_id_clean'], keep='first')
+    # Merge and save
+    merged_df = _merge_group_metadata(ana_df, meta_df, replace)
+    _save_merged_results(merged_df, analysis_file, out_file, out_dir, overwrite)
 
-    existing_group_cols = [c for c in ['group_id', 'group_name', 'group_mean_auc'] if c in ana_df.columns]
-    if existing_group_cols and replace:
-        ana_df = ana_df.drop(columns=existing_group_cols)
-        existing_group_cols = []
-
-    if existing_group_cols and not replace:
-        new_cols = [c for c in group_cols if c not in existing_group_cols]
-        if new_cols:
-            temp = pd.merge(
-                ana_df[['cell_id_clean']],
-                meta_df[['cell_id_clean'] + new_cols],
-                on='cell_id_clean',
-                how='left',
-            )
-            for c in new_cols:
-                ana_df[c] = temp[c]
-        merged_df = ana_df.copy()
-    else:
-        merged_df = pd.merge(
-            ana_df,
-            meta_df[['cell_id_clean'] + group_cols],
-            on='cell_id_clean',
-            how='left',
-        )
-
-    # Basic duplicate cleanup
-    for col in ['cell_id_clean']:
-        if col in merged_df.columns:
-            merged_df = merged_df.drop(columns=[col])
-
-    # Save
-    if overwrite:
-        merged_df.to_csv(analysis_file, index=False)
-    if output_file is not None:
-        out_path = Path(output_file)
-    elif out_dir is not None:
-        out_path = Path(out_dir) / analysis_file.name
-    else:
-        out_path = analysis_file
-    if str(out_path) != str(analysis_file):
-        merged_df.to_csv(out_path, index=False)
     return True
 
 
