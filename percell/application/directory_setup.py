@@ -39,46 +39,88 @@ def add_recent_directory(config: Dict, directory_type: str, path: str, max_recen
     config['directories'][recent_key] = config['directories'][recent_key][:max_recent]
 
 
-def prompt_for_directory(directory_type: str, recent_dirs: List[str], default_path: str = "") -> str:
-    print(f"\n=== {directory_type.title()} Directory Selection ===")
-    if recent_dirs:
-        print(f"Recent {directory_type} directories:")
-        for i, p in enumerate(recent_dirs, 1):
-            print(f"  {i}. {p}")
-        print(f"  {len(recent_dirs) + 1}. Enter new path\n")
-        while True:
-            choice = input(f"Select {directory_type} directory (1-{len(recent_dirs) + 1}) or enter path: ").strip()
-            if choice.isdigit():
-                idx = int(choice)
-                if 1 <= idx <= len(recent_dirs):
-                    selected_path = recent_dirs[idx - 1]
-                    print(f"Selected: {selected_path}")
-                    return selected_path
-                if idx == len(recent_dirs) + 1:
-                    break
-                print(f"Please enter a number between 1 and {len(recent_dirs) + 1}")
-                continue
-            if choice:
-                return choice
+def _display_recent_dirs_menu(directory_type: str, recent_dirs: List[str]) -> None:
+    """Display the menu of recent directories."""
+    print(f"Recent {directory_type} directories:")
+    for i, p in enumerate(recent_dirs, 1):
+        print(f"  {i}. {p}")
+    print(f"  {len(recent_dirs) + 1}. Enter new path\n")
+
+
+def _select_from_recent_dirs(
+    directory_type: str, recent_dirs: List[str]
+) -> Optional[str]:
+    """Let user select from recent directories. Returns path or None to enter new."""
+    max_choice = len(recent_dirs) + 1
+    while True:
+        choice = input(
+            f"Select {directory_type} directory (1-{max_choice}) or enter path: "
+        ).strip()
+
+        if not choice:
             print("Please enter a valid path or number")
+            continue
+
+        if not choice.isdigit():
+            return choice  # User entered a path directly
+
+        idx = int(choice)
+        if 1 <= idx <= len(recent_dirs):
+            selected_path = recent_dirs[idx - 1]
+            print(f"Selected: {selected_path}")
+            return selected_path
+        if idx == max_choice:
+            return None  # User wants to enter new path
+        print(f"Please enter a number between 1 and {max_choice}")
+
+
+def _validate_and_return_path(directory_type: str, path: str) -> Optional[str]:
+    """Validate a path based on directory type. Returns path if valid, None otherwise."""
+    path = path.strip("'\"")
+    is_input = directory_type == "input"
+    create_if_missing = not is_input
+
+    if validate_directory_path(path, create_if_missing=create_if_missing):
+        return path
+
+    if is_input:
+        print(f"Error: Input directory '{path}' does not exist or is not accessible")
+    else:
+        print(f"Error: Cannot create or access output directory '{path}'")
+    return None
+
+
+def _prompt_for_new_path(directory_type: str, default_path: str) -> str:
+    """Prompt for and validate a new directory path."""
     while True:
         if default_path:
-            path = input(f"Enter {directory_type} directory path (default: {default_path}): ").strip() or default_path
+            prompt = f"Enter {directory_type} directory path (default: {default_path}): "
+            path = input(prompt).strip() or default_path
         else:
             path = input(f"Enter {directory_type} directory path: ").strip()
+
         if not path:
             print("Please enter a valid path")
             continue
-        path = path.strip("'\"")
-        if directory_type == "input":
-            if not validate_directory_path(path, create_if_missing=False):
-                print(f"Error: Input directory '{path}' does not exist or is not accessible")
-                continue
-        else:
-            if not validate_directory_path(path, create_if_missing=True):
-                print(f"Error: Cannot create or access output directory '{path}'")
-                continue
-        return path
+
+        validated = _validate_and_return_path(directory_type, path)
+        if validated:
+            return validated
+
+
+def prompt_for_directory(
+    directory_type: str, recent_dirs: List[str], default_path: str = ""
+) -> str:
+    """Prompt user to select or enter a directory path."""
+    print(f"\n=== {directory_type.title()} Directory Selection ===")
+
+    if recent_dirs:
+        _display_recent_dirs_menu(directory_type, recent_dirs)
+        selected = _select_from_recent_dirs(directory_type, recent_dirs)
+        if selected is not None:
+            return selected
+
+    return _prompt_for_new_path(directory_type, default_path)
 
 
 def get_paths_interactively(
