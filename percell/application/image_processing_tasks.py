@@ -318,6 +318,96 @@ def _find_mask_groups(mask_dir: Path) -> dict[str, list[Path]]:
     return groups
 
 
+def _is_valid_subdir(path: Path) -> bool:
+    """Check if path is a valid non-hidden directory."""
+    return path.is_dir() and not is_system_hidden_file(path)
+
+
+def _matches_region_filter(dir_name: str, regions_set: Optional[set]) -> bool:
+    """Check if directory name matches any region in the filter set."""
+    if regions_set is None:
+        return True
+    return any(region in dir_name for region in regions_set)
+
+
+def _init_combined_mask(files: list[Path], prefix: str, imgproc):
+    """Initialize combined mask array and extract metadata from first file."""
+    first = imgproc.read_image(files[0])
+    combined = np.zeros_like(first, dtype=np.uint8)
+    print(f"Attempting to extract metadata from: {files[0].name}")
+    reference_metadata = _extract_tiff_metadata(files[0])
+    if reference_metadata:
+        print(f"Successfully extracted metadata for group {prefix}")
+    else:
+        print(f"No metadata extracted for group {prefix}")
+    return combined, reference_metadata
+
+
+def _accumulate_masks(files: list[Path], combined: np.ndarray, imgproc) -> np.ndarray:
+    """Accumulate all mask files into the combined array using maximum."""
+    for f in files:
+        try:
+            img = imgproc.read_image(f)
+            combined = np.maximum(combined, img.astype(np.uint8))
+        except Exception:
+            continue
+    return combined
+
+
+def _write_combined_mask(out_path: Path, combined: np.ndarray, metadata, imgproc) -> bool:
+    """Write combined mask with metadata preservation, falling back to imgproc."""
+    print(f"Writing combined mask: {out_path.name}")
+    if metadata and metadata.has_resolution_info():
+        print("Using metadata with resolution info")
+    else:
+        print("No metadata available for writing")
+
+    if not _write_tiff_with_metadata(out_path, combined, metadata):
+        print(f"Metadata write failed, falling back to imgproc.write_image for {out_path.name}")
+        imgproc.write_image(out_path, combined)
+    else:
+        print(f"Successfully wrote {out_path.name} with metadata preservation")
+    return True
+
+
+def _process_mask_group(
+    prefix: str, files: list[Path], out_condition: Path, imgproc
+) -> bool:
+    """Process a single mask group: combine files and write output."""
+    if not files:
+        return False
+    try:
+        combined, reference_metadata = _init_combined_mask(files, prefix, imgproc)
+    except Exception as e:
+        print(f"Error processing group {prefix}: {e}")
+        return False
+
+    combined = _accumulate_masks(files, combined, imgproc)
+    out_path = out_condition / f"{prefix}.tif"
+
+    try:
+        return _write_combined_mask(out_path, combined, reference_metadata, imgproc)
+    except Exception as e:
+        print(f"Error writing {out_path.name}: {e}")
+        return False
+
+
+def _process_region_timepoint_dir(
+    rt_dir: Path, out_condition: Path, imgproc
+) -> bool:
+    """Process all mask groups in a region/timepoint directory."""
+    groups = _find_mask_groups(rt_dir)
+    if not groups:
+        return False
+
+    out_condition.mkdir(parents=True, exist_ok=True)
+    any_written = False
+    for prefix, files in groups.items():
+        if _process_mask_group(prefix, files, out_condition, imgproc):
+            any_written = True
+    return any_written
+
+
 def combine_masks(
     input_dir: str | Path,
     output_dir: str | Path,
@@ -346,74 +436,22 @@ def combine_masks(
     if imgproc is None:
         from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter  # type: ignore
         imgproc = PILImageProcessingAdapter()
-    any_written = False
 
-    # Convert regions to set for filtering
     regions_set = _to_optional_set(regions)
+    any_written = False
 
     # Expect layout: input_dir/<condition>/<region_timepoint>
     for condition_dir in in_root.glob("*"):
-        if not condition_dir.is_dir() or is_system_hidden_file(condition_dir):
+        if not _is_valid_subdir(condition_dir):
             continue
+        out_condition = out_root / condition_dir.name
         for rt_dir in condition_dir.glob("*"):
-            if is_system_hidden_file(rt_dir):
+            if not _is_valid_subdir(rt_dir):
                 continue
-            if not rt_dir.is_dir():
+            if not _matches_region_filter(rt_dir.name, regions_set):
                 continue
-
-            # Filter by regions if specified
-            if regions_set is not None:
-                # Check if any selected region matches the directory name
-                if not any(region in rt_dir.name for region in regions_set):
-                    continue
-
-            groups = _find_mask_groups(rt_dir)
-            if not groups:
-                continue
-            out_condition = out_root / condition_dir.name
-            out_condition.mkdir(parents=True, exist_ok=True)
-            for prefix, files in groups.items():
-                if not files:
-                    continue
-                # Read first to get shape/dtype and extract metadata
-                try:
-                    first = imgproc.read_image(files[0])
-                    combined = np.zeros_like(first, dtype=np.uint8)
-                    # Extract metadata from the first mask file for this group
-                    print(f"Attempting to extract metadata from: {files[0].name}")
-                    reference_metadata = _extract_tiff_metadata(files[0])
-                    if reference_metadata:
-                        print(f"Successfully extracted metadata for group {prefix}")
-                    else:
-                        print(f"No metadata extracted for group {prefix}")
-                except Exception as e:
-                    print(f"Error processing group {prefix}: {e}")
-                    continue
-                for f in files:
-                    try:
-                        img = imgproc.read_image(f)
-                        combined = np.maximum(combined, img.astype(np.uint8))
-                    except Exception:
-                        continue
-                out_path = out_condition / f"{prefix}.tif"
-                try:
-                    # Try to write with metadata preservation first
-                    print(f"Writing combined mask: {out_path.name}")
-                    if reference_metadata and reference_metadata.has_resolution_info():
-                        print(f"Using metadata with resolution info")
-                    else:
-                        print("No metadata available for writing")
-                    
-                    if not _write_tiff_with_metadata(out_path, combined, reference_metadata):
-                        print(f"Metadata write failed, falling back to imgproc.write_image for {out_path.name}")
-                        # Fallback to original imgproc.write_image if tifffile fails
-                        imgproc.write_image(out_path, combined)
-                    else:
-                        print(f"Successfully wrote {out_path.name} with metadata preservation")
-                    any_written = True
-                except Exception as e:
-                    print(f"Error writing {out_path.name}: {e}")
-                    continue
+            if _process_region_timepoint_dir(rt_dir, out_condition, imgproc):
+                any_written = True
 
     return any_written
 
