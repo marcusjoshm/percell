@@ -113,7 +113,7 @@ class CellSegmentationService:
         # Defaults
         diameter = prefs.expected_cell_diameter if prefs.expected_cell_diameter else 25.0
         flow = 0.4 if prefs.performance_target != "fast" else 0.2
-        prob = 0.0 if prefs.performance_target == "fast" else 0.0
+        prob = -1.0 if prefs.performance_target == "fast" else 0.0
         model = prefs.preferred_model or "nuclei"
         return SegmentationParameters(
             cell_diameter=diameter,
