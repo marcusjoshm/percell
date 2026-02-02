@@ -203,6 +203,48 @@ def scan_cleanup_directories(
     return directories_info
 
 
+def _delete_single_item(item: Path, logger) -> bool:
+    """Delete a single file or directory. Returns True if deleted successfully."""
+    try:
+        if item.is_file():
+            item.unlink(missing_ok=True)
+            return True
+        if item.is_dir():
+            shutil.rmtree(item, ignore_errors=True)
+            return True
+        return False
+    except PermissionError as pe:
+        logger.error(f"Permission denied deleting {item}: {pe}")
+        return False
+    except FileNotFoundError:
+        # Race condition with ._ files on exFAT - already deleted
+        return False
+    except OSError as oe:
+        # ENOENT (errno 2) can happen with ._ files - ignore it
+        if oe.errno != 2:
+            logger.error(f"OS error deleting {item}: {oe}")
+        return False
+
+
+def _clean_single_directory(dir_path: Path, name: str, size: int, logger) -> tuple[bool, int]:
+    """Clean contents of a single directory. Returns (success, size_freed)."""
+    try:
+        items_deleted = sum(
+            1 for item in dir_path.iterdir() if _delete_single_item(item, logger)
+        )
+        logger.info(f"Deleted {items_deleted} items from {name}")
+        return True, int(size)
+    except PermissionError as pe:
+        logger.error(f"Permission denied accessing {dir_path}: {pe}")
+        return False, 0
+    except OSError as oe:
+        logger.error(f"OS error accessing {dir_path}: {oe}")
+        return False, 0
+    except Exception as e:
+        logger.error(f"Unexpected error cleaning {dir_path}: {type(e).__name__}: {e}")
+        return False, 0
+
+
 def cleanup_directories(
     output_dir: str | Path,
     delete_cells: bool = False,
@@ -222,6 +264,7 @@ def cleanup_directories(
     if not output_path.exists():
         logger.warning(f"Output directory does not exist: {output_path}")
         return 0, 0
+
     info = scan_cleanup_directories(
         output_dir,
         include_cells=delete_cells,
@@ -236,6 +279,7 @@ def cleanup_directories(
     if dry_run:
         logger.info("Dry run mode - no files will be deleted")
         return 0, 0
+
     emptied = 0
     freed = 0
     for name, meta in info.items():
@@ -244,41 +288,12 @@ def cleanup_directories(
             continue
         dir_path = Path(meta["path"])  # type: ignore[index]
         logger.info(f"Cleaning up directory: {dir_path}")
-        try:
-            size = meta.get("size_bytes", 0)
-            items_deleted = 0
-            # Also clean up system metadata files during cleanup
-            for item in dir_path.iterdir():
-                try:
-                    if item.is_file():
-                        item.unlink(missing_ok=True)
-                        items_deleted += 1
-                    elif item.is_dir():
-                        shutil.rmtree(item, ignore_errors=True)
-                        items_deleted += 1
-                except PermissionError as pe:
-                    logger.error(f"Permission denied deleting {item}: {pe}")
-                except FileNotFoundError:
-                    # Race condition with ._ files on exFAT - already deleted
-                    pass
-                except OSError as oe:
-                    # ENOENT (errno 2) can happen with ._ files - ignore it
-                    if oe.errno == 2:
-                        pass
-                    else:
-                        logger.error(f"OS error deleting {item}: {oe}")
-            logger.info(f"Deleted {items_deleted} items from {name}")
+        size = meta.get("size_bytes", 0)
+        success, size_freed = _clean_single_directory(dir_path, name, size, logger)
+        if success:
             emptied += 1
-            freed += int(size)
-        except PermissionError as pe:
-            logger.error(f"Permission denied accessing {dir_path}: {pe}")
-            continue
-        except OSError as oe:
-            logger.error(f"OS error accessing {dir_path}: {oe}")
-            continue
-        except Exception as e:
-            logger.error(f"Unexpected error cleaning {dir_path}: {type(e).__name__}: {e}")
-            continue
+            freed += size_freed
+
     return emptied, freed
 
 
