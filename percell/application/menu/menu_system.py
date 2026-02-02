@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 # Common prompt message for error recovery
 _CONTINUE_PROMPT = "Press Enter to continue..."
 
+# Default fallback path when config_default cannot be resolved
+_DEFAULT_CONFIG_PATH = "percell/config/config.json"
+
 
 @dataclass
 class MenuItem:
@@ -208,7 +211,7 @@ class ConfigurationDisplayAction(MenuAction):
             try:
                 config_path = str(get_path("config_default"))
             except Exception:
-                config_path = "percell/config/config.json"
+                config_path = _DEFAULT_CONFIG_PATH
 
             config = create_configuration_service(config_path, create_if_missing=True)
 
@@ -236,7 +239,7 @@ class DirectorySetupAction(MenuAction):
             try:
                 config_path = str(get_path("config_default"))
             except Exception:
-                config_path = "percell/config/config.json"
+                config_path = _DEFAULT_CONFIG_PATH
 
             config = load_config(config_path)
             input_path, output_path = set_default_directories(config, config_path)
@@ -270,7 +273,7 @@ class VisualizationAction(MenuAction):
         try:
             config_path = str(get_path("config_default"))
         except Exception:
-            config_path = "percell/config/config.json"
+            config_path = _DEFAULT_CONFIG_PATH
 
         config = create_configuration_service(config_path, create_if_missing=True)
 
@@ -551,7 +554,7 @@ class MenuFactory:
                     try:
                         config_path = str(get_path("config_default"))
                     except Exception:
-                        config_path = "percell/config/config.json"
+                        config_path = _DEFAULT_CONFIG_PATH
                     
                     config = create_configuration_service(config_path, create_if_missing=True)
                     plugin.set_config(config)
@@ -619,7 +622,7 @@ class MenuFactory:
                     try:
                         config_path = str(get_path("config_default"))
                     except Exception:
-                        config_path = "percell/config/config.json"
+                        config_path = _DEFAULT_CONFIG_PATH
                     
                     config = create_configuration_service(config_path, create_if_missing=True)
                     plugin.set_config(config)
