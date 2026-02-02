@@ -109,37 +109,42 @@ def create_filter_macro_with_parameters(
 
     Returns the path to the temporary macro file or None on failure.
     """
+    template_path = Path(macro_template_file)
+    if not template_path.exists():
+        return None
+
     try:
-        template_path = Path(macro_template_file)
-        if not template_path.exists():
-            return None
         template_content = template_path.read_text()
-        if not template_content.strip():
-            return None
+    except Exception:
+        return None
 
-        # Filter out ImageJ parameter annotations as we embed values directly
-        lines = [ln for ln in template_content.split("\n") if not ln.strip().startswith("#@")]
+    if not template_content.strip():
+        return None
 
-        in_dir = _normalize_path_for_imagej(input_dir)
-        out_dir = _normalize_path_for_imagej(output_dir)
+    # Filter out ImageJ parameter annotations as we embed values directly
+    lines = [ln for ln in template_content.split("\n") if not ln.strip().startswith("#@")]
 
-        params = (
-            "// Parameters embedded from application helper\n"
-            f"input_dir = \"{in_dir}\";\n"
-            f"output_dir = \"{out_dir}\";\n"
-            f"channel = \"{channel}\";\n"
-            f"edge_margin = {edge_margin};\n"
-            f"auto_close = {str(bool(auto_close)).lower()};\n"
+    in_dir = _normalize_path_for_imagej(input_dir)
+    out_dir = _normalize_path_for_imagej(output_dir)
+
+    params = (
+        "// Parameters embedded from application helper\n"
+        f"input_dir = \"{in_dir}\";\n"
+        f"output_dir = \"{out_dir}\";\n"
+        f"channel = \"{channel}\";\n"
+        f"edge_margin = {edge_margin};\n"
+        f"auto_close = {str(bool(auto_close)).lower()};\n"
+    )
+
+    content = params + "\n" + "\n".join(lines)
+
+    try:
+        temp_file = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".ijm", delete=False
         )
-
-        content = params + "\n" + "\n".join(lines)
-
-        temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".ijm", delete=False)
-        try:
-            temp_path = Path(temp_file.name)
-            temp_file.write(content)
-        finally:
-            temp_file.close()
+        temp_path = Path(temp_file.name)
+        temp_file.write(content)
+        temp_file.close()
         return temp_path
     except Exception:
         return None
