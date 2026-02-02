@@ -35,7 +35,11 @@ def create_macro_with_parameters(
     """
     try:
         template_path = Path(macro_template_file)
+        if not template_path.exists():
+            return None
         template_content = template_path.read_text()
+        if not template_content.strip():
+            return None
 
         # Filter out ImageJ parameter annotations as we embed values directly
         lines = [ln for ln in template_content.split("\n") if not ln.strip().startswith("#@")]
@@ -107,7 +111,11 @@ def create_filter_macro_with_parameters(
     """
     try:
         template_path = Path(macro_template_file)
+        if not template_path.exists():
+            return None
         template_content = template_path.read_text()
+        if not template_content.strip():
+            return None
 
         # Filter out ImageJ parameter annotations as we embed values directly
         lines = [ln for ln in template_content.split("\n") if not ln.strip().startswith("#@")]
@@ -323,7 +331,11 @@ def create_measure_macro_with_parameters(
     """Create a temporary macro for ROI-area measurement embedding parameters."""
     try:
         template_path = Path(macro_template_file)
+        if not template_path.exists():
+            return None
         template_content = template_path.read_text()
+        if not template_content.strip():
+            return None
 
         roi_clean = _normalize_path_for_imagej(roi_file)
         img_clean = _normalize_path_for_imagej(image_file)
@@ -496,7 +508,12 @@ def create_analyze_macro_with_parameters(
     auto_close: bool = False,
 ) -> Optional[Path]:
     try:
-        template = Path(macro_template_file).read_text()
+        template_path = Path(macro_template_file)
+        if not template_path.exists():
+            return None
+        template = template_path.read_text()
+        if not template.strip():
+            return None
         lines = [ln for ln in template.split("\n") if not ln.strip().startswith("#@")]
         norm_masks = [ _normalize_path_for_imagej(p) for p in mask_paths ]
         masks_list = ";".join(norm_masks)
@@ -722,7 +739,12 @@ def create_masks_macro_with_parameters(
     auto_close: bool = True,
 ) -> Optional[Path]:
     try:
-        template = Path(macro_template_file).read_text()
+        template_path = Path(macro_template_file)
+        if not template_path.exists():
+            return None
+        template = template_path.read_text()
+        if not template.strip():
+            return None
         lines = [ln for ln in template.split("\n") if not ln.strip().startswith("#@")]
         roi_clean = _normalize_path_for_imagej(roi_file)
         mask_clean = _normalize_path_for_imagej(mask_file)
@@ -915,7 +937,12 @@ def create_extract_macro_with_parameters(
     auto_close: bool = True,
 ) -> Optional[Path]:
     try:
-        template = Path(macro_template_file).read_text()
+        template_path = Path(macro_template_file)
+        if not template_path.exists():
+            return None
+        template = template_path.read_text()
+        if not template.strip():
+            return None
         lines = [ln for ln in template.split("\n") if not ln.strip().startswith("#@")]
         roi_clean = _normalize_path_for_imagej(roi_file)
         img_clean = _normalize_path_for_imagej(image_file)
@@ -1075,7 +1102,12 @@ def create_threshold_macro_with_parameters(
     auto_close: bool = True,
 ) -> Optional[Tuple[Path, Path]]:
     try:
-        template = Path(macro_template_file).read_text()
+        template_path = Path(macro_template_file)
+        if not template_path.exists():
+            return None
+        template = template_path.read_text()
+        if not template.strip():
+            return None
         lines = [ln for ln in template.split("\n") if not ln.strip().startswith("#@")]
         in_clean = _normalize_path_for_imagej(input_dir).rstrip('/')
         out_clean = _normalize_path_for_imagej(output_dir).rstrip('/')

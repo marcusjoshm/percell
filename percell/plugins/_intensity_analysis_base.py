@@ -74,16 +74,16 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
             if not base_path.exists():
                 ui.error(f"Error: Base directory '{base_dir}' does not exist")
                 ui.prompt("Press Enter to continue...")
-                return args
+                return None
 
             # Find all subdirectories, excluding dot files/directories
             subdirs = [d for d in base_path.iterdir()
                        if d.is_dir() and not self._is_dot_file(d)]
-            
+
             if len(subdirs) == 0:
                 ui.error(f"Error: No subdirectories found in '{base_dir}'")
                 ui.prompt("Press Enter to continue...")
-                return args
+                return None
             
             ui.info(f"Found {len(subdirs)} subdirectories to analyze")
             
@@ -197,7 +197,7 @@ class IntensityAnalysisBSPlugin(PerCellPlugin):
             import traceback
             ui.error(traceback.format_exc())
             ui.prompt("Press Enter to continue...")
-            return args
+            return None
     
     # Helper methods from original script (adapted for plugin)
     
