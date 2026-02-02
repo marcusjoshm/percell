@@ -65,5 +65,5 @@ class AutoImagePreprocessingPlugin(PerCellPlugin):
             import traceback
             ui.error(traceback.format_exc())
             ui.prompt("Press Enter to continue...")
-            return args
+            return None
 
