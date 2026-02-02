@@ -33,6 +33,7 @@ class ConsoleProgressAdapter(ProgressReportPort):
                 print(f"{title}")
 
             def noop_update(delta: int) -> None:
+                # Intentionally empty: no-op fallback when alive-progress is unavailable
                 pass
 
             yield noop_update
