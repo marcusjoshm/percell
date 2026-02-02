@@ -18,6 +18,9 @@ from percell.domain.exceptions import PercellError
 
 logger = logging.getLogger(__name__)
 
+# Common prompt message for error recovery
+_CONTINUE_PROMPT = "Press Enter to continue..."
+
 
 @dataclass
 class MenuItem:
@@ -152,12 +155,12 @@ class Menu:
 
         except PercellError as e:
             self.ui.error(f"Error executing menu action: {e}")
-            self.ui.prompt("Press Enter to continue...")
+            self.ui.prompt(_CONTINUE_PROMPT)
             return None, False  # Continue loop after error
         except Exception as e:
             self.ui.error(f"Unexpected error: {e}")
             logger.exception(f"Unexpected error in menu {self.title}")
-            self.ui.prompt("Press Enter to continue...")
+            self.ui.prompt(_CONTINUE_PROMPT)
             return None, False  # Continue loop after error
 
 
@@ -217,7 +220,7 @@ class ConfigurationDisplayAction(MenuAction):
 
         except Exception as e:
             ui.error(f"Error displaying configuration: {e}")
-            ui.prompt("Press Enter to continue...")
+            ui.prompt(_CONTINUE_PROMPT)
 
         return args  # Return to main menu
 
@@ -299,7 +302,7 @@ class CombinedVisualizationAction(VisualizationAction):
 
         except Exception as e:
             ui.error(f"Error running visualization: {e}")
-            ui.prompt("Press Enter to continue...")
+            ui.prompt(_CONTINUE_PROMPT)
 
         return args  # Return to main menu
 
@@ -321,7 +324,7 @@ class NapariViewerAction(VisualizationAction):
 
         except Exception as e:
             ui.error(f"Error running Napari viewer: {e}")
-            ui.prompt("Press Enter to continue...")
+            ui.prompt(_CONTINUE_PROMPT)
 
         return args  # Return to main menu
 
@@ -603,7 +606,7 @@ class MenuFactory:
                 
                 if not plugin:
                     ui.error(f"Plugin not found: {plugin_name}")
-                    ui.prompt("Press Enter to continue...")
+                    ui.prompt(_CONTINUE_PROMPT)
                     return None
                 
                 # Set up plugin with config and container
@@ -631,7 +634,7 @@ class MenuFactory:
                 
                 # Validate plugin requirements
                 if not plugin.validate(ui, args):
-                    ui.prompt("Press Enter to continue...")
+                    ui.prompt(_CONTINUE_PROMPT)
                     return None
                 
                 # Execute plugin
@@ -640,13 +643,13 @@ class MenuFactory:
                 
             except ImportError as e:
                 ui.error(f"Failed to load plugin {plugin_name}: {e}")
-                ui.prompt("Press Enter to continue...")
+                ui.prompt(_CONTINUE_PROMPT)
                 return None
             except Exception as e:
                 ui.error(f"Error running plugin {plugin_name}: {e}")
                 import traceback
                 ui.error(traceback.format_exc())
-                ui.prompt("Press Enter to continue...")
+                ui.prompt(_CONTINUE_PROMPT)
                 return None
         return plugin_action
 
