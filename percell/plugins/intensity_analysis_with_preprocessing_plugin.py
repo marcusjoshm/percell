@@ -93,7 +93,7 @@ class IntensityAnalysisBSAutoPlugin(IntensityAnalysisBSPlugin):
             if not percell_path.exists():
                 ui.error(f"Error: Directory '{percell_dir}' does not exist")
                 ui.prompt("Press Enter to continue...")
-                return args
+                return None
 
             # Validate percell directory structure
             if not (percell_path / "combined_masks").exists():
@@ -101,14 +101,14 @@ class IntensityAnalysisBSAutoPlugin(IntensityAnalysisBSPlugin):
                 ui.error("This should be the percell OUTPUT directory (where analysis results are saved)")
                 ui.error("Not the INPUT directory (where raw images are located)")
                 ui.prompt("Press Enter to continue...")
-                return args
+                return None
 
             if not (percell_path / "raw_data").exists():
                 ui.error(f"Error: {percell_path} does not contain raw_data/ directory")
                 ui.error("This should be the percell OUTPUT directory (where analysis results are saved)")
                 ui.error("Not the INPUT directory (where raw images are located)")
                 ui.prompt("Press Enter to continue...")
-                return args
+                return None
 
             # Get ImageJ adapter from container
             try:
@@ -118,7 +118,7 @@ class IntensityAnalysisBSAutoPlugin(IntensityAnalysisBSPlugin):
                 ui.error("Please ensure ImageJ is configured in your settings")
                 ui.error(f"Details: {e}")
                 ui.prompt("Press Enter to continue...")
-                return args
+                return None
 
             # Create BS workflow orchestrator
             workflow = BSWorkflow(
@@ -150,7 +150,7 @@ class IntensityAnalysisBSAutoPlugin(IntensityAnalysisBSPlugin):
                 import traceback
                 ui.error(traceback.format_exc())
                 ui.prompt("Press Enter to continue...")
-                return args
+                return None
 
             # Now run intensity analysis on the processed directory
             ui.info("\n🔬 Running intensity analysis on processed data...")
@@ -171,4 +171,4 @@ class IntensityAnalysisBSAutoPlugin(IntensityAnalysisBSPlugin):
             import traceback
             ui.error(traceback.format_exc())
             ui.prompt("Press Enter to continue...")
-            return args
+            return None
