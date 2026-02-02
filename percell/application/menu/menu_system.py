@@ -24,6 +24,9 @@ _CONTINUE_PROMPT = "Press Enter to continue..."
 # Default fallback path when config_default cannot be resolved
 _DEFAULT_CONFIG_PATH = "percell/config/config.json"
 
+# Common menu item title for returning to main menu
+_BACK_TO_MAIN_MENU = "Back to Main Menu"
+
 
 @dataclass
 class MenuItem:
@@ -444,7 +447,7 @@ class MenuFactory:
                     action=lambda ui, args: SetAttributeAction({"data_selection": True, "return_to_main": True}).execute(ui, args)),
             MenuItem("3", "Current Configuration", "View current analysis configuration",
                     action=lambda ui, args: ConfigurationDisplayAction().execute(ui, args)),
-            MenuItem("4", "Back to Main Menu", "Return to main menu", Colors.red,
+            MenuItem("4", _BACK_TO_MAIN_MENU, "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Configuration Menu", items, ui)
@@ -465,7 +468,7 @@ class MenuFactory:
                     }).execute(ui, args)),
             MenuItem("2", "Advanced Workflow Builder", "Build custom analysis workflow",
                     action=lambda ui, args: SetAttributeAction({"advanced_workflow": True}).execute(ui, args)),
-            MenuItem("3", "Back to Main Menu", "Return to main menu", Colors.red,
+            MenuItem("3", _BACK_TO_MAIN_MENU, "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Workflows Menu", items, ui)
@@ -476,7 +479,7 @@ class MenuFactory:
         items = [
             MenuItem("1", "Cellpose", "Single-cell segmentation using Cellpose SAM GUI",
                     action=lambda ui, args: SetAttributeAction({"segmentation": True}).execute(ui, args)),
-            MenuItem("2", "Back to Main Menu", "Return to main menu", Colors.red,
+            MenuItem("2", _BACK_TO_MAIN_MENU, "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Segmentation Menu", items, ui)
@@ -487,7 +490,7 @@ class MenuFactory:
         items = [
             MenuItem("1", "Single-Cell Data Processing", "Tracking, resizing, extraction, grouping",
                     action=lambda ui, args: SetAttributeAction({"process_single_cell": True}).execute(ui, args)),
-            MenuItem("2", "Back to Main Menu", "Return to main menu", Colors.red,
+            MenuItem("2", _BACK_TO_MAIN_MENU, "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Processing Menu", items, ui)
@@ -496,7 +499,7 @@ class MenuFactory:
     def create_tracking_menu(ui: UserInterfacePort) -> Menu:
         """Create the tracking submenu."""
         items = [
-            MenuItem("1", "Back to Main Menu", "Return to main menu", Colors.red,
+            MenuItem("1", _BACK_TO_MAIN_MENU, "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Tracking Menu", items, ui)
@@ -510,7 +513,7 @@ class MenuFactory:
                     action=lambda ui, args: CombinedVisualizationAction().execute(ui, args)),
             MenuItem("2", "Napari Viewer", "Launch Napari for advanced image visualization and analysis",
                     action=lambda ui, args: NapariViewerAction().execute(ui, args)),
-            MenuItem("3", "Back to Main Menu", "Return to main menu", Colors.red,
+            MenuItem("3", _BACK_TO_MAIN_MENU, "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Visualization Menu", items, ui)
@@ -525,7 +528,7 @@ class MenuFactory:
                     action=lambda ui, args: SetAttributeAction({"measure_roi_area": True}).execute(ui, args)),
             MenuItem("3", "Particle Analysis", "Analyze particles in segmented images using ImageJ",
                     action=lambda ui, args: SetAttributeAction({"analysis": True}).execute(ui, args)),
-            MenuItem("4", "Back to Main Menu", "Return to main menu", Colors.red,
+            MenuItem("4", _BACK_TO_MAIN_MENU, "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Analysis Menu", items, ui)
@@ -580,10 +583,10 @@ class MenuFactory:
         
         # Add back menu item
         items.append(
-            MenuItem("0", "Back to Main Menu", "Return to main menu", Colors.red,
+            MenuItem("0", _BACK_TO_MAIN_MENU, "Return to main menu", Colors.red,
                     action=lambda ui, args: args)
         )
-        
+
         return Menu("Plugins Menu", items, ui)
 
     @staticmethod
@@ -592,7 +595,7 @@ class MenuFactory:
         items = [
             MenuItem("1", "Cleanup", "Delete individual cells and masks to save space",
                     action=lambda ui, args: SetAttributeAction({"cleanup": True}).execute(ui, args)),
-            MenuItem("2", "Back to Main Menu", "Return to main menu", Colors.red,
+            MenuItem("2", _BACK_TO_MAIN_MENU, "Return to main menu", Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Utilities Menu", items, ui)
