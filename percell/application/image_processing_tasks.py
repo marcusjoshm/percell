@@ -1180,6 +1180,165 @@ def _match_rois_with_distance(
     return mapping, distances
 
 
+def _load_single_timepoint(roi_file: Path) -> Optional[dict]:
+    """Load ROI data for a single timepoint file.
+
+    Returns:
+        Dict with file, roi_dict, roi_bytes, rois, names, centers, roi_count
+        or None if loading fails.
+    """
+    roi_dict = _load_roi_dict(roi_file)
+    roi_bytes = _load_roi_bytes(roi_file)
+
+    if roi_dict is None or roi_bytes is None:
+        print(f"Warning: Could not load {roi_file.name}, skipping this file")
+        return None
+
+    items = list(roi_dict.items())
+    rois = [it[1] for it in items]
+    names = [it[0] for it in items]
+    centers = [_roi_center(r) for r in rois]
+
+    return {
+        'file': roi_file,
+        'roi_dict': roi_dict,
+        'roi_bytes': roi_bytes,
+        'rois': rois,
+        'names': names,
+        'centers': centers,
+        'roi_count': len(rois)
+    }
+
+
+def _load_all_timepoints(roi_files: List[Path]) -> list[dict]:
+    """Load ROI data for all timepoint files."""
+    timepoint_data = []
+    for roi_file in roi_files:
+        tp_data = _load_single_timepoint(roi_file)
+        if tp_data is not None:
+            timepoint_data.append(tp_data)
+    return timepoint_data
+
+
+def _initialize_tracks(first_timepoint: dict) -> list[dict]:
+    """Initialize tracks from the first timepoint."""
+    tracks = []
+    for roi_idx in range(first_timepoint['roi_count']):
+        track = {
+            'track_id': roi_idx,
+            'timepoint_data': [(0, roi_idx, first_timepoint['centers'][roi_idx], 0.0)],
+            'complete': True
+        }
+        tracks.append(track)
+    return tracks
+
+
+def _get_active_tracks(tracks: list[dict], prev_tp_idx: int, prev_tp: dict) -> tuple:
+    """Get ROIs and indices from tracks active at the previous timepoint.
+
+    Returns:
+        Tuple of (prev_rois, track_indices)
+    """
+    prev_rois = []
+    track_indices = []
+    for track_idx, track in enumerate(tracks):
+        if track['timepoint_data'][-1][0] == prev_tp_idx:
+            prev_roi_idx = track['timepoint_data'][-1][1]
+            prev_rois.append(prev_tp['rois'][prev_roi_idx])
+            track_indices.append(track_idx)
+    return prev_rois, track_indices
+
+
+def _update_track_with_match(
+    track: dict,
+    tp_idx: int,
+    matched_roi_idx: int,
+    centroid: tuple,
+    distance: float,
+    max_distance: Optional[float],
+) -> None:
+    """Update a track with a matched ROI."""
+    track['timepoint_data'].append((tp_idx, matched_roi_idx, centroid, distance))
+    if max_distance is not None and distance > max_distance:
+        track['complete'] = False
+
+
+def _update_tracks_with_matches(
+    tracks: list[dict],
+    track_indices: list[int],
+    mapping: list[int],
+    distances: list[float],
+    curr_tp: dict,
+    tp_idx: int,
+    max_distance: Optional[float],
+) -> None:
+    """Update all tracks based on matching results."""
+    for i, track_idx in enumerate(track_indices):
+        matched_roi_idx = mapping[i]
+        if matched_roi_idx >= 0:
+            _update_track_with_match(
+                tracks[track_idx],
+                tp_idx,
+                matched_roi_idx,
+                curr_tp['centers'][matched_roi_idx],
+                distances[i],
+                max_distance,
+            )
+        else:
+            tracks[track_idx]['complete'] = False
+
+
+def _create_new_tracks_for_unmatched(
+    tracks: list[dict], mapping: list[int], curr_tp: dict, tp_idx: int
+) -> None:
+    """Create new tracks for unmatched ROIs in the current frame."""
+    matched_indices = set(m for m in mapping if m >= 0)
+    for roi_idx in range(curr_tp['roi_count']):
+        if roi_idx not in matched_indices:
+            new_track = {
+                'track_id': len(tracks),
+                'timepoint_data': [(tp_idx, roi_idx, curr_tp['centers'][roi_idx], 0.0)],
+                'complete': False  # Can't be complete if it starts mid-series
+            }
+            tracks.append(new_track)
+
+
+def _process_timepoint(
+    tracks: list[dict],
+    timepoint_data: list[dict],
+    tp_idx: int,
+    max_distance: Optional[float],
+) -> None:
+    """Process a single timepoint, updating tracks with matches."""
+    prev_tp = timepoint_data[tp_idx - 1]
+    curr_tp = timepoint_data[tp_idx]
+
+    prev_rois, track_indices = _get_active_tracks(tracks, tp_idx - 1, prev_tp)
+
+    if not prev_rois or not curr_tp['rois']:
+        for track_idx in track_indices:
+            tracks[track_idx]['complete'] = False
+        return
+
+    mapping, distances = _match_rois_with_distance(prev_rois, curr_tp['rois'], max_distance)
+    _update_tracks_with_matches(
+        tracks, track_indices, mapping, distances, curr_tp, tp_idx, max_distance
+    )
+    _create_new_tracks_for_unmatched(tracks, mapping, curr_tp, tp_idx)
+
+
+def _calculate_track_statistics(tracks: list[dict], timepoint_data: list[dict]) -> dict:
+    """Calculate summary statistics for tracking results."""
+    complete_count = sum(1 for t in tracks if t['complete'])
+    return {
+        'total_timepoints': len(timepoint_data),
+        'total_tracks': len(tracks),
+        'complete_tracks': complete_count,
+        'incomplete_tracks': len(tracks) - complete_count,
+        'roi_counts_per_timepoint': [tp['roi_count'] for tp in timepoint_data],
+    }
+
+
 def _build_tracks_across_timepoints(
     roi_files: List[Path],
     max_distance: Optional[float] = None
@@ -1194,109 +1353,21 @@ def _build_tracks_across_timepoints(
         'timepoint_info': List of dicts with metadata per timepoint
         'statistics': Summary statistics
     """
+    empty_result = {'tracks': [], 'timepoint_info': [], 'statistics': {}}
+
     if not roi_files:
-        return {'tracks': [], 'timepoint_info': [], 'statistics': {}}
+        return empty_result
 
-    # Load all ROI data
-    timepoint_data = []
-    for tp_idx, roi_file in enumerate(roi_files):
-        roi_dict = _load_roi_dict(roi_file)
-        roi_bytes = _load_roi_bytes(roi_file)
-        if roi_dict is None or roi_bytes is None:
-            print(f"Warning: Could not load {roi_file.name}, skipping this file")
-            continue
-
-        items = list(roi_dict.items())
-        rois = [it[1] for it in items]
-        names = [it[0] for it in items]
-        centers = [_roi_center(r) for r in rois]
-
-        timepoint_data.append({
-            'file': roi_file,
-            'roi_dict': roi_dict,
-            'roi_bytes': roi_bytes,
-            'rois': rois,
-            'names': names,
-            'centers': centers,
-            'roi_count': len(rois)
-        })
-
+    timepoint_data = _load_all_timepoints(roi_files)
     if not timepoint_data:
-        return {'tracks': [], 'timepoint_info': [], 'statistics': {}}
+        return empty_result
 
-    # Build tracks by linking ROIs across frames
-    tracks = []
+    tracks = _initialize_tracks(timepoint_data[0])
 
-    # Start tracks from first timepoint
-    for roi_idx in range(timepoint_data[0]['roi_count']):
-        track = {
-            'track_id': roi_idx,
-            'timepoint_data': [(0, roi_idx, timepoint_data[0]['centers'][roi_idx], 0.0)],
-            'complete': True
-        }
-        tracks.append(track)
-
-    # Extend tracks through subsequent timepoints
     for tp_idx in range(1, len(timepoint_data)):
-        prev_tp = timepoint_data[tp_idx - 1]
-        curr_tp = timepoint_data[tp_idx]
+        _process_timepoint(tracks, timepoint_data, tp_idx, max_distance)
 
-        # Build list of ROIs from current active tracks at previous timepoint
-        prev_rois = []
-        track_indices = []
-        for track_idx, track in enumerate(tracks):
-            if track['timepoint_data'][-1][0] == tp_idx - 1:  # Track was active in previous frame
-                prev_roi_idx = track['timepoint_data'][-1][1]
-                prev_rois.append(prev_tp['rois'][prev_roi_idx])
-                track_indices.append(track_idx)
-
-        if not prev_rois or not curr_tp['rois']:
-            # Mark all previously active tracks as incomplete
-            for track_idx in track_indices:
-                tracks[track_idx]['complete'] = False
-            continue
-
-        # Match ROIs
-        mapping, distances = _match_rois_with_distance(prev_rois, curr_tp['rois'], max_distance)
-
-        # Update tracks
-        for i, track_idx in enumerate(track_indices):
-            matched_roi_idx = mapping[i]
-            if matched_roi_idx >= 0:  # Valid match
-                centroid = curr_tp['centers'][matched_roi_idx]
-                distance = distances[i]
-                tracks[track_idx]['timepoint_data'].append(
-                    (tp_idx, matched_roi_idx, centroid, distance)
-                )
-                # If distance exceeds threshold, mark track as incomplete
-                if max_distance is not None and distance > max_distance:
-                    tracks[track_idx]['complete'] = False
-            else:  # No match found
-                tracks[track_idx]['complete'] = False
-
-        # Create new tracks for unmatched ROIs in current frame
-        matched_indices = set(m for m in mapping if m >= 0)
-        for roi_idx in range(curr_tp['roi_count']):
-            if roi_idx not in matched_indices:
-                # New track starting from this timepoint
-                new_track = {
-                    'track_id': len(tracks),
-                    'timepoint_data': [(tp_idx, roi_idx, curr_tp['centers'][roi_idx], 0.0)],
-                    'complete': False  # Can't be complete if it starts mid-series
-                }
-                tracks.append(new_track)
-
-    # Calculate statistics
-    complete_tracks = [t for t in tracks if t['complete']]
-    incomplete_tracks = [t for t in tracks if not t['complete']]
-
-    statistics = {
-        'total_timepoints': len(timepoint_data),
-        'total_tracks': len(tracks),
-        'complete_tracks': len(complete_tracks),
-        'incomplete_tracks': len(incomplete_tracks),
-        'roi_counts_per_timepoint': [tp['roi_count'] for tp in timepoint_data],
-    }
+    statistics = _calculate_track_statistics(tracks, timepoint_data)
 
     return {
         'tracks': tracks,
