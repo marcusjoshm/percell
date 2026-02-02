@@ -714,6 +714,56 @@ def group_cells(
 
 # ------------------------- Duplicate ROIs for Channels -------------------------
 
+# Regex pattern for channel token in ROI filenames
+_ROI_CHANNEL_PATTERN = r"_ch\d+_"
+
+
+def _copy_roi_to_channel(
+    rf: Path, target: str, fs: FileManagementPort
+) -> bool:
+    """Copy a single ROI file with a new channel token. Returns True on success."""
+    import re as _re
+    new_name = _re.sub(_ROI_CHANNEL_PATTERN, f"_{target}_", rf.name)
+    dst = rf.parent / new_name
+    try:
+        fs.copy(rf, dst, overwrite=True)  # type: ignore[call-arg]
+        return True
+    except Exception:
+        return False
+
+
+def _process_roi_file(
+    rf: Path,
+    channels: Iterable[str],
+    fs: FileManagementPort,
+    channels_already_exist: set[str],
+    channels_processed: set[str],
+) -> int:
+    """Process a single ROI file, copying it for each target channel.
+
+    Returns:
+        Number of successful copies made.
+    """
+    import re as _re
+    m = _re.search(_ROI_CHANNEL_PATTERN, rf.name)
+    if not m:
+        return 0
+
+    src_channel = m.group(0).strip("_")
+    if src_channel in channels:
+        channels_already_exist.add(src_channel)
+
+    successful = 0
+    for target in channels:
+        if target == src_channel:
+            continue
+        if _copy_roi_to_channel(rf, target, fs):
+            successful += 1
+            channels_processed.add(target)
+
+    return successful
+
+
 def duplicate_rois_for_channels(
     roi_dir: str | Path,
     channels: Optional[Iterable[str]],
@@ -729,45 +779,33 @@ def duplicate_rois_for_channels(
     """
     if not channels:
         return True
+
     roi_root = Path(roi_dir)
     if not roi_root.exists():
         return False
+
     roi_files = list(roi_root.rglob("*.zip"))
     if not roi_files:
         return False
+
     if fs is None:
-        from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter  # type: ignore
+        from percell.adapters.local_filesystem_adapter import LocalFileSystemAdapter
         fs = LocalFileSystemAdapter()
 
-    import re as _re
-
-    successful = 0
     channels_already_exist: set[str] = set()
     channels_processed: set[str] = set()
+    successful = 0
 
     for rf in roi_files:
-        m = _re.search(r"_ch\d+_", rf.name)
-        if not m:
-            continue
-        src_channel = m.group(0).strip("_")
-        if src_channel in channels:
-            channels_already_exist.add(src_channel)
-        for target in channels:
-            if target == src_channel:
-                continue
-            new_name = _re.sub(r"_ch\d+_", f"_{target}_", rf.name)
-            dst = rf.parent / new_name
-            try:
-                fs.copy(rf, dst, overwrite=True)  # type: ignore[call-arg]
-                successful += 1
-                channels_processed.add(target)
-            except Exception:
-                continue
+        successful += _process_roi_file(
+            rf, channels, fs, channels_already_exist, channels_processed
+        )
 
     all_available = channels_already_exist.union(channels_processed)
     missing = set(channels) - all_available
     if missing:
         return False
+
     return successful > 0 or bool(channels_already_exist)
 
 
