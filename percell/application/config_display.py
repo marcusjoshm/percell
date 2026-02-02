@@ -11,37 +11,51 @@ from percell.ports.driving.user_interface_port import UserInterfacePort
 from percell.application.ui_components import colorize, Colors
 
 
-def display_current_configuration(ui: UserInterfacePort, config: ConfigurationService, args_input: Optional[str] = None, args_output: Optional[str] = None) -> None:
-    """Display current configuration including directories and data selections."""
+def _format_value(value, empty_text: str = "Not set") -> str:
+    """Format a value with appropriate color based on whether it's set."""
+    if value:
+        return colorize(value, Colors.green)
+    return colorize(empty_text, Colors.red)
 
-    ui.info("")
-    ui.info(colorize("CURRENT CONFIGURATION:", Colors.bold))
-    ui.info("=" * 50)
-    ui.info("")
 
-    # Display directories
+def _format_list(items: list, empty_text: str = "None selected") -> str:
+    """Format a list with appropriate color based on whether it has items."""
+    if items:
+        return colorize(", ".join(map(str, items)), Colors.green)
+    return colorize(empty_text, Colors.red)
+
+
+def _display_directory(
+    ui: UserInterfacePort,
+    label: str,
+    args_value: Optional[str],
+    config_value: str,
+) -> None:
+    """Display a directory setting with current/saved/not-set states."""
+    if args_value:
+        ui.info(f"  Current {label}:  {colorize(args_value, Colors.green)}")
+    elif config_value:
+        ui.info(f"  Saved {label}:    {colorize(config_value, Colors.yellow)}")
+    else:
+        ui.info(f"  {label}:          {colorize('Not set', Colors.red)}")
+
+
+def _display_directories(
+    ui: UserInterfacePort,
+    config: ConfigurationService,
+    args_input: Optional[str],
+    args_output: Optional[str],
+) -> None:
+    """Display the directories section."""
     ui.info(colorize("DIRECTORIES:", Colors.bold))
 
-    # Current session directories (from args if available)
-    if args_input:
-        ui.info(f"  Current Input:  {colorize(args_input, Colors.green)}")
-    else:
-        config_input = config.get("directories.input", "")
-        if config_input:
-            ui.info(f"  Saved Input:    {colorize(config_input, Colors.yellow)}")
-        else:
-            ui.info(f"  Input:          {colorize('Not set', Colors.red)}")
+    _display_directory(
+        ui, "Input", args_input, config.get("directories.input", "")
+    )
+    _display_directory(
+        ui, "Output", args_output, config.get("directories.output", "")
+    )
 
-    if args_output:
-        ui.info(f"  Current Output: {colorize(args_output, Colors.green)}")
-    else:
-        config_output = config.get("directories.output", "")
-        if config_output:
-            ui.info(f"  Saved Output:   {colorize(config_output, Colors.yellow)}")
-        else:
-            ui.info(f"  Output:         {colorize('Not set', Colors.red)}")
-
-    # Recent directories
     recent_inputs = config.get("directories.recent_inputs", [])
     recent_outputs = config.get("directories.recent_outputs", [])
 
@@ -50,48 +64,46 @@ def display_current_configuration(ui: UserInterfacePort, config: ConfigurationSe
     if recent_outputs:
         ui.info(f"  Recent Outputs: {len(recent_outputs)} saved")
 
-    ui.info("")
 
-    # Display data selection settings
+def _display_data_selection(ui: UserInterfacePort, config: ConfigurationService) -> None:
+    """Display the data selection section."""
     ui.info(colorize("DATA SELECTION:", Colors.bold))
 
-    selected_datatype = config.get("data_selection.selected_datatype")
-    if selected_datatype:
-        ui.info(f"  Data Type: {colorize(selected_datatype, Colors.green)}")
-    else:
-        ui.info(f"  Data Type: {colorize('Not selected', Colors.red)}")
+    datatype = config.get("data_selection.selected_datatype")
+    ui.info(f"  Data Type: {_format_value(datatype, 'Not selected')}")
 
-    selected_conditions = config.get("data_selection.selected_conditions", [])
-    if selected_conditions:
-        ui.info(f"  Conditions: {colorize(', '.join(selected_conditions), Colors.green)}")
-    else:
-        ui.info(f"  Conditions: {colorize('None selected', Colors.red)}")
+    conditions = config.get("data_selection.selected_conditions", [])
+    ui.info(f"  Conditions: {_format_list(conditions)}")
 
-    selected_regions = config.get("data_selection.selected_regions", [])
-    if selected_regions:
-        ui.info(f"  Regions: {colorize(', '.join(selected_regions), Colors.green)}")
-    else:
-        ui.info(f"  Regions: {colorize('None selected', Colors.red)}")
+    regions = config.get("data_selection.selected_regions", [])
+    ui.info(f"  Regions: {_format_list(regions)}")
 
-    selected_timepoints = config.get("data_selection.selected_timepoints", [])
-    if selected_timepoints:
-        ui.info(f"  Timepoints: {colorize(', '.join(map(str, selected_timepoints)), Colors.green)}")
-    else:
-        ui.info(f"  Timepoints: {colorize('None selected', Colors.red)}")
+    timepoints = config.get("data_selection.selected_timepoints", [])
+    ui.info(f"  Timepoints: {_format_list(timepoints)}")
 
-    # Channel information
-    segmentation_channel = config.get("data_selection.segmentation_channel")
+    seg_channel = config.get("data_selection.segmentation_channel")
+    ui.info(f"  Segmentation Channel: {_format_value(seg_channel, 'Not selected')}")
+
     analysis_channels = config.get("data_selection.analysis_channels", [])
+    ui.info(f"  Analysis Channels: {_format_list(analysis_channels)}")
 
-    if segmentation_channel:
-        ui.info(f"  Segmentation Channel: {colorize(segmentation_channel, Colors.green)}")
-    else:
-        ui.info(f"  Segmentation Channel: {colorize('Not selected', Colors.red)}")
 
-    if analysis_channels:
-        ui.info(f"  Analysis Channels: {colorize(', '.join(analysis_channels), Colors.green)}")
-    else:
-        ui.info(f"  Analysis Channels: {colorize('None selected', Colors.red)}")
+def display_current_configuration(
+    ui: UserInterfacePort,
+    config: ConfigurationService,
+    args_input: Optional[str] = None,
+    args_output: Optional[str] = None,
+) -> None:
+    """Display current configuration including directories and data selections."""
+    ui.info("")
+    ui.info(colorize("CURRENT CONFIGURATION:", Colors.bold))
+    ui.info("=" * 50)
+    ui.info("")
+
+    _display_directories(ui, config, args_input, args_output)
+    ui.info("")
+
+    _display_data_selection(ui, config)
 
     ui.info("")
     ui.info("=" * 50)
