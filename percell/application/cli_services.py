@@ -63,20 +63,12 @@ def show_menu(ui: UserInterfacePort, args: argparse.Namespace) -> Optional[argpa
         return None
 
 
-def validate_args(args: argparse.Namespace, ui: Optional[UserInterfacePort] = None) -> None:
-    """Validate command line arguments and fill defaults from configuration.
+def _load_config_defaults(args: argparse.Namespace) -> tuple[str, str]:
+    """Load default input/output directories from configuration.
 
-    Args:
-        args: Command line arguments to validate
-        ui: Optional user interface for feedback
-
-    Raises:
-        ValueError: If required paths are missing in non-interactive mode
-        ConfigurationError: If configuration cannot be loaded
+    Returns:
+        Tuple of (default_input, default_output) paths, empty strings if unavailable.
     """
-    default_input = ""
-    default_output = ""
-
     try:
         from percell.domain.services.configuration_service import create_configuration_service
         from percell.application.paths_api import get_path
@@ -90,35 +82,58 @@ def validate_args(args: argparse.Namespace, ui: Optional[UserInterfacePort] = No
             except Exception:
                 config_path = "percell/config/config.json"
 
-        # Load configuration
         config = create_configuration_service(config_path, create_if_missing=True)
-
         default_input = config.get("directories.input", "")
         default_output = config.get("directories.output", "")
-
-        logger.debug(f"Loaded configuration defaults: input='{default_input}', output='{default_output}'")
+        logger.debug(
+            f"Loaded configuration defaults: input='{default_input}', output='{default_output}'"
+        )
+        return default_input, default_output
 
     except Exception as e:
         logger.warning(f"Could not load configuration defaults: {e}")
-        # Continue without defaults
+        return "", ""
 
-    # Validate and set input directory
-    if not getattr(args, "input", None) and not getattr(args, "interactive", False):
-        if default_input:
-            args.input = default_input
-            if ui:
-                ui.info(f"Using default input directory: {default_input}")
-        else:
-            raise ValueError("Input directory is required unless using --interactive")
 
-    # Validate and set output directory
-    if not getattr(args, "output", None) and not getattr(args, "interactive", False):
-        if default_output:
-            args.output = default_output
-            if ui:
-                ui.info(f"Using default output directory: {default_output}")
-        else:
-            raise ValueError("Output directory is required unless using --interactive")
+def _apply_directory_default(
+    args: argparse.Namespace,
+    attr_name: str,
+    default_value: str,
+    ui: Optional[UserInterfacePort],
+) -> None:
+    """Apply a default directory value if not set and not in interactive mode.
+
+    Raises:
+        ValueError: If no value is set and no default is available.
+    """
+    has_value = getattr(args, attr_name, None)
+    is_interactive = getattr(args, "interactive", False)
+
+    if has_value or is_interactive:
+        return
+
+    if default_value:
+        setattr(args, attr_name, default_value)
+        if ui:
+            ui.info(f"Using default {attr_name} directory: {default_value}")
+    else:
+        raise ValueError(f"{attr_name.capitalize()} directory is required unless using --interactive")
+
+
+def validate_args(args: argparse.Namespace, ui: Optional[UserInterfacePort] = None) -> None:
+    """Validate command line arguments and fill defaults from configuration.
+
+    Args:
+        args: Command line arguments to validate
+        ui: Optional user interface for feedback
+
+    Raises:
+        ValueError: If required paths are missing in non-interactive mode
+        ConfigurationError: If configuration cannot be loaded
+    """
+    default_input, default_output = _load_config_defaults(args)
+    _apply_directory_default(args, "input", default_input, ui)
+    _apply_directory_default(args, "output", default_output, ui)
 
 
 def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace) -> None:
