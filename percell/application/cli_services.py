@@ -15,6 +15,9 @@ from percell.application.menu.menu_system import create_menu_system
 
 logger = logging.getLogger(__name__)
 
+# Default fallback path when config_default cannot be resolved
+_DEFAULT_CONFIG_PATH = "percell/config/config.json"
+
 
 def _any_stage_selected(args: argparse.Namespace) -> bool:
     """Check if any pipeline stage has been selected.
@@ -80,7 +83,7 @@ def _load_config_defaults(args: argparse.Namespace) -> tuple[str, str]:
             try:
                 config_path = str(get_path("config_default"))
             except Exception:
-                config_path = "percell/config/config.json"
+                config_path = _DEFAULT_CONFIG_PATH
 
         config = create_configuration_service(config_path, create_if_missing=True)
         default_input = config.get("directories.input", "")
@@ -180,7 +183,7 @@ def _run_combined_visualization(ui: UserInterfacePort, args: argparse.Namespace)
         try:
             config_path = str(get_path("config_default"))
         except Exception:
-            config_path = "percell/config/config.json"
+            config_path = _DEFAULT_CONFIG_PATH
 
         config = create_configuration_service(config_path)
 
@@ -309,7 +312,7 @@ def _run_napari_viewer(ui: UserInterfacePort, args: argparse.Namespace) -> None:
         try:
             config_path = str(get_path("config_default"))
         except Exception:
-            config_path = "percell/config/config.json"
+            config_path = _DEFAULT_CONFIG_PATH
 
         config = create_configuration_service(config_path)
 
