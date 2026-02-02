@@ -882,7 +882,7 @@ def _load_and_augment_metadata(metadata_files: list[Path]) -> Optional[pd.DataFr
 
 def _clean_cell_id_value(x: object) -> str:
     """Clean a cell ID value by removing common prefixes/suffixes."""
-    s = str(x) if isinstance(x, str) else str(x)
+    s = str(x)
     return s.replace('CELL', '').replace('.tif', '').strip()
 
 
