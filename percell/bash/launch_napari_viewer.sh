@@ -11,7 +11,7 @@ NAPARI_ENV="$WORKSPACE_DIR/venv"
 IMAGES_DIR="$1"
 
 echo "Launching Napari for interactive image visualization..."
-if [ -n "$IMAGES_DIR" ]; then
+if [[ -n "$IMAGES_DIR" ]]; then
     echo "Images directory: $IMAGES_DIR"
 fi
 
@@ -25,7 +25,7 @@ handle_error() {
 cd "$WORKSPACE_DIR" || handle_error "Could not change to workspace directory"
 
 # Activate the virtual environment
-if [ ! -f "$NAPARI_ENV/bin/activate" ]; then
+if [[ ! -f "$NAPARI_ENV/bin/activate" ]]; then
     handle_error "Virtual environment not found at $NAPARI_ENV"
 fi
 
@@ -46,7 +46,7 @@ fi
 
 # Start Napari viewer
 echo "Starting Napari viewer..."
-if [ -n "$IMAGES_DIR" ] && [ -d "$IMAGES_DIR" ]; then
+if [[ -n "$IMAGES_DIR" ]] && [[ -d "$IMAGES_DIR" ]]; then
     # Launch napari with the images directory
     cd "$IMAGES_DIR" || handle_error "Could not change to images directory"
     python -m napari "$IMAGES_DIR"
@@ -56,7 +56,7 @@ else
 fi
 
 # Check if Napari started successfully
-if [ $? -ne 0 ]; then
+if [[ $? -ne 0 ]]; then
     deactivate
     handle_error "Failed to start Napari"
 fi
