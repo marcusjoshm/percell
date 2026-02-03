@@ -1580,57 +1580,79 @@ def _save_zip_from_bytes(roi_bytes_list: List[bytes], output_zip_path: str | Pat
         return False
 
 
+def _collect_roi_files_by_timepoint(root: Path, timepoints: List[str]) -> dict[str, List[Path]]:
+    """Find ROI zip files per timepoint under root. Prints counts."""
+    all_roi_files: dict[str, List[Path]] = {}
+    for tp in timepoints:
+        files = list(root.rglob(f"*{tp}*_rois.zip"))
+        all_roi_files[tp] = files
+        print(f"  Found {len(files)} ROI files for timepoint '{tp}'")
+    return all_roi_files
+
+
+def _region_keys_from_roi_files(
+    all_roi_files: dict[str, List[Path]],
+    timepoints: List[str],
+) -> Set[str]:
+    """Collect unique region keys (path with TIMEPOINT placeholder) across timepoints."""
+    all_region_keys: Set[str] = set()
+    for tp in timepoints:
+        for roi_file in all_roi_files.get(tp, []):
+            region_key = str(roi_file).replace(tp, "TIMEPOINT")
+            all_region_keys.add(region_key)
+    return all_region_keys
+
+
+def _file_sequence_for_region(
+    region_key: str,
+    timepoints: List[str],
+    all_roi_files: dict[str, List[Path]],
+) -> List[Optional[Path]]:
+    """Build file sequence for one region: one entry per timepoint (Path or None)."""
+    file_sequence: List[Optional[Path]] = []
+    for tp in timepoints:
+        expected_path = region_key.replace("TIMEPOINT", tp)
+        matching_file = _find_matching_roi_file(all_roi_files.get(tp, []), expected_path)
+        file_sequence.append(matching_file)
+    return file_sequence
+
+
+def _find_matching_roi_file(candidates: List[Path], expected_path: str) -> Optional[Path]:
+    """Return the candidate whose path equals expected_path, or None."""
+    for candidate in candidates:
+        if str(candidate) == expected_path:
+            return candidate
+    return None
+
+
+def _build_region_groups(
+    all_region_keys: Set[str],
+    timepoints: List[str],
+    all_roi_files: dict[str, List[Path]],
+) -> dict[str, List[Optional[Path]]]:
+    """Group ROI files by region key; include only regions with ≥2 valid files."""
+    region_groups: dict[str, List[Optional[Path]]] = {}
+    for region_key in sorted(all_region_keys):
+        file_sequence = _file_sequence_for_region(region_key, timepoints, all_roi_files)
+        valid_count = sum(1 for f in file_sequence if f is not None)
+        if valid_count >= 2:
+            region_groups[region_key] = file_sequence
+    return region_groups
+
+
 def find_roi_files_for_timepoints(directory: str | Path, timepoints: List[str]) -> dict[str, List[Path]]:
     """Find all ROI zip files for each condition/region across timepoints.
 
     Returns dict mapping region_key -> list of ROI files ordered by timepoint.
     """
     root = Path(directory)
-
-    # Find all ROI files for all timepoints
-    all_roi_files = {}
-    for tp in timepoints:
-        files = list(root.rglob(f"*{tp}*_rois.zip"))
-        all_roi_files[tp] = files
-        print(f"  Found {len(files)} ROI files for timepoint '{tp}'")
+    all_roi_files = _collect_roi_files_by_timepoint(root, timepoints)
 
     if not all_roi_files:
         return {}
 
-    # Collect all unique region keys across ALL timepoints (not just first)
-    all_region_keys = set()
-    for tp in timepoints:
-        for roi_file in all_roi_files.get(tp, []):
-            ref_path_str = str(roi_file)
-            region_key = ref_path_str.replace(tp, "TIMEPOINT")
-            all_region_keys.add(region_key)
-
-    # Group by region (everything except timepoint identifier)
-    region_groups = {}
-
-    # Process each unique region key
-    for region_key in sorted(all_region_keys):
-        # Find corresponding files for all timepoints
-        file_sequence = []
-        for tp in timepoints:
-            expected_path = region_key.replace("TIMEPOINT", tp)
-            matching_file = None
-            for candidate in all_roi_files.get(tp, []):
-                if str(candidate) == expected_path:
-                    matching_file = candidate
-                    break
-            if matching_file:
-                file_sequence.append(matching_file)
-            else:
-                # Missing timepoint - still track what we have
-                file_sequence.append(None)
-
-        # Only include if we have files for multiple timepoints
-        valid_files = [f for f in file_sequence if f is not None]
-        if len(valid_files) >= 2:
-            region_groups[region_key] = file_sequence
-
-    return region_groups
+    all_region_keys = _region_keys_from_roi_files(all_roi_files, timepoints)
+    return _build_region_groups(all_region_keys, timepoints, all_roi_files)
 
 
 def track_rois(
