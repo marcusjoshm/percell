@@ -26,17 +26,23 @@ class AdvancedWorkflowStage(StageBase):
     def __init__(self, config, logger, stage_name: str = "advanced_workflow"):
         super().__init__(config, logger, stage_name)
 
-        # Ordered, user-visible steps (key, label)
+        # Get workflow configuration for dynamic tool names
+        from percell.domain.services import create_workflow_configuration_service
+        workflow_config = create_workflow_configuration_service(config)
+
+        # Ordered, user-visible steps (key, label) using configured tools
         self.available_steps: List[Tuple[str, str]] = [
             ("data_selection", "Data selection"),
-            ("segmentation", "Cell segmentation"),
+            (workflow_config.get_segmentation_stage_name(),
+             workflow_config.get_segmentation_display_name()),
             ("track_rois", "Track ROIs"),
             ("filter_edge_rois", "Filter Edge ROIs"),
             ("resize_rois", "Resize ROIs"),
             ("duplicate_rois", "Duplicate ROIs for multi-channel analysis"),
             ("extract_cells", "Extract Cells"),
             ("group_cells", "Group Cells"),
-            ("threshold_cells", "Threshold Cells"),
+            (workflow_config.get_thresholding_stage_name(),
+             workflow_config.get_thresholding_display_name()),
             ("measure_roi_area", "Measure ROI Area"),
             ("analyze_masks", "Analyze Masks"),
             ("cleanup", "Clean-up"),
@@ -108,11 +114,15 @@ class AdvancedWorkflowStage(StageBase):
 
     def _execute_step(self, step_key: str, registry, **kwargs) -> bool:
         """Execute a single higher-level step by delegating to a stage or module."""
+        # Get workflow configuration for dynamic mappings
+        from percell.domain.services import create_workflow_configuration_service
+        workflow_config = create_workflow_configuration_service(self.config)
+
         # Dispatch table mapping step keys to handler methods
         step_handlers = {
             "data_selection": self._step_data_selection,
-            "segmentation": self._step_segmentation,
-            "threshold_cells": self._step_threshold_cells,
+            workflow_config.get_segmentation_stage_name(): self._step_segmentation,
+            workflow_config.get_thresholding_stage_name(): self._step_threshold_cells,
             "measure_roi_area": self._step_measure_roi_area,
             "analyze_masks": self._step_analyze_masks,
             "cleanup": self._step_cleanup,
@@ -143,11 +153,19 @@ class AdvancedWorkflowStage(StageBase):
         return self._execute_stage(registry, 'data_selection', 'DataSelectionStage', **kwargs)
 
     def _step_segmentation(self, registry, **kwargs) -> bool:
-        return self._execute_stage(registry, 'segmentation', 'SegmentationStage', **kwargs)
+        # Get configured segmentation stage
+        from percell.domain.services import create_workflow_configuration_service
+        workflow_config = create_workflow_configuration_service(self.config)
+        stage_name = workflow_config.get_segmentation_stage_name()
+        return self._execute_stage(registry, stage_name, 'SegmentationStage', **kwargs)
 
     def _step_threshold_cells(self, registry, **kwargs) -> bool:
+        # Get configured thresholding stage
+        from percell.domain.services import create_workflow_configuration_service
+        workflow_config = create_workflow_configuration_service(self.config)
+        stage_name = workflow_config.get_thresholding_stage_name()
         return self._execute_stage(
-            registry, 'threshold_grouped_cells', 'ThresholdGroupedCellsStage', **kwargs
+            registry, stage_name, 'ThresholdGroupedCellsStage', **kwargs
         )
 
     def _step_measure_roi_area(self, registry, **kwargs) -> bool:

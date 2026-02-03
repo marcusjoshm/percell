@@ -94,6 +94,7 @@ class PathConfig:
             "measure_roi_area_macro": root / "macros" / "measure_roi_area.ijm",
             "resize_rois_macro": root / "macros" / "resize_rois.ijm",
             "threshold_grouped_cells_macro": root / "macros" / "threshold_grouped_cells.ijm",
+            "full_auto_threshold_grouped_cells_macro": root / "macros" / "full_auto_threshold_grouped_cells.ijm",
             "art_dir": root / "art",
             "percell_terminal_window_image": root / "art" / "percell_terminal_window.png",
             "setup_dir": root / "setup",

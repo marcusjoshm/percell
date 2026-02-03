@@ -1207,3 +1207,43 @@ def threshold_grouped_cells(
             pass
 
 
+def full_auto_threshold_grouped_cells(
+    input_dir: str | Path,
+    output_dir: str | Path,
+    imagej_path: str | Path,
+    macro_path: str | Path,
+    channels: Optional[List[str]] = None,
+    regions: Optional[List[str]] = None,
+    auto_close: bool = True,
+    *,
+    imagej: Optional[ImageJIntegrationPort] = None,
+) -> bool:
+    """Automatically threshold grouped cells without user interaction."""
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    macro_flag = create_threshold_macro_with_parameters(
+        macro_template_file=macro_path,
+        input_dir=input_dir,
+        output_dir=output_dir,
+        channels=channels,
+        regions=regions,
+        auto_close=auto_close,
+    )
+    if not macro_flag:
+        return False
+    macro_file, flag_file = macro_flag
+    try:
+        # Run in batch mode (macro has setBatchMode(true))
+        # Use regular run_imagej_macro which works for batch processing
+        ok = run_imagej_macro(imagej_path, macro_file, auto_close=True, imagej=imagej)
+        return ok
+    finally:
+        try:
+            Path(macro_file).unlink(missing_ok=True)
+        except Exception:
+            pass
+        try:
+            Path(flag_file).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+

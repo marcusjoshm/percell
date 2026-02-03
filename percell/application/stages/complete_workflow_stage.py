@@ -31,14 +31,13 @@ class CompleteWorkflowStage(StageBase):
     
     def __init__(self, config, logger, stage_name="complete_workflow"):
         super().__init__(config, logger, stage_name)
-        self.stages = [
-            ('data_selection', 'Data Selection'),
-            ('segmentation', 'Single-cell Segmentation'),
-            ('process_single_cell', 'Process Single-cell Data'),
-            ('threshold_grouped_cells', 'Threshold Grouped Cells'),
-            ('measure_roi_area', 'Measure ROI Areas'),
-            ('analysis', 'Analysis')
-        ]
+
+        # Use WorkflowConfigurationService to get workflow stages
+        from percell.domain.services import create_workflow_configuration_service
+        workflow_config = create_workflow_configuration_service(config)
+
+        # Get configured workflow stages
+        self.stages = workflow_config.get_complete_workflow_stages()
         self._orchestration = WorkflowOrchestrationService()
     
     def validate_inputs(self, **kwargs) -> bool:
@@ -67,9 +66,10 @@ class CompleteWorkflowStage(StageBase):
             # Build workflow steps subset in canonical order based on available stages
             stage_to_step = {
                 'data_selection': WorkflowStep.DATA_SELECTION,
-                'segmentation': WorkflowStep.SEGMENTATION,
-                'process_single_cell': WorkflowStep.PROCESSING,
-                'threshold_grouped_cells': WorkflowStep.THRESHOLDING,
+                'cellpose_segmentation': WorkflowStep.SEGMENTATION,
+                'process_cellpose_single_cell': WorkflowStep.PROCESSING,
+                'semi_auto_threshold_grouped_cells': WorkflowStep.THRESHOLDING,
+                'full_auto_threshold_grouped_cells': WorkflowStep.THRESHOLDING,
                 'analysis': WorkflowStep.ANALYSIS,
             }
             requested_steps: List[WorkflowStep] = [
@@ -122,8 +122,11 @@ class CompleteWorkflowStage(StageBase):
         stage_args = base_args.copy()
         
         # Clear all stage flags and set only the current one
-        stage_flags = ['data_selection', 'segmentation', 'process_single_cell',
-                      'threshold_grouped_cells', 'measure_roi_area', 'analysis']
+        stage_flags = ['data_selection', 'cellpose_segmentation',
+                      'process_cellpose_single_cell',
+                      'semi_auto_threshold_grouped_cells',
+                      'full_auto_threshold_grouped_cells',
+                      'measure_roi_area', 'analysis']
         
         for flag in stage_flags:
             stage_args[flag] = (flag == stage_name)
