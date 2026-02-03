@@ -1450,6 +1450,80 @@ def _generate_tracking_report(
     print("\n" + report_text)
 
 
+def _backup_original_roi_if_needed(
+    original_file: Path,
+    backup_dir: Path,
+    replace_originals: bool,
+) -> None:
+    """Create a backup of the original ROI file when replacing originals."""
+    if not replace_originals:
+        return
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup_file = backup_dir / original_file.name
+    if not backup_file.exists():
+        try:
+            shutil.copy2(original_file, backup_file)
+            print(f"  Backed up: {original_file.name}")
+        except Exception as e:
+            print(f"  Warning: Failed to backup {original_file.name}: {e}")
+
+
+def _roi_indices_for_timepoint(
+    all_tracks_ordered: list,
+    tp_idx: int,
+) -> List[Tuple[int, int]]:
+    """Return (track_id, roi_idx) for each track at this timepoint, in track order."""
+    roi_indices_to_keep: List[Tuple[int, int]] = []
+    for track in all_tracks_ordered:
+        for frame_idx, roi_idx, _, _ in track['timepoint_data']:
+            if frame_idx == tp_idx:
+                roi_indices_to_keep.append((track['track_id'], roi_idx))
+                break
+    return roi_indices_to_keep
+
+
+def _ordered_roi_bytes_for_indices(
+    tp_data: dict,
+    roi_indices_to_keep: List[Tuple[int, int]],
+) -> List[bytes]:
+    """Extract ROI bytes in track order from timepoint data."""
+    roi_bytes_ordered: List[bytes] = []
+    for _track_id, roi_idx in roi_indices_to_keep:
+        roi_name = tp_data['names'][roi_idx]
+        roi_byte_data = tp_data['roi_bytes'].get(roi_name)
+        if roi_byte_data:
+            roi_bytes_ordered.append(roi_byte_data)
+    return roi_bytes_ordered
+
+
+def _save_timepoint_rois_and_report(
+    tp_data: dict,
+    roi_bytes_ordered: List[bytes],
+    backup_dir: Path,
+    replace_originals: bool,
+) -> bool:
+    """Save reordered ROI set and print result. Returns True if save succeeded."""
+    original_file = tp_data['file']
+    output_file = original_file if replace_originals else backup_dir / original_file.name
+    if _save_zip_from_bytes(roi_bytes_ordered, output_file):
+        print(f"  Reordered: {original_file.name} ({len(roi_bytes_ordered)} ROIs)")
+        return True
+    print(f"  Warning: Failed to save {output_file.name}")
+    return False
+
+
+def _print_track_save_summary(
+    complete_tracks: list,
+    incomplete_tracks: list,
+    timepoint_data: list,
+) -> None:
+    """Print summary of saved complete and incomplete tracks."""
+    if complete_tracks:
+        print(f"  → {len(complete_tracks)} complete tracks (present in all {len(timepoint_data)} timepoints)")
+    if incomplete_tracks:
+        print(f"  → {len(incomplete_tracks)} incomplete tracks (partial timepoints)")
+
+
 def _save_tracked_rois(
     tracking_result: dict,
     backup_dir: Path,
@@ -1471,71 +1545,26 @@ def _save_tracked_rois(
     if not timepoint_data or not tracks:
         return False
 
-    success = False
-
-    # Separate complete and incomplete tracks
-    complete_tracks = [t for t in tracks if t['complete']]
-    incomplete_tracks = [t for t in tracks if not t['complete']]
-
-    # Sort each group by track_id
-    complete_tracks.sort(key=lambda t: t['track_id'])
-    incomplete_tracks.sort(key=lambda t: t['track_id'])
-
-    # Combine: complete tracks first, then incomplete tracks
+    complete_tracks = sorted([t for t in tracks if t['complete']], key=lambda t: t['track_id'])
+    incomplete_tracks = sorted([t for t in tracks if not t['complete']], key=lambda t: t['track_id'])
     all_tracks_ordered = complete_tracks + incomplete_tracks
 
     if not all_tracks_ordered:
-        print(f"Warning: No tracks found")
+        print("Warning: No tracks found")
         return False
 
-    # For each timepoint, reorder and save ROIs
+    success = False
     for tp_idx, tp_data in enumerate(timepoint_data):
         original_file = tp_data['file']
+        _backup_original_roi_if_needed(original_file, backup_dir, replace_originals)
 
-        # Create backup if it doesn't exist
-        if replace_originals:
-            backup_dir.mkdir(parents=True, exist_ok=True)
-            backup_file = backup_dir / original_file.name
-            if not backup_file.exists():
-                import shutil
-                try:
-                    shutil.copy2(original_file, backup_file)
-                    print(f"  Backed up: {original_file.name}")
-                except Exception as e:
-                    print(f"  Warning: Failed to backup {original_file.name}: {e}")
+        roi_indices_to_keep = _roi_indices_for_timepoint(all_tracks_ordered, tp_idx)
+        roi_bytes_ordered = _ordered_roi_bytes_for_indices(tp_data, roi_indices_to_keep)
 
-        # Find which ROIs belong to each track at this timepoint
-        roi_indices_to_keep = []
-        for track in all_tracks_ordered:
-            # Find this track's ROI index at this timepoint (if it exists)
-            for frame_idx, roi_idx, _, _ in track['timepoint_data']:
-                if frame_idx == tp_idx:
-                    roi_indices_to_keep.append((track['track_id'], roi_idx))
-                    break
-            # Note: if track doesn't exist at this timepoint, nothing is added
-
-        # Extract ROI bytes in track order (maintaining complete tracks first)
-        roi_bytes_ordered = []
-        for track_id, roi_idx in roi_indices_to_keep:
-            roi_name = tp_data['names'][roi_idx]
-            roi_byte_data = tp_data['roi_bytes'].get(roi_name)
-            if roi_byte_data:
-                roi_bytes_ordered.append(roi_byte_data)
-
-        # Save the reordered ROI set (replace original or save to new location)
-        output_file = original_file if replace_originals else backup_dir / original_file.name
-        if _save_zip_from_bytes(roi_bytes_ordered, output_file):
+        if _save_timepoint_rois_and_report(tp_data, roi_bytes_ordered, backup_dir, replace_originals):
             success = True
-            print(f"  Reordered: {original_file.name} ({len(roi_bytes_ordered)} ROIs)")
-        else:
-            print(f"  Warning: Failed to save {output_file.name}")
 
-    # Report what was saved
-    if complete_tracks:
-        print(f"  → {len(complete_tracks)} complete tracks (present in all {len(timepoint_data)} timepoints)")
-    if incomplete_tracks:
-        print(f"  → {len(incomplete_tracks)} incomplete tracks (partial timepoints)")
-
+    _print_track_save_summary(complete_tracks, incomplete_tracks, timepoint_data)
     return success
 
 
