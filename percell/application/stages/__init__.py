@@ -22,6 +22,7 @@ from percell.application.stages.data_selection_stage import DataSelectionStage
 from percell.application.stages.segmentation_stage import SegmentationStage
 from percell.application.stages.process_single_cell_stage import ProcessSingleCellDataStage
 from percell.application.stages.threshold_grouped_cells_stage import ThresholdGroupedCellsStage
+from percell.application.stages.full_auto_threshold_grouped_cells_stage import FullAutoThresholdGroupedCellsStage
 from percell.application.stages.measure_roi_area_stage import MeasureROIAreaStage
 from percell.application.stages.analysis_stage import AnalysisStage
 from percell.application.stages.cleanup_stage import CleanupStage
@@ -32,6 +33,7 @@ __all__ = [
     "SegmentationStage",
     "ProcessSingleCellDataStage",
     "ThresholdGroupedCellsStage",
+    "FullAutoThresholdGroupedCellsStage",
     "MeasureROIAreaStage",
     "AnalysisStage",
     "CleanupStage",

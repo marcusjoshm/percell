@@ -15,6 +15,7 @@ def register_all_stages():
         SegmentationStage,
         ProcessSingleCellDataStage,
         ThresholdGroupedCellsStage,
+        FullAutoThresholdGroupedCellsStage,
         MeasureROIAreaStage,
         AnalysisStage,
         CleanupStage,
@@ -22,7 +23,9 @@ def register_all_stages():
     )
     # Import advanced workflow stage (interactive custom sequence)
     try:
-        from percell.application.advanced_workflow import AdvancedWorkflowStage  # type: ignore
+        from percell.application.advanced_workflow import (
+            AdvancedWorkflowStage  # type: ignore
+        )
     except Exception:
         AdvancedWorkflowStage = None  # type: ignore
 
@@ -35,9 +38,16 @@ def register_all_stages():
 
     # Core processing stages (in execution order)
     register_stage('data_selection', order=2)(DataSelectionStage)
-    register_stage('segmentation', order=3)(SegmentationStage)
-    register_stage('process_single_cell', order=4)(ProcessSingleCellDataStage)
-    register_stage('threshold_grouped_cells', order=5)(ThresholdGroupedCellsStage)
-    register_stage('measure_roi_area', order=6)(MeasureROIAreaStage)
-    register_stage('analysis', order=7)(AnalysisStage)
-    register_stage('cleanup', order=8)(CleanupStage)
+    register_stage('cellpose_segmentation', order=3)(SegmentationStage)
+    register_stage('process_cellpose_single_cell', order=4)(
+        ProcessSingleCellDataStage
+    )
+    register_stage('semi_auto_threshold_grouped_cells', order=5)(
+        ThresholdGroupedCellsStage
+    )
+    register_stage('full_auto_threshold_grouped_cells', order=6)(
+        FullAutoThresholdGroupedCellsStage
+    )
+    register_stage('measure_roi_area', order=7)(MeasureROIAreaStage)
+    register_stage('analysis', order=8)(AnalysisStage)
+    register_stage('cleanup', order=9)(CleanupStage)

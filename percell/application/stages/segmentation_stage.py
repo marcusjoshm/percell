@@ -29,7 +29,7 @@ class SegmentationStage(StageBase):
     Includes: bin_images_for_segmentation, interactive_segmentation
     """
     
-    def __init__(self, config, logger, stage_name="segmentation"):
+    def __init__(self, config, logger, stage_name="cellpose_segmentation"):
         super().__init__(config, logger, stage_name)
         
     def validate_inputs(self, **kwargs) -> bool:

@@ -29,7 +29,7 @@ class ProcessSingleCellDataStage(StageBase):
     Includes: roi_tracking, resize_rois, duplicate_rois_for_analysis_channels, extract_cells, group_cells
     """
     
-    def __init__(self, config, logger, stage_name="process_single_cell"):
+    def __init__(self, config, logger, stage_name="process_cellpose_single_cell"):
         super().__init__(config, logger, stage_name)
         
     def validate_inputs(self, **kwargs) -> bool:

@@ -30,9 +30,10 @@ def _any_stage_selected(args: argparse.Namespace) -> bool:
     """
     stage_names = (
         "data_selection",
-        "segmentation",
-        "process_single_cell",
-        "threshold_grouped_cells",
+        "cellpose_segmentation",
+        "process_cellpose_single_cell",
+        "semi_auto_threshold_grouped_cells",
+        "full_auto_threshold_grouped_cells",
         "measure_roi_area",
         "analysis",
         "cleanup",

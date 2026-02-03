@@ -336,6 +336,135 @@ class NapariViewerAction(VisualizationAction):
         return args  # Return to main menu
 
 
+class WorkflowConfigAction(MenuAction):
+    """Action for configuring workflow tools (segmentation, thresholding, etc.)."""
+
+    def execute(
+        self, ui: UserInterfacePort, args: argparse.Namespace
+    ) -> Optional[argparse.Namespace]:
+        try:
+            from percell.application.paths_api import get_path
+            from percell.domain.services.configuration_service import (
+                create_configuration_service
+            )
+            from percell.domain.services import (
+                create_workflow_configuration_service
+            )
+
+            try:
+                config_path = str(get_path("config_default"))
+            except Exception:
+                config_path = _DEFAULT_CONFIG_PATH
+
+            config = create_configuration_service(
+                config_path, create_if_missing=True
+            )
+            workflow_config = create_workflow_configuration_service(config)
+
+            # Display workflow configuration menu
+            show_header(ui)
+            ui.info("")
+            ui.info(colorize("WORKFLOW CONFIGURATION:", Colors.bold))
+            ui.info("")
+            ui.info("Configure which tools to use for workflow steps:")
+            ui.info("")
+
+            # Get current configuration summary
+            summary = workflow_config.get_workflow_summary()
+
+            # Segmentation tool selection
+            ui.info(
+                f"1. Segmentation: "
+                f"{colorize(summary['segmentation'], Colors.yellow)}"
+            )
+            seg_tools = workflow_config.get_available_segmentation_tools()
+            ui.info(f"   Available: {', '.join(seg_tools.keys())}")
+            ui.info("")
+
+            # Processing tool selection
+            ui.info(
+                f"2. Processing: "
+                f"{colorize(summary['processing'], Colors.yellow)}"
+            )
+            proc_tools = workflow_config.get_available_processing_tools()
+            ui.info(f"   Available: {', '.join(proc_tools.keys())}")
+            ui.info("")
+
+            # Thresholding tool selection
+            ui.info(
+                f"3. Thresholding: "
+                f"{colorize(summary['thresholding'], Colors.yellow)}"
+            )
+            thresh_tools = workflow_config.get_available_thresholding_tools()
+            ui.info(f"   Available: {', '.join(thresh_tools.keys())}")
+            ui.info("")
+
+            ui.info(f"4. {_BACK_TO_MAIN_MENU}")
+            ui.info("")
+
+            choice = ui.prompt("Select an option (1-4): ").strip()
+
+            if choice == "1":
+                ui.info("Segmentation tool configuration:")
+                for idx, (key, tool) in enumerate(seg_tools.items(), 1):
+                    ui.info(f"{idx}. {tool.display_name} - {tool.description}")
+                seg_choice = ui.prompt(
+                    f"Select (1-{len(seg_tools)}): "
+                ).strip()
+                try:
+                    idx = int(seg_choice) - 1
+                    tool_key = list(seg_tools.keys())[idx]
+                    workflow_config.set_segmentation_tool(tool_key)
+                    ui.info(
+                        colorize(f"✓ Set to: {tool_key}", Colors.green)
+                    )
+                except (ValueError, IndexError):
+                    ui.error("Invalid selection")
+                ui.prompt(_CONTINUE_PROMPT)
+
+            elif choice == "2":
+                ui.info("Processing tool configuration:")
+                for idx, (key, tool) in enumerate(proc_tools.items(), 1):
+                    ui.info(f"{idx}. {tool.display_name} - {tool.description}")
+                proc_choice = ui.prompt(
+                    f"Select (1-{len(proc_tools)}): "
+                ).strip()
+                try:
+                    idx = int(proc_choice) - 1
+                    tool_key = list(proc_tools.keys())[idx]
+                    workflow_config.set_processing_tool(tool_key)
+                    ui.info(
+                        colorize(f"✓ Set to: {tool_key}", Colors.green)
+                    )
+                except (ValueError, IndexError):
+                    ui.error("Invalid selection")
+                ui.prompt(_CONTINUE_PROMPT)
+
+            elif choice == "3":
+                ui.info("Thresholding tool configuration:")
+                for idx, (key, tool) in enumerate(thresh_tools.items(), 1):
+                    ui.info(f"{idx}. {tool.display_name} - {tool.description}")
+                thresh_choice = ui.prompt(
+                    f"Select (1-{len(thresh_tools)}): "
+                ).strip()
+                try:
+                    idx = int(thresh_choice) - 1
+                    tool_key = list(thresh_tools.keys())[idx]
+                    workflow_config.set_thresholding_tool(tool_key)
+                    ui.info(
+                        colorize(f"✓ Set to: {tool_key}", Colors.green)
+                    )
+                except (ValueError, IndexError):
+                    ui.error("Invalid selection")
+                ui.prompt(_CONTINUE_PROMPT)
+
+        except Exception as e:
+            ui.error(f"Error configuring workflow: {e}")
+            ui.prompt(_CONTINUE_PROMPT)
+
+        return args  # Return to main menu
+
+
 class MainMenu(Menu):
     """Special main menu class with welcome message."""
 
@@ -446,9 +575,11 @@ class MenuFactory:
             MenuItem("2", "Data Selection", "Select parameters (conditions, timepoints, channels, etc.)",
                     multiline_description="for processing and analysis",
                     action=lambda ui, args: SetAttributeAction({"data_selection": True, "return_to_main": True}).execute(ui, args)),
-            MenuItem("3", "Current Configuration", "View current analysis configuration",
+            MenuItem("3", "Workflow Configuration", "Configure workflow tools (segmentation, thresholding, etc.)",
+                    action=lambda ui, args: WorkflowConfigAction().execute(ui, args)),
+            MenuItem("4", "Current Configuration", "View current analysis configuration",
                     action=lambda ui, args: ConfigurationDisplayAction().execute(ui, args)),
-            MenuItem("4", _BACK_TO_MAIN_MENU, _RETURN_TO_MAIN_MENU_DESCRIPTION, Colors.red,
+            MenuItem("5", _BACK_TO_MAIN_MENU, _RETURN_TO_MAIN_MENU_DESCRIPTION, Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Configuration Menu", items, ui)
@@ -459,12 +590,6 @@ class MenuFactory:
         items = [
             MenuItem("1", "Default Workflow", "Current default analysis workflow",
                     action=lambda ui, args: SetAttributeAction({
-                        "data_selection": True,
-                        "segmentation": True,
-                        "process_single_cell": True,
-                        "threshold_grouped_cells": True,
-                        "measure_roi_area": True,
-                        "analysis": True,
                         "complete_workflow": True
                     }).execute(ui, args)),
             MenuItem("2", "Advanced Workflow Builder", "Build custom analysis workflow",
@@ -479,7 +604,7 @@ class MenuFactory:
         """Create the segmentation submenu."""
         items = [
             MenuItem("1", "Cellpose", "Single-cell segmentation using Cellpose SAM GUI",
-                    action=lambda ui, args: SetAttributeAction({"segmentation": True}).execute(ui, args)),
+                    action=lambda ui, args: SetAttributeAction({"cellpose_segmentation": True}).execute(ui, args)),
             MenuItem("2", _BACK_TO_MAIN_MENU, _RETURN_TO_MAIN_MENU_DESCRIPTION, Colors.red,
                     action=lambda ui, args: args),
         ]
@@ -490,7 +615,7 @@ class MenuFactory:
         """Create the processing submenu."""
         items = [
             MenuItem("1", "Single-Cell Data Processing", "Tracking, resizing, extraction, grouping",
-                    action=lambda ui, args: SetAttributeAction({"process_single_cell": True}).execute(ui, args)),
+                    action=lambda ui, args: SetAttributeAction({"process_cellpose_single_cell": True}).execute(ui, args)),
             MenuItem("2", _BACK_TO_MAIN_MENU, _RETURN_TO_MAIN_MENU_DESCRIPTION, Colors.red,
                     action=lambda ui, args: args),
         ]
@@ -523,13 +648,28 @@ class MenuFactory:
     def create_analysis_menu(ui: UserInterfacePort) -> Menu:
         """Create the analysis submenu."""
         items = [
-            MenuItem("1", "Threshold Grouped Cells", "Interactive Otsu autothresholding using ImageJ",
-                    action=lambda ui, args: SetAttributeAction({"threshold_grouped_cells": True}).execute(ui, args)),
-            MenuItem("2", "Measure Cell Area", "Measure area of cells in ROIs using ImageJ",
-                    action=lambda ui, args: SetAttributeAction({"measure_roi_area": True}).execute(ui, args)),
-            MenuItem("3", "Particle Analysis", "Analyze particles in segmented images using ImageJ",
-                    action=lambda ui, args: SetAttributeAction({"analysis": True}).execute(ui, args)),
-            MenuItem("4", _BACK_TO_MAIN_MENU, _RETURN_TO_MAIN_MENU_DESCRIPTION, Colors.red,
+            MenuItem("1", "Threshold Grouped Cells (Semi-Auto)",
+                    "Interactive Otsu autothresholding using ImageJ",
+                    action=lambda ui, args: SetAttributeAction(
+                        {"semi_auto_threshold_grouped_cells": True}
+                    ).execute(ui, args)),
+            MenuItem("2", "Threshold Grouped Cells (Full-Auto)",
+                    "Automatic Otsu thresholding without user interaction",
+                    action=lambda ui, args: SetAttributeAction(
+                        {"full_auto_threshold_grouped_cells": True}
+                    ).execute(ui, args)),
+            MenuItem("3", "Measure Cell Area",
+                    "Measure area of cells in ROIs using ImageJ",
+                    action=lambda ui, args: SetAttributeAction(
+                        {"measure_roi_area": True}
+                    ).execute(ui, args)),
+            MenuItem("4", "Particle Analysis",
+                    "Analyze particles in segmented images using ImageJ",
+                    action=lambda ui, args: SetAttributeAction(
+                        {"analysis": True}
+                    ).execute(ui, args)),
+            MenuItem("5", _BACK_TO_MAIN_MENU,
+                    _RETURN_TO_MAIN_MENU_DESCRIPTION, Colors.red,
                     action=lambda ui, args: args),
         ]
         return Menu("Analysis Menu", items, ui)

@@ -128,9 +128,14 @@ def main():
                 
                 # If still no stages selected and not interactive, continue loop
                 if not any([
-                    args.data_selection, args.segmentation, args.process_single_cell,
-                    args.threshold_grouped_cells, args.measure_roi_area, args.analysis,
-                    args.cleanup, args.complete_workflow, getattr(args, 'advanced_workflow', False)
+                    args.data_selection,
+                    getattr(args, 'cellpose_segmentation', False),
+                    getattr(args, 'process_cellpose_single_cell', False),
+                    getattr(args, 'semi_auto_threshold_grouped_cells', False),
+                    getattr(args, 'full_auto_threshold_grouped_cells', False),
+                    args.measure_roi_area, args.analysis,
+                    args.cleanup, args.complete_workflow,
+                    getattr(args, 'advanced_workflow', False)
                 ]):
                     continue
                 
@@ -148,9 +153,16 @@ def main():
                     continue  # Return to menu
                 
                 # Check if any stages are selected
-                stages_selected = any([args.data_selection, args.segmentation, args.process_single_cell,
-                                     args.threshold_grouped_cells, args.measure_roi_area, args.analysis,
-                                     args.cleanup, args.complete_workflow, getattr(args, 'advanced_workflow', False)])
+                stages_selected = any([
+                    args.data_selection,
+                    getattr(args, 'cellpose_segmentation', False),
+                    getattr(args, 'process_cellpose_single_cell', False),
+                    getattr(args, 'semi_auto_threshold_grouped_cells', False),
+                    getattr(args, 'full_auto_threshold_grouped_cells', False),
+                    args.measure_roi_area, args.analysis,
+                    args.cleanup, args.complete_workflow,
+                    getattr(args, 'advanced_workflow', False)
+                ])
                 
                 if not stages_selected:
                     # No stages selected, just return to menu (e.g., after setting directories)
@@ -231,9 +243,14 @@ def main():
 
                 # Reset workflow flags for next menu interaction
                 args.data_selection = False
-                args.segmentation = False
-                args.process_single_cell = False
-                args.threshold_grouped_cells = False
+                if hasattr(args, 'cellpose_segmentation'):
+                    delattr(args, 'cellpose_segmentation')
+                if hasattr(args, 'process_cellpose_single_cell'):
+                    delattr(args, 'process_cellpose_single_cell')
+                if hasattr(args, 'semi_auto_threshold_grouped_cells'):
+                    delattr(args, 'semi_auto_threshold_grouped_cells')
+                if hasattr(args, 'full_auto_threshold_grouped_cells'):
+                    delattr(args, 'full_auto_threshold_grouped_cells')
                 args.measure_roi_area = False
                 args.analysis = False
                 args.cleanup = False

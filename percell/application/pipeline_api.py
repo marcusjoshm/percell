@@ -56,12 +56,14 @@ class Pipeline:
             return stages
         if self.args.data_selection:
             stages.append("data_selection")
-        if self.args.segmentation:
-            stages.append("segmentation")
-        if self.args.process_single_cell:
-            stages.append("process_single_cell")
-        if self.args.threshold_grouped_cells:
-            stages.append("threshold_grouped_cells")
+        if getattr(self.args, "cellpose_segmentation", False):
+            stages.append("cellpose_segmentation")
+        if getattr(self.args, "process_cellpose_single_cell", False):
+            stages.append("process_cellpose_single_cell")
+        if getattr(self.args, "semi_auto_threshold_grouped_cells", False):
+            stages.append("semi_auto_threshold_grouped_cells")
+        if getattr(self.args, "full_auto_threshold_grouped_cells", False):
+            stages.append("full_auto_threshold_grouped_cells")
         if self.args.measure_roi_area:
             stages.append("measure_roi_area")
         if self.args.analysis:

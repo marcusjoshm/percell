@@ -9,6 +9,10 @@ from .intensity_analysis_service import IntensityAnalysisService
 from .workflow_orchestration_service import WorkflowOrchestrationService
 from .cell_segmentation_service import CellSegmentationService
 from .analysis_aggregation_service import AnalysisAggregationService
+from .workflow_configuration_service import (
+    WorkflowConfigurationService,
+    create_workflow_configuration_service,
+)
 
 __all__ = [
     "FileNamingService",
@@ -17,6 +21,8 @@ __all__ = [
     "WorkflowOrchestrationService",
     "CellSegmentationService",
     "AnalysisAggregationService",
+    "WorkflowConfigurationService",
+    "create_workflow_configuration_service",
 ]
 
 
