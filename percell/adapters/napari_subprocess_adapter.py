@@ -66,8 +66,8 @@ class NapariSubprocessAdapter(NapariIntegrationPort):
             logger.info("Launching Napari viewer")
 
             # Allow interactive session to inherit terminal IO
-            result = subprocess.run(cmd, stdin=sys.stdin, stdout=sys.stdout,
-                                  stderr=sys.stderr, cwd=cwd)
+            subprocess.run(cmd, stdin=sys.stdin, stdout=sys.stdout,
+                          stderr=sys.stderr, cwd=cwd)
             logger.info("Napari viewer closed")
 
         except Exception as exc:
