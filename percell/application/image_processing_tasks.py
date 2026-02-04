@@ -495,7 +495,9 @@ def _load_cell_images(
     for f in cell_files:
         try:
             img = imgproc.read_image(f)
-            metric = float(np.mean(img))
+            # Sum of all pixel intensities = true AUC
+            # (factors in both intensity and cell size)
+            metric = float(np.sum(img))
             images.append((f, img, metric))
             if reference_metadata is None:
                 reference_metadata = _extract_tiff_metadata(f)
