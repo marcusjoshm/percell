@@ -14,6 +14,7 @@ def register_all_stages():
         DataSelectionStage,
         SegmentationStage,
         ProcessSingleCellDataStage,
+        AUCGroupCellsStage,
         ThresholdGroupedCellsStage,
         FullAutoThresholdGroupedCellsStage,
         MeasureROIAreaStage,
@@ -42,12 +43,13 @@ def register_all_stages():
     register_stage('process_cellpose_single_cell', order=4)(
         ProcessSingleCellDataStage
     )
-    register_stage('semi_auto_threshold_grouped_cells', order=5)(
+    register_stage('auc_group_cells', order=5)(AUCGroupCellsStage)
+    register_stage('semi_auto_threshold_grouped_cells', order=6)(
         ThresholdGroupedCellsStage
     )
-    register_stage('full_auto_threshold_grouped_cells', order=6)(
+    register_stage('full_auto_threshold_grouped_cells', order=7)(
         FullAutoThresholdGroupedCellsStage
     )
-    register_stage('measure_roi_area', order=7)(MeasureROIAreaStage)
-    register_stage('analysis', order=8)(AnalysisStage)
-    register_stage('cleanup', order=9)(CleanupStage)
+    register_stage('measure_roi_area', order=8)(MeasureROIAreaStage)
+    register_stage('analysis', order=9)(AnalysisStage)
+    register_stage('cleanup', order=10)(CleanupStage)

@@ -390,19 +390,28 @@ class WorkflowConfigAction(MenuAction):
             ui.info(f"   Available: {', '.join(proc_tools.keys())}")
             ui.info("")
 
+            # Grouping tool selection
+            ui.info(
+                f"3. Grouping: "
+                f"{colorize(summary['grouping'], Colors.yellow)}"
+            )
+            group_tools = workflow_config.get_available_grouping_tools()
+            ui.info(f"   Available: {', '.join(group_tools.keys())}")
+            ui.info("")
+
             # Thresholding tool selection
             ui.info(
-                f"3. Thresholding: "
+                f"4. Thresholding: "
                 f"{colorize(summary['thresholding'], Colors.yellow)}"
             )
             thresh_tools = workflow_config.get_available_thresholding_tools()
             ui.info(f"   Available: {', '.join(thresh_tools.keys())}")
             ui.info("")
 
-            ui.info(f"4. {_BACK_TO_MAIN_MENU}")
+            ui.info(f"5. {_BACK_TO_MAIN_MENU}")
             ui.info("")
 
-            choice = ui.prompt("Select an option (1-4): ").strip()
+            choice = ui.prompt("Select an option (1-5): ").strip()
 
             if choice == "1":
                 ui.info("Segmentation tool configuration:")
@@ -441,6 +450,24 @@ class WorkflowConfigAction(MenuAction):
                 ui.prompt(_CONTINUE_PROMPT)
 
             elif choice == "3":
+                ui.info("Grouping tool configuration:")
+                for idx, (key, tool) in enumerate(group_tools.items(), 1):
+                    ui.info(f"{idx}. {tool.display_name} - {tool.description}")
+                group_choice = ui.prompt(
+                    f"Select (1-{len(group_tools)}): "
+                ).strip()
+                try:
+                    idx = int(group_choice) - 1
+                    tool_key = list(group_tools.keys())[idx]
+                    workflow_config.set_grouping_tool(tool_key)
+                    ui.info(
+                        colorize(f"✓ Set to: {tool_key}", Colors.green)
+                    )
+                except (ValueError, IndexError):
+                    ui.error("Invalid selection")
+                ui.prompt(_CONTINUE_PROMPT)
+
+            elif choice == "4":
                 ui.info("Thresholding tool configuration:")
                 for idx, (key, tool) in enumerate(thresh_tools.items(), 1):
                     ui.info(f"{idx}. {tool.display_name} - {tool.description}")

@@ -24,9 +24,9 @@ from percell.application.stages_api import StageBase
 class ProcessSingleCellDataStage(StageBase):
     """
     Process Single-cell Data Stage
-    
-    Handles ROI tracking, resizing, duplication, cell extraction, and cell grouping.
-    Includes: roi_tracking, resize_rois, duplicate_rois_for_analysis_channels, extract_cells, group_cells
+
+    Handles ROI tracking, resizing, duplication, and cell extraction.
+    Includes: roi_tracking, filter_edge_rois, resize_rois, duplicate_rois_for_analysis_channels, extract_cells
     """
     
     def __init__(self, config, logger, stage_name="process_cellpose_single_cell"):
@@ -155,23 +155,7 @@ class ProcessSingleCellDataStage(StageBase):
                 self.logger.error("Failed to extract cells")
                 return False
             self.logger.info("Cells extracted successfully")
-            
-            # Step 6: Group cells (migrated to application helper)
-            self.logger.info("Grouping cells...")
-            from percell.application.image_processing_tasks import group_cells as _group_cells
-            ok_group = _group_cells(
-                cells_dir=f"{output_dir}/cells",
-                output_dir=f"{output_dir}/grouped_cells",
-                bins=int(kwargs.get('bins', 5)),
-                force_clusters=True,
-                channels=data_selection.get('analysis_channels'),
-                imgproc=kwargs.get('imgproc'),
-            )
-            if not ok_group:
-                self.logger.error("Failed to group cells")
-                return False
-            self.logger.info("Cells grouped successfully")
-            
+
             return True
             
         except Exception as e:

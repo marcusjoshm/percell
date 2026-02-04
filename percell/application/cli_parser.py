@@ -34,7 +34,8 @@ Examples:
     # Processing options
     parser.add_argument('--data-selection', action='store_true', help='Run data selection (conditions, regions, timepoints, channels)')
     parser.add_argument('--cellpose-segmentation', action='store_true', help='Run single-cell segmentation (bin images and launch Cellpose)')
-    parser.add_argument('--process-cellpose-single-cell', action='store_true', help='Run single-cell data processing (tracking, resizing, extraction, grouping)')
+    parser.add_argument('--process-cellpose-single-cell', action='store_true', help='Run single-cell data processing (tracking, resizing, extraction)')
+    parser.add_argument('--auc-group-cells', action='store_true', help='Run cell grouping by AUC intensity')
     parser.add_argument('--semi-auto-threshold-grouped-cells', action='store_true', help='Run threshold grouped cells (interactive ImageJ thresholding)')
     parser.add_argument('--full-auto-threshold-grouped-cells', action='store_true', help='Run threshold grouped cells (automatic Otsu thresholding)')
     parser.add_argument('--measure-roi-area', action='store_true', help='Run ROI area measurement (measure areas of ROIs in raw images)')

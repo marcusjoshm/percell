@@ -60,6 +60,14 @@ class WorkflowConfigurationService:
         ),
     }
 
+    GROUPING_TOOLS = {
+        'auc': WorkflowTool(
+            stage_name='auc_group_cells',
+            display_name='AUC Grouping',
+            description='Group cells by Area Under Curve (AUC) intensity'
+        ),
+    }
+
     def __init__(self, config: ConfigurationService):
         """
         Initialize the workflow configuration service.
@@ -78,6 +86,8 @@ class WorkflowConfigurationService:
             self.config.set('workflow.thresholding_tool', 'semi_auto')
         if not self.config.has('workflow.processing_tool'):
             self.config.set('workflow.processing_tool', 'cellpose')
+        if not self.config.has('workflow.grouping_tool'):
+            self.config.set('workflow.grouping_tool', 'auc')
         self.config.save()
 
     # Segmentation tool management
@@ -182,6 +192,40 @@ class WorkflowConfigurationService:
         tool_key = self.get_processing_tool()
         return self.PROCESSING_TOOLS[tool_key].display_name
 
+    # Grouping tool management
+
+    def get_grouping_tool(self) -> str:
+        """Get the configured grouping tool key."""
+        return self.config.get('workflow.grouping_tool', 'auc')
+
+    def set_grouping_tool(self, tool_key: str) -> None:
+        """
+        Set the grouping tool.
+
+        Args:
+            tool_key: Key of the tool to use (e.g., 'auc')
+
+        Raises:
+            ValueError: If tool_key is not valid
+        """
+        if tool_key not in self.GROUPING_TOOLS:
+            raise ValueError(
+                f"Invalid grouping tool: {tool_key}. "
+                f"Valid options: {list(self.GROUPING_TOOLS.keys())}"
+            )
+        self.config.set('workflow.grouping_tool', tool_key)
+        self.config.save()
+
+    def get_grouping_stage_name(self) -> str:
+        """Get the stage name for the configured grouping tool."""
+        tool_key = self.get_grouping_tool()
+        return self.GROUPING_TOOLS[tool_key].stage_name
+
+    def get_grouping_display_name(self) -> str:
+        """Get the display name for the configured grouping tool."""
+        tool_key = self.get_grouping_tool()
+        return self.GROUPING_TOOLS[tool_key].display_name
+
     # Complete workflow stages
 
     def get_complete_workflow_stages(self) -> list[Tuple[str, str]]:
@@ -193,9 +237,14 @@ class WorkflowConfigurationService:
         """
         return [
             ('data_selection', 'Data Selection'),
-            (self.get_segmentation_stage_name(), self.get_segmentation_display_name()),
-            (self.get_processing_stage_name(), self.get_processing_display_name()),
-            (self.get_thresholding_stage_name(), self.get_thresholding_display_name()),
+            (self.get_segmentation_stage_name(),
+             self.get_segmentation_display_name()),
+            (self.get_processing_stage_name(),
+             self.get_processing_display_name()),
+            (self.get_grouping_stage_name(),
+             self.get_grouping_display_name()),
+            (self.get_thresholding_stage_name(),
+             self.get_thresholding_display_name()),
             ('measure_roi_area', 'Measure ROI Areas'),
             ('analysis', 'Analysis')
         ]
@@ -214,6 +263,10 @@ class WorkflowConfigurationService:
         """Get all available processing tools."""
         return self.PROCESSING_TOOLS.copy()
 
+    def get_available_grouping_tools(self) -> Dict[str, WorkflowTool]:
+        """Get all available grouping tools."""
+        return self.GROUPING_TOOLS.copy()
+
     def get_workflow_summary(self) -> Dict[str, str]:
         """
         Get a summary of the current workflow configuration.
@@ -224,6 +277,7 @@ class WorkflowConfigurationService:
         return {
             'segmentation': self.get_segmentation_display_name(),
             'processing': self.get_processing_display_name(),
+            'grouping': self.get_grouping_display_name(),
             'thresholding': self.get_thresholding_display_name(),
         }
 

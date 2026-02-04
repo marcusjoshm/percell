@@ -40,7 +40,8 @@ class AdvancedWorkflowStage(StageBase):
             ("resize_rois", "Resize ROIs"),
             ("duplicate_rois", "Duplicate ROIs for multi-channel analysis"),
             ("extract_cells", "Extract Cells"),
-            ("group_cells", "Group Cells"),
+            (workflow_config.get_grouping_stage_name(),
+             workflow_config.get_grouping_display_name()),
             (workflow_config.get_thresholding_stage_name(),
              workflow_config.get_thresholding_display_name()),
             ("measure_roi_area", "Measure ROI Area"),
@@ -122,6 +123,7 @@ class AdvancedWorkflowStage(StageBase):
         step_handlers = {
             "data_selection": self._step_data_selection,
             workflow_config.get_segmentation_stage_name(): self._step_segmentation,
+            workflow_config.get_grouping_stage_name(): self._step_group_cells,
             workflow_config.get_thresholding_stage_name(): self._step_threshold_cells,
             "measure_roi_area": self._step_measure_roi_area,
             "analyze_masks": self._step_analyze_masks,
@@ -131,7 +133,6 @@ class AdvancedWorkflowStage(StageBase):
             "resize_rois": self._step_resize_rois,
             "duplicate_rois": self._step_duplicate_rois,
             "extract_cells": self._step_extract_cells,
-            "group_cells": self._step_group_cells,
         }
 
         handler = step_handlers.get(step_key)
