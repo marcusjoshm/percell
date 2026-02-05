@@ -541,27 +541,42 @@ def _record_group_metadata(
     rows: list[dict[str, object]],
     group: list[tuple[Path, np.ndarray, float]],
     bin_index: int,
+    metric_name: str = 'auc',
 ) -> None:
-    """Record metadata rows for cells assigned to a bin."""
+    """Record metadata rows for cells assigned to a bin.
+
+    Args:
+        rows: List to append metadata rows to
+        group: List of (path, image, metric) tuples for cells in this group
+        bin_index: Zero-based index of the bin/group
+        metric_name: Name of the metric (e.g., 'auc', 'mean_intensity', 'max_intensity')
+    """
     group_metrics = [metric for _, __, metric in group]
     group_mean = float(np.mean(group_metrics)) if group_metrics else 0.0
 
-    for path_obj, __, ___ in group:
+    for path_obj, __, metric in group:
         rows.append({
             'cell_id': path_obj.name,
             'group_id': bin_index + 1,
             'group_name': f"bin_{bin_index + 1}",
-            'group_mean_auc': group_mean,
+            f'cell_{metric_name}': metric,
+            f'group_mean_{metric_name}': group_mean,
         })
 
 
-def _write_group_csv(out_condition: Path, region_name: str, rows: list[dict[str, object]]) -> None:
-    """Write group metadata to CSV file."""
+def _write_group_csv(
+    out_condition: Path,
+    region_name: str,
+    rows: list[dict[str, object]]
+) -> None:
+    """Write group metadata to CSV file with timestamp."""
     if not rows:
         return
     try:
         import pandas as _pd
-        csv_path = out_condition / f"{region_name}_cell_groups.csv"
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_path = out_condition / f"{region_name}_cell_groups_{timestamp}.csv"
         _pd.DataFrame(rows).to_csv(csv_path, index=False)
     except Exception:
         pass
@@ -598,7 +613,7 @@ def _process_region_bins(
         if not group:
             continue
 
-        _record_group_metadata(rows, group, i)
+        _record_group_metadata(rows, group, i, metric_name='auc')
 
         try:
             out_img = _sum_group_images(group)
@@ -710,6 +725,864 @@ def group_cells(
             if _process_single_region(region_dir, out_root, bins, imgproc):
                 any_written = True
             update(1)
+
+    return any_written
+
+
+# ------------------------- Auto Grouping with GMM Clustering -------------------------
+
+def _find_optimal_clusters_gmm(
+    auc_values: np.ndarray,
+    max_clusters: int = 10,
+    min_clusters: int = 2,
+) -> int:
+    """Find optimal number of clusters using GMM with BIC.
+
+    Uses Gaussian Mixture Models and selects the number of components
+    that minimizes the Bayesian Information Criterion (BIC).
+
+    Args:
+        auc_values: 1D array of AUC values (sum of pixel intensities per cell)
+        max_clusters: Maximum number of clusters to try (default: 10)
+        min_clusters: Minimum number of clusters to try (default: 2)
+
+    Returns:
+        Optimal number of clusters
+    """
+    from sklearn.mixture import GaussianMixture
+
+    # Reshape for sklearn (expects 2D array)
+    data = auc_values.reshape(-1, 1)
+    n_samples = len(auc_values)
+
+    # Can't have more clusters than samples
+    max_clusters = min(max_clusters, n_samples)
+    min_clusters = min(min_clusters, n_samples)
+
+    if max_clusters < min_clusters:
+        return min_clusters
+
+    best_bic = float('inf')
+    best_k = min_clusters
+
+    for k in range(min_clusters, max_clusters + 1):
+        try:
+            gmm = GaussianMixture(n_components=k, random_state=42, n_init=3)
+            gmm.fit(data)
+            bic = gmm.bic(data)
+            if bic < best_bic:
+                best_bic = bic
+                best_k = k
+        except Exception:
+            # If fitting fails for this k, skip it
+            continue
+
+    return best_k
+
+
+def _cluster_cells_gmm(
+    auc_values: np.ndarray,
+    n_clusters: int,
+) -> np.ndarray:
+    """Assign cells to clusters using GMM.
+
+    Clusters are reordered so that cluster 0 has the lowest mean AUC,
+    cluster 1 has the next lowest, etc.
+
+    Args:
+        auc_values: 1D array of AUC values
+        n_clusters: Number of clusters to create
+
+    Returns:
+        Array of cluster labels (0 to n_clusters-1), ordered by ascending mean AUC
+    """
+    from sklearn.mixture import GaussianMixture
+
+    data = auc_values.reshape(-1, 1)
+
+    gmm = GaussianMixture(n_components=n_clusters, random_state=42, n_init=3)
+    labels = gmm.fit_predict(data)
+
+    # Reorder labels so cluster 0 has lowest mean AUC
+    cluster_means = []
+    for i in range(n_clusters):
+        mask = labels == i
+        if np.any(mask):
+            cluster_means.append((i, auc_values[mask].mean()))
+        else:
+            cluster_means.append((i, float('inf')))
+
+    # Sort by mean AUC
+    cluster_means.sort(key=lambda x: x[1])
+
+    # Create mapping from old label to new label
+    label_map = {old: new for new, (old, _) in enumerate(cluster_means)}
+
+    return np.array([label_map[lbl] for lbl in labels])
+
+
+def _process_region_auto_clusters(
+    images: list[tuple[Path, np.ndarray, float]],
+    max_clusters: int,
+    out_condition: Path,
+    region_name: str,
+    reference_metadata: Optional[ImageMetadata],
+    imgproc: ImageProcessingPort,
+    rows: list[dict[str, object]],
+) -> tuple[bool, int]:
+    """Process a region's images using GMM auto-clustering and write summed images.
+
+    Returns:
+        Tuple of (any_written, n_clusters_used)
+    """
+    if not images:
+        return False, 0
+
+    # Extract AUC values
+    auc_values = np.array([metric for _, _, metric in images])
+
+    # Find optimal number of clusters
+    n_clusters = _find_optimal_clusters_gmm(auc_values, max_clusters=max_clusters)
+
+    # Cluster the cells
+    labels = _cluster_cells_gmm(auc_values, n_clusters)
+
+    # Group images by cluster label
+    groups: list[list[tuple[Path, np.ndarray, float]]] = [[] for _ in range(n_clusters)]
+    for (path, img, metric), label in zip(images, labels):
+        groups[label].append((path, img, metric))
+
+    any_written = False
+
+    for i, group in enumerate(groups):
+        if not group:
+            continue
+
+        _record_group_metadata(rows, group, i, metric_name='auc')
+
+        try:
+            out_img = _sum_group_images(group)
+            if out_img is None:
+                continue
+
+            out_path = out_condition / f"{region_name}_bin_{i + 1}.tif"
+            print(f"Saving grouped image: {out_path.name} "
+                  f"(shape: {out_img.shape}, dtype: {out_img.dtype}, "
+                  f"cells: {len(group)})")
+
+            if not _write_tiff_with_metadata(out_path, out_img, reference_metadata):
+                imgproc.write_image(out_path, out_img)
+            any_written = True
+        except Exception:
+            continue
+
+    return any_written, n_clusters
+
+
+def _process_single_region_auto(
+    region_dir: Path,
+    out_root: Path,
+    max_clusters: int,
+    imgproc: ImageProcessingPort,
+) -> tuple[bool, int]:
+    """Process a single region directory with auto-clustering.
+
+    Returns:
+        Tuple of (any_written, n_clusters_used)
+    """
+    out_condition = out_root / region_dir.parent.name / region_dir.name
+    out_condition.mkdir(parents=True, exist_ok=True)
+
+    images, reference_metadata = _load_cell_images(region_dir, imgproc)
+    if not images:
+        return False, 0
+
+    rows: list[dict[str, object]] = []
+    any_written, n_clusters = _process_region_auto_clusters(
+        images, max_clusters, out_condition, region_dir.name,
+        reference_metadata, imgproc, rows
+    )
+
+    _write_group_csv(out_condition, region_dir.name, rows)
+    return any_written, n_clusters
+
+
+def group_cells_auto(
+    cells_dir: str | Path,
+    output_dir: str | Path,
+    max_clusters: int = 10,
+    channels: Optional[Iterable[str]] = None,
+    *,
+    imgproc: Optional[ImageProcessingPort] = None,
+    progress: Optional[ProgressReportPort] = None,
+) -> bool:
+    """Group cell images using GMM auto-clustering by AUC.
+
+    Uses Gaussian Mixture Models with BIC to automatically determine
+    the optimal number of groups for each region.
+
+    Produces files named "<region_dir_name>_bin_<i>.tif" under
+    <output_dir>/<condition>/<region_dir_name>/ for i in 1..n_clusters.
+
+    Preserves TIFF metadata (resolution, units, etc.) from the first cell image
+    in each region when writing the summed images.
+
+    Args:
+        cells_dir: Directory containing extracted cell images
+        output_dir: Directory to write grouped cell images
+        max_clusters: Maximum number of clusters to consider (default: 10)
+        channels: Optional list of channels to process
+        imgproc: Image processing port (creates default if not provided)
+        progress: Progress reporting port (optional)
+
+    Returns:
+        True if any grouped images were written successfully
+    """
+    cells_root = Path(cells_dir)
+    out_root = Path(output_dir)
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    if imgproc is None:
+        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
+        imgproc = PILImageProcessingAdapter()
+
+    region_dirs = _find_cell_dirs(cells_root)
+    region_dirs = _filter_region_dirs_by_channels(region_dirs, channels)
+    total_cells = _count_total_cells(region_dirs)
+
+    regions_count = len(region_dirs)
+    title = (f"Auto-grouping {total_cells} cells (max {max_clusters} groups) "
+             f"across {regions_count} regions")
+    progress_ctx = _create_progress_context(progress, regions_count, title)
+
+    any_written = False
+    cluster_counts: list[int] = []
+
+    with progress_ctx as update:
+        for region_dir in region_dirs:
+            written, n_clusters = _process_single_region_auto(
+                region_dir, out_root, max_clusters, imgproc
+            )
+            if written:
+                any_written = True
+                cluster_counts.append(n_clusters)
+            update(1)
+
+    if cluster_counts:
+        avg_clusters = sum(cluster_counts) / len(cluster_counts)
+        print(f"Auto-grouping complete. Average clusters per region: {avg_clusters:.1f}")
+
+    return any_written
+
+
+# ------------------------- Mean-Based Auto Grouping with GMM -------------------------
+
+def _load_cell_images_mean(
+    region_dir: Path, imgproc: ImageProcessingPort
+) -> tuple[list[tuple[Path, np.ndarray, float]], Optional[ImageMetadata]]:
+    """Load cell images from a region directory with mean intensity metrics.
+
+    Returns:
+        Tuple of (list of (path, image, metric), reference_metadata)
+        where metric is the mean pixel intensity per cell.
+    """
+    cell_files = [
+        cf for cf in region_dir.glob(_CELL_FILE_PATTERN)
+        if not is_system_hidden_file(cf)
+    ]
+    images: list[tuple[Path, np.ndarray, float]] = []
+    reference_metadata = None
+
+    for f in cell_files:
+        try:
+            img = imgproc.read_image(f)
+            # Mean of all pixel intensities (average fluorescence per pixel)
+            metric = float(np.mean(img))
+            images.append((f, img, metric))
+            if reference_metadata is None:
+                reference_metadata = _extract_tiff_metadata(f)
+        except Exception:
+            continue
+
+    return images, reference_metadata
+
+
+def _process_region_mean_auto_clusters(
+    images: list[tuple[Path, np.ndarray, float]],
+    max_clusters: int,
+    out_condition: Path,
+    region_name: str,
+    reference_metadata: Optional[ImageMetadata],
+    imgproc: ImageProcessingPort,
+    rows: list[dict[str, object]],
+) -> tuple[bool, int]:
+    """Process a region's images using GMM auto-clustering on mean intensity.
+
+    Returns:
+        Tuple of (any_written, n_clusters_used)
+    """
+    if not images:
+        return False, 0
+
+    # Extract mean intensity values
+    mean_values = np.array([metric for _, _, metric in images])
+
+    # Find optimal number of clusters
+    n_clusters = _find_optimal_clusters_gmm(mean_values, max_clusters=max_clusters)
+
+    # Cluster the cells
+    labels = _cluster_cells_gmm(mean_values, n_clusters)
+
+    # Group images by cluster label
+    groups: list[list[tuple[Path, np.ndarray, float]]] = [
+        [] for _ in range(n_clusters)
+    ]
+    for (path, img, metric), label in zip(images, labels):
+        groups[label].append((path, img, metric))
+
+    any_written = False
+
+    for i, group in enumerate(groups):
+        if not group:
+            continue
+
+        _record_group_metadata(rows, group, i, metric_name='mean_intensity')
+
+        try:
+            out_img = _sum_group_images(group)
+            if out_img is None:
+                continue
+
+            out_path = out_condition / f"{region_name}_bin_{i + 1}.tif"
+            print(f"Saving grouped image: {out_path.name} "
+                  f"(shape: {out_img.shape}, dtype: {out_img.dtype}, "
+                  f"cells: {len(group)})")
+
+            if not _write_tiff_with_metadata(out_path, out_img, reference_metadata):
+                imgproc.write_image(out_path, out_img)
+            any_written = True
+        except Exception:
+            continue
+
+    return any_written, n_clusters
+
+
+def _process_single_region_mean_auto(
+    region_dir: Path,
+    out_root: Path,
+    max_clusters: int,
+    imgproc: ImageProcessingPort,
+) -> tuple[bool, int]:
+    """Process a single region directory with mean-based auto-clustering.
+
+    Returns:
+        Tuple of (any_written, n_clusters_used)
+    """
+    out_condition = out_root / region_dir.parent.name / region_dir.name
+    out_condition.mkdir(parents=True, exist_ok=True)
+
+    images, reference_metadata = _load_cell_images_mean(region_dir, imgproc)
+    if not images:
+        return False, 0
+
+    rows: list[dict[str, object]] = []
+    any_written, n_clusters = _process_region_mean_auto_clusters(
+        images, max_clusters, out_condition, region_dir.name,
+        reference_metadata, imgproc, rows
+    )
+
+    _write_group_csv(out_condition, region_dir.name, rows)
+    return any_written, n_clusters
+
+
+def group_cells_mean_auto(
+    cells_dir: str | Path,
+    output_dir: str | Path,
+    max_clusters: int = 10,
+    channels: Optional[Iterable[str]] = None,
+    *,
+    imgproc: Optional[ImageProcessingPort] = None,
+    progress: Optional[ProgressReportPort] = None,
+) -> bool:
+    """Group cell images using GMM auto-clustering by mean fluorescence intensity.
+
+    Uses Gaussian Mixture Models with BIC to automatically determine
+    the optimal number of groups for each region, based on mean pixel
+    intensity per cell (rather than total intensity/AUC).
+
+    Produces files named "<region_dir_name>_bin_<i>.tif" under
+    <output_dir>/<condition>/<region_dir_name>/ for i in 1..n_clusters.
+
+    Preserves TIFF metadata (resolution, units, etc.) from the first cell image
+    in each region when writing the summed images.
+
+    Args:
+        cells_dir: Directory containing extracted cell images
+        output_dir: Directory to write grouped cell images
+        max_clusters: Maximum number of clusters to consider (default: 10)
+        channels: Optional list of channels to process
+        imgproc: Image processing port (creates default if not provided)
+        progress: Progress reporting port (optional)
+
+    Returns:
+        True if any grouped images were written successfully
+    """
+    cells_root = Path(cells_dir)
+    out_root = Path(output_dir)
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    if imgproc is None:
+        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
+        imgproc = PILImageProcessingAdapter()
+
+    region_dirs = _find_cell_dirs(cells_root)
+    region_dirs = _filter_region_dirs_by_channels(region_dirs, channels)
+    total_cells = _count_total_cells(region_dirs)
+
+    regions_count = len(region_dirs)
+    title = (f"Mean-auto-grouping {total_cells} cells (max {max_clusters} groups) "
+             f"across {regions_count} regions")
+    progress_ctx = _create_progress_context(progress, regions_count, title)
+
+    any_written = False
+    cluster_counts: list[int] = []
+
+    with progress_ctx as update:
+        for region_dir in region_dirs:
+            written, n_clusters = _process_single_region_mean_auto(
+                region_dir, out_root, max_clusters, imgproc
+            )
+            if written:
+                any_written = True
+                cluster_counts.append(n_clusters)
+            update(1)
+
+    if cluster_counts:
+        avg_clusters = sum(cluster_counts) / len(cluster_counts)
+        print(f"Mean-auto-grouping complete. "
+              f"Average clusters per region: {avg_clusters:.1f}")
+
+    return any_written
+
+
+# ------------------------- Max-Based Auto Grouping with GMM -------------------------
+
+def _load_cell_images_max(
+    region_dir: Path, imgproc: ImageProcessingPort
+) -> tuple[list[tuple[Path, np.ndarray, float]], Optional[ImageMetadata]]:
+    """Load cell images from a region directory with max intensity metrics.
+
+    Returns:
+        Tuple of (list of (path, image, metric), reference_metadata)
+        where metric is the maximum pixel intensity per cell.
+    """
+    cell_files = [
+        cf for cf in region_dir.glob(_CELL_FILE_PATTERN)
+        if not is_system_hidden_file(cf)
+    ]
+    images: list[tuple[Path, np.ndarray, float]] = []
+    reference_metadata = None
+
+    for f in cell_files:
+        try:
+            img = imgproc.read_image(f)
+            # Max pixel intensity (peak fluorescence in the cell)
+            metric = float(np.max(img))
+            images.append((f, img, metric))
+            if reference_metadata is None:
+                reference_metadata = _extract_tiff_metadata(f)
+        except Exception:
+            continue
+
+    return images, reference_metadata
+
+
+def _process_region_max_auto_clusters(
+    images: list[tuple[Path, np.ndarray, float]],
+    max_clusters: int,
+    out_condition: Path,
+    region_name: str,
+    reference_metadata: Optional[ImageMetadata],
+    imgproc: ImageProcessingPort,
+    rows: list[dict[str, object]],
+) -> tuple[bool, int]:
+    """Process a region's images using GMM auto-clustering on max intensity.
+
+    Returns:
+        Tuple of (any_written, n_clusters_used)
+    """
+    if not images:
+        return False, 0
+
+    # Extract max intensity values
+    max_values = np.array([metric for _, _, metric in images])
+
+    # Find optimal number of clusters
+    n_clusters = _find_optimal_clusters_gmm(max_values, max_clusters=max_clusters)
+
+    # Cluster the cells
+    labels = _cluster_cells_gmm(max_values, n_clusters)
+
+    # Group images by cluster label
+    groups: list[list[tuple[Path, np.ndarray, float]]] = [
+        [] for _ in range(n_clusters)
+    ]
+    for (path, img, metric), label in zip(images, labels):
+        groups[label].append((path, img, metric))
+
+    any_written = False
+
+    for i, group in enumerate(groups):
+        if not group:
+            continue
+
+        _record_group_metadata(rows, group, i, metric_name='max_intensity')
+
+        try:
+            out_img = _sum_group_images(group)
+            if out_img is None:
+                continue
+
+            out_path = out_condition / f"{region_name}_bin_{i + 1}.tif"
+            print(f"Saving grouped image: {out_path.name} "
+                  f"(shape: {out_img.shape}, dtype: {out_img.dtype}, "
+                  f"cells: {len(group)})")
+
+            if not _write_tiff_with_metadata(out_path, out_img, reference_metadata):
+                imgproc.write_image(out_path, out_img)
+            any_written = True
+        except Exception:
+            continue
+
+    return any_written, n_clusters
+
+
+def _process_single_region_max_auto(
+    region_dir: Path,
+    out_root: Path,
+    max_clusters: int,
+    imgproc: ImageProcessingPort,
+) -> tuple[bool, int]:
+    """Process a single region directory with max-based auto-clustering.
+
+    Returns:
+        Tuple of (any_written, n_clusters_used)
+    """
+    out_condition = out_root / region_dir.parent.name / region_dir.name
+    out_condition.mkdir(parents=True, exist_ok=True)
+
+    images, reference_metadata = _load_cell_images_max(region_dir, imgproc)
+    if not images:
+        return False, 0
+
+    rows: list[dict[str, object]] = []
+    any_written, n_clusters = _process_region_max_auto_clusters(
+        images, max_clusters, out_condition, region_dir.name,
+        reference_metadata, imgproc, rows
+    )
+
+    _write_group_csv(out_condition, region_dir.name, rows)
+    return any_written, n_clusters
+
+
+def group_cells_max_auto(
+    cells_dir: str | Path,
+    output_dir: str | Path,
+    max_clusters: int = 10,
+    channels: Optional[Iterable[str]] = None,
+    *,
+    imgproc: Optional[ImageProcessingPort] = None,
+    progress: Optional[ProgressReportPort] = None,
+) -> bool:
+    """Group cell images using GMM auto-clustering by max fluorescence intensity.
+
+    Uses Gaussian Mixture Models with BIC to automatically determine
+    the optimal number of groups for each region, based on maximum pixel
+    intensity per cell (peak fluorescence).
+
+    Produces files named "<region_dir_name>_bin_<i>.tif" under
+    <output_dir>/<condition>/<region_dir_name>/ for i in 1..n_clusters.
+
+    Preserves TIFF metadata (resolution, units, etc.) from the first cell image
+    in each region when writing the summed images.
+
+    Args:
+        cells_dir: Directory containing extracted cell images
+        output_dir: Directory to write grouped cell images
+        max_clusters: Maximum number of clusters to consider (default: 10)
+        channels: Optional list of channels to process
+        imgproc: Image processing port (creates default if not provided)
+        progress: Progress reporting port (optional)
+
+    Returns:
+        True if any grouped images were written successfully
+    """
+    cells_root = Path(cells_dir)
+    out_root = Path(output_dir)
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    if imgproc is None:
+        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
+        imgproc = PILImageProcessingAdapter()
+
+    region_dirs = _find_cell_dirs(cells_root)
+    region_dirs = _filter_region_dirs_by_channels(region_dirs, channels)
+    total_cells = _count_total_cells(region_dirs)
+
+    regions_count = len(region_dirs)
+    title = (f"Max-auto-grouping {total_cells} cells (max {max_clusters} groups) "
+             f"across {regions_count} regions")
+    progress_ctx = _create_progress_context(progress, regions_count, title)
+
+    any_written = False
+    cluster_counts: list[int] = []
+
+    with progress_ctx as update:
+        for region_dir in region_dirs:
+            written, n_clusters = _process_single_region_max_auto(
+                region_dir, out_root, max_clusters, imgproc
+            )
+            if written:
+                any_written = True
+                cluster_counts.append(n_clusters)
+            update(1)
+
+    if cluster_counts:
+        avg_clusters = sum(cluster_counts) / len(cluster_counts)
+        print(f"Max-auto-grouping complete. "
+              f"Average clusters per region: {avg_clusters:.1f}")
+
+    return any_written
+
+
+# --------------- SG (Signal-to-Ground) Auto Grouping with GMM ---------------
+
+def _compute_sg_contrast_ratio(img: np.ndarray) -> float:
+    """Compute SG contrast ratio for a cell image.
+
+    The SG (Signal-to-Ground) contrast ratio is defined as:
+        sum of pixels at 95th percentile / sum of pixels at 50th percentile
+
+    This metric measures the contrast between bright signal pixels and
+    the median background, useful for detecting cells with punctate
+    or localized bright signals.
+
+    Args:
+        img: 2D numpy array of pixel intensities
+
+    Returns:
+        SG contrast ratio (float). Returns 1.0 if denominator would be zero.
+    """
+    flat = img.flatten()
+
+    # Get percentile thresholds
+    p95_threshold = np.percentile(flat, 95)
+    p50_threshold = np.percentile(flat, 50)
+
+    # Sum of pixels at or above 95th percentile
+    signal_sum = float(np.sum(flat[flat >= p95_threshold]))
+
+    # Sum of pixels at or below 50th percentile (ground/background)
+    ground_sum = float(np.sum(flat[flat <= p50_threshold]))
+
+    # Avoid division by zero
+    if ground_sum == 0:
+        return 1.0
+
+    return signal_sum / ground_sum
+
+
+def _load_cell_images_sg(
+    region_dir: Path, imgproc: ImageProcessingPort
+) -> tuple[list[tuple[Path, np.ndarray, float]], Optional[ImageMetadata]]:
+    """Load cell images from a region directory with SG contrast ratio metrics.
+
+    Returns:
+        Tuple of (list of (path, image, metric), reference_metadata)
+        where metric is the SG contrast ratio (95th percentile / 50th percentile).
+    """
+    cell_files = [
+        cf for cf in region_dir.glob(_CELL_FILE_PATTERN)
+        if not is_system_hidden_file(cf)
+    ]
+    images: list[tuple[Path, np.ndarray, float]] = []
+    reference_metadata = None
+
+    for f in cell_files:
+        try:
+            img = imgproc.read_image(f)
+            # SG contrast ratio (signal-to-ground)
+            metric = _compute_sg_contrast_ratio(img)
+            images.append((f, img, metric))
+            if reference_metadata is None:
+                reference_metadata = _extract_tiff_metadata(f)
+        except Exception:
+            continue
+
+    return images, reference_metadata
+
+
+def _process_region_sg_auto_clusters(
+    images: list[tuple[Path, np.ndarray, float]],
+    max_clusters: int,
+    out_condition: Path,
+    region_name: str,
+    reference_metadata: Optional[ImageMetadata],
+    imgproc: ImageProcessingPort,
+    rows: list[dict[str, object]],
+) -> tuple[bool, int]:
+    """Process a region's images using GMM auto-clustering on SG contrast ratio.
+
+    Returns:
+        Tuple of (any_written, n_clusters_used)
+    """
+    if not images:
+        return False, 0
+
+    # Extract SG contrast ratio values
+    sg_values = np.array([metric for _, _, metric in images])
+
+    # Find optimal number of clusters
+    n_clusters = _find_optimal_clusters_gmm(sg_values, max_clusters=max_clusters)
+
+    # Cluster the cells
+    labels = _cluster_cells_gmm(sg_values, n_clusters)
+
+    # Group images by cluster label
+    groups: list[list[tuple[Path, np.ndarray, float]]] = [
+        [] for _ in range(n_clusters)
+    ]
+    for (path, img, metric), label in zip(images, labels):
+        groups[label].append((path, img, metric))
+
+    any_written = False
+
+    for i, group in enumerate(groups):
+        if not group:
+            continue
+
+        _record_group_metadata(rows, group, i, metric_name='sg_ratio')
+
+        try:
+            out_img = _sum_group_images(group)
+            if out_img is None:
+                continue
+
+            out_path = out_condition / f"{region_name}_bin_{i + 1}.tif"
+            print(f"Saving grouped image: {out_path.name} "
+                  f"(shape: {out_img.shape}, dtype: {out_img.dtype}, "
+                  f"cells: {len(group)})")
+
+            if not _write_tiff_with_metadata(out_path, out_img, reference_metadata):
+                imgproc.write_image(out_path, out_img)
+            any_written = True
+        except Exception:
+            continue
+
+    return any_written, n_clusters
+
+
+def _process_single_region_sg_auto(
+    region_dir: Path,
+    out_root: Path,
+    max_clusters: int,
+    imgproc: ImageProcessingPort,
+) -> tuple[bool, int]:
+    """Process a single region directory with SG-based auto-clustering.
+
+    Returns:
+        Tuple of (any_written, n_clusters_used)
+    """
+    out_condition = out_root / region_dir.parent.name / region_dir.name
+    out_condition.mkdir(parents=True, exist_ok=True)
+
+    images, reference_metadata = _load_cell_images_sg(region_dir, imgproc)
+    if not images:
+        return False, 0
+
+    rows: list[dict[str, object]] = []
+    any_written, n_clusters = _process_region_sg_auto_clusters(
+        images, max_clusters, out_condition, region_dir.name,
+        reference_metadata, imgproc, rows
+    )
+
+    _write_group_csv(out_condition, region_dir.name, rows)
+    return any_written, n_clusters
+
+
+def group_cells_sg_auto(
+    cells_dir: str | Path,
+    output_dir: str | Path,
+    max_clusters: int = 10,
+    channels: Optional[Iterable[str]] = None,
+    *,
+    imgproc: Optional[ImageProcessingPort] = None,
+    progress: Optional[ProgressReportPort] = None,
+) -> bool:
+    """Group cell images using GMM auto-clustering by SG contrast ratio.
+
+    Uses Gaussian Mixture Models with BIC to automatically determine
+    the optimal number of groups for each region, based on the SG
+    (Signal-to-Ground) contrast ratio per cell.
+
+    The SG ratio is computed as:
+        sum of pixels >= 95th percentile / sum of pixels <= 50th percentile
+
+    This metric is useful for grouping cells by signal contrast rather
+    than absolute intensity, helping identify cells with bright punctate
+    signals vs diffuse staining.
+
+    Produces files named "<region_dir_name>_bin_<i>.tif" under
+    <output_dir>/<condition>/<region_dir_name>/ for i in 1..n_clusters.
+
+    Preserves TIFF metadata (resolution, units, etc.) from the first cell image
+    in each region when writing the summed images.
+
+    Args:
+        cells_dir: Directory containing extracted cell images
+        output_dir: Directory to write grouped cell images
+        max_clusters: Maximum number of clusters to consider (default: 10)
+        channels: Optional list of channels to process
+        imgproc: Image processing port (creates default if not provided)
+        progress: Progress reporting port (optional)
+
+    Returns:
+        True if any grouped images were written successfully
+    """
+    cells_root = Path(cells_dir)
+    out_root = Path(output_dir)
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    if imgproc is None:
+        from percell.adapters.pil_image_processing_adapter import PILImageProcessingAdapter
+        imgproc = PILImageProcessingAdapter()
+
+    region_dirs = _find_cell_dirs(cells_root)
+    region_dirs = _filter_region_dirs_by_channels(region_dirs, channels)
+    total_cells = _count_total_cells(region_dirs)
+
+    regions_count = len(region_dirs)
+    title = (f"SG-auto-grouping {total_cells} cells (max {max_clusters} groups) "
+             f"across {regions_count} regions")
+    progress_ctx = _create_progress_context(progress, regions_count, title)
+
+    any_written = False
+    cluster_counts: list[int] = []
+
+    with progress_ctx as update:
+        for region_dir in region_dirs:
+            written, n_clusters = _process_single_region_sg_auto(
+                region_dir, out_root, max_clusters, imgproc
+            )
+            if written:
+                any_written = True
+                cluster_counts.append(n_clusters)
+            update(1)
+
+    if cluster_counts:
+        avg_clusters = sum(cluster_counts) / len(cluster_counts)
+        print(f"SG-auto-grouping complete. "
+              f"Average clusters per region: {avg_clusters:.1f}")
 
     return any_written
 

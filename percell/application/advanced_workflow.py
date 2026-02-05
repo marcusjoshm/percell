@@ -270,26 +270,102 @@ class AdvancedWorkflowStage(StageBase):
         data_selection = self.config.get('data_selection') or {}
         output_dir = kwargs.get('output_dir')
         channels = data_selection.get('analysis_channels', [])
-        # Allow the user to override and set the default bins for this Advanced session
-        current_default = kwargs.get('bins', self.default_bins)
-        bins = self._prompt_for_bins(current_default)
-        # Persist chosen bins as new default for subsequent Group Cells steps
-        self.default_bins = bins
 
         if not self._ensure_extracted_cells_exist(registry, **kwargs):
             return False
 
-        from percell.application.image_processing_tasks import group_cells as _group_cells
-        ok = _group_cells(
-            cells_dir=f"{output_dir}/cells",
-            output_dir=f"{output_dir}/grouped_cells",
-            bins=int(bins),
-            force_clusters=True,
-            channels=channels,
-        )
-        if not ok:
-            self.logger.error("group_cells failed")
-        return ok
+        # Check which grouping tool is configured
+        from percell.domain.services import create_workflow_configuration_service
+        workflow_config = create_workflow_configuration_service(self.config)
+        grouping_tool = workflow_config.get_grouping_tool()
+
+        if grouping_tool == 'auc_auto_groups':
+            # Auto-grouping with GMM clustering by AUC (total intensity)
+            max_clusters = self._prompt_for_max_clusters(
+                default_max=10, metric_name="AUC (total intensity)"
+            )
+            from percell.application.image_processing_tasks import (
+                group_cells_auto as _group_cells_auto
+            )
+            ok = _group_cells_auto(
+                cells_dir=f"{output_dir}/cells",
+                output_dir=f"{output_dir}/grouped_cells",
+                max_clusters=max_clusters,
+                channels=channels,
+            )
+            if not ok:
+                self.logger.error("group_cells_auto failed")
+            return ok
+        elif grouping_tool == 'mean_auto_groups':
+            # Auto-grouping with GMM clustering by mean intensity
+            max_clusters = self._prompt_for_max_clusters(
+                default_max=10, metric_name="mean intensity"
+            )
+            from percell.application.image_processing_tasks import (
+                group_cells_mean_auto as _group_cells_mean_auto
+            )
+            ok = _group_cells_mean_auto(
+                cells_dir=f"{output_dir}/cells",
+                output_dir=f"{output_dir}/grouped_cells",
+                max_clusters=max_clusters,
+                channels=channels,
+            )
+            if not ok:
+                self.logger.error("group_cells_mean_auto failed")
+            return ok
+        elif grouping_tool == 'max_auto_groups':
+            # Auto-grouping with GMM clustering by max intensity
+            max_clusters = self._prompt_for_max_clusters(
+                default_max=10, metric_name="max intensity (peak)"
+            )
+            from percell.application.image_processing_tasks import (
+                group_cells_max_auto as _group_cells_max_auto
+            )
+            ok = _group_cells_max_auto(
+                cells_dir=f"{output_dir}/cells",
+                output_dir=f"{output_dir}/grouped_cells",
+                max_clusters=max_clusters,
+                channels=channels,
+            )
+            if not ok:
+                self.logger.error("group_cells_max_auto failed")
+            return ok
+        elif grouping_tool == 'sg_auto_groups':
+            # Auto-grouping with GMM clustering by SG contrast ratio
+            max_clusters = self._prompt_for_max_clusters(
+                default_max=10, metric_name="SG contrast (95th/50th pctl)"
+            )
+            from percell.application.image_processing_tasks import (
+                group_cells_sg_auto as _group_cells_sg_auto
+            )
+            ok = _group_cells_sg_auto(
+                cells_dir=f"{output_dir}/cells",
+                output_dir=f"{output_dir}/grouped_cells",
+                max_clusters=max_clusters,
+                channels=channels,
+            )
+            if not ok:
+                self.logger.error("group_cells_sg_auto failed")
+            return ok
+        else:
+            # Fixed bins grouping (auc_5_groups or default)
+            current_default = kwargs.get('bins', self.default_bins)
+            bins = self._prompt_for_bins(current_default)
+            self.default_bins = bins
+
+            from percell.application.image_processing_tasks import (
+                group_cells as _group_cells
+            )
+            ok = _group_cells(
+                cells_dir=f"{output_dir}/cells",
+                output_dir=f"{output_dir}/grouped_cells",
+                bins=int(bins),
+                force_clusters=True,
+                channels=channels,
+            )
+            if not ok:
+                self.logger.error("group_cells failed")
+            return ok
 
     def _ensure_extracted_cells_exist(self, registry, **kwargs) -> bool:
         """Check for extracted cells; optionally run extract_cells if missing."""
@@ -337,9 +413,11 @@ class AdvancedWorkflowStage(StageBase):
         """Prompt user for number of groups (bins); return validated int, default if blank."""
         try:
             print("\n" + "-"*80)
-            print(" Group Cells Configuration ".center(80, '-'))
+            print(" Group Cells Configuration (Fixed Bins) ".center(80, '-'))
             print("-"*80)
-            user_input = input(f"\n>>> Enter number of groups (bins) [default {default_bins}]: ").strip()
+            user_input = input(
+                f"\n>>> Enter number of groups (bins) [default {default_bins}]: "
+            ).strip()
             if not user_input:
                 return default_bins
             value = int(user_input)
@@ -350,6 +428,34 @@ class AdvancedWorkflowStage(StageBase):
         except Exception:
             self.logger.warning("Invalid input for bins. Using default.")
             return default_bins
+
+    def _prompt_for_max_clusters(
+        self, default_max: int = 10, metric_name: str = "intensity"
+    ) -> int:
+        """Prompt user for max clusters for GMM auto-grouping."""
+        try:
+            print("\n" + "-"*80)
+            title = f" Auto-Grouping by {metric_name} (GMM) "
+            print(title.center(80, '-'))
+            print("-"*80)
+            print(" GMM clustering will automatically determine the optimal "
+                  "number of groups.")
+            print(" You can set a maximum limit for the number of groups.")
+            user_input = input(
+                f"\n>>> Enter maximum number of groups [default {default_max}]: "
+            ).strip()
+            if not user_input:
+                return default_max
+            value = int(user_input)
+            if value < 2:
+                self.logger.warning(
+                    "Max clusters must be at least 2. Using default."
+                )
+                return default_max
+            return value
+        except Exception:
+            self.logger.warning("Invalid input for max clusters. Using default.")
+            return default_max
 
     def _prompt_for_edge_margin(self, default_margin: int = 10) -> int:
         """Prompt user for edge margin in pixels; return validated int, default if blank."""

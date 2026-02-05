@@ -174,7 +174,20 @@ def main():
                     print("Error: Output directory is required for pipeline execution.")
                     print("Please set the output directory using --output or through the interactive menu.")
                     continue
-                
+
+                # Validate output directory is accessible
+                output_path = Path(args.output)
+                parent_path = output_path.parent
+                if not parent_path.exists():
+                    print(f"Error: Output directory parent does not exist: {parent_path}")
+                    print("Please check that the drive is mounted or specify a valid path.")
+                    print("Press Enter to return to main menu...")
+                    try:
+                        input()
+                    except EOFError:
+                        pass
+                    continue
+
                 # Create logger
                 log_level = "DEBUG" if args.verbose else "INFO"
                 logger = PipelineLogger(args.output, log_level=log_level)

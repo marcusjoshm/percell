@@ -15,6 +15,10 @@ def register_all_stages():
         SegmentationStage,
         ProcessSingleCellDataStage,
         AUC5GroupsCellsStage,
+        AUCAutoGroupsCellsStage,
+        MeanAutoGroupsCellsStage,
+        MaxAutoGroupsCellsStage,
+        SGAutoGroupsCellsStage,
         ThresholdGroupedCellsStage,
         FullAutoThresholdGroupedCellsStage,
         MeasureROIAreaStage,
@@ -44,6 +48,10 @@ def register_all_stages():
         ProcessSingleCellDataStage
     )
     register_stage('auc_5_groups_cells', order=5)(AUC5GroupsCellsStage)
+    register_stage('auc_auto_groups_cells', order=5)(AUCAutoGroupsCellsStage)
+    register_stage('mean_auto_groups_cells', order=5)(MeanAutoGroupsCellsStage)
+    register_stage('max_auto_groups_cells', order=5)(MaxAutoGroupsCellsStage)
+    register_stage('sg_auto_groups_cells', order=5)(SGAutoGroupsCellsStage)
     register_stage('semi_auto_threshold_grouped_cells', order=6)(
         ThresholdGroupedCellsStage
     )

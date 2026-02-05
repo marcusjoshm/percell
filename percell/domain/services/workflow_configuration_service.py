@@ -66,6 +66,26 @@ class WorkflowConfigurationService:
             display_name='AUC 5 Groups',
             description='Group cells into 5 bins by total intensity (AUC)'
         ),
+        'auc_auto_groups': WorkflowTool(
+            stage_name='auc_auto_groups_cells',
+            display_name='AUC Auto Groups',
+            description='Auto-group cells using GMM clustering by total intensity'
+        ),
+        'mean_auto_groups': WorkflowTool(
+            stage_name='mean_auto_groups_cells',
+            display_name='Mean Auto Groups',
+            description='Auto-group cells using GMM clustering by mean intensity'
+        ),
+        'max_auto_groups': WorkflowTool(
+            stage_name='max_auto_groups_cells',
+            display_name='Max Auto Groups',
+            description='Auto-group cells using GMM clustering by max intensity'
+        ),
+        'sg_auto_groups': WorkflowTool(
+            stage_name='sg_auto_groups_cells',
+            display_name='SG Auto Groups',
+            description='Auto-group cells using GMM by signal/ground contrast'
+        ),
     }
 
     def __init__(self, config: ConfigurationService):

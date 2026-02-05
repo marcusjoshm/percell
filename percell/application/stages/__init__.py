@@ -10,6 +10,10 @@ Stages:
 - SegmentationStage: Manages cell segmentation using Cellpose or similar tools
 - ProcessSingleCellDataStage: Processes individual cell data extraction
 - AUC5GroupsCellsStage: Groups cells into 5 bins by AUC for batch thresholding
+- AUCAutoGroupsCellsStage: Auto-groups cells using GMM clustering by AUC
+- MeanAutoGroupsCellsStage: Auto-groups cells using GMM clustering by mean intensity
+- MaxAutoGroupsCellsStage: Auto-groups cells using GMM clustering by max intensity
+- SGAutoGroupsCellsStage: Auto-groups cells using GMM by signal/ground contrast
 - ThresholdGroupedCellsStage: Handles thresholding for grouped cell analysis
 - MeasureROIAreaStage: Measures regions of interest areas
 - AnalysisStage: Performs final analysis and generates results
@@ -23,6 +27,10 @@ from percell.application.stages.data_selection_stage import DataSelectionStage
 from percell.application.stages.segmentation_stage import SegmentationStage
 from percell.application.stages.process_single_cell_stage import ProcessSingleCellDataStage
 from percell.application.stages.auc_5_groups_cells_stage import AUC5GroupsCellsStage
+from percell.application.stages.auc_auto_groups_cells_stage import AUCAutoGroupsCellsStage
+from percell.application.stages.mean_auto_groups_cells_stage import MeanAutoGroupsCellsStage
+from percell.application.stages.max_auto_groups_cells_stage import MaxAutoGroupsCellsStage
+from percell.application.stages.sg_auto_groups_cells_stage import SGAutoGroupsCellsStage
 from percell.application.stages.threshold_grouped_cells_stage import ThresholdGroupedCellsStage
 from percell.application.stages.full_auto_threshold_grouped_cells_stage import FullAutoThresholdGroupedCellsStage
 from percell.application.stages.measure_roi_area_stage import MeasureROIAreaStage
@@ -35,6 +43,10 @@ __all__ = [
     "SegmentationStage",
     "ProcessSingleCellDataStage",
     "AUC5GroupsCellsStage",
+    "AUCAutoGroupsCellsStage",
+    "MeanAutoGroupsCellsStage",
+    "MaxAutoGroupsCellsStage",
+    "SGAutoGroupsCellsStage",
     "ThresholdGroupedCellsStage",
     "FullAutoThresholdGroupedCellsStage",
     "MeasureROIAreaStage",
