@@ -131,7 +131,7 @@ def main():
                     args.data_selection,
                     getattr(args, 'cellpose_segmentation', False),
                     getattr(args, 'process_cellpose_single_cell', False),
-                    getattr(args, 'auc_group_cells', False),
+                    getattr(args, 'auc_5_groups_cells', False),
                     getattr(args, 'semi_auto_threshold_grouped_cells', False),
                     getattr(args, 'full_auto_threshold_grouped_cells', False),
                     args.measure_roi_area, args.analysis,

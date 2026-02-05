@@ -61,10 +61,10 @@ class WorkflowConfigurationService:
     }
 
     GROUPING_TOOLS = {
-        'auc': WorkflowTool(
-            stage_name='auc_group_cells',
-            display_name='AUC Grouping',
-            description='Group cells by Area Under Curve (AUC) intensity'
+        'auc_5_groups': WorkflowTool(
+            stage_name='auc_5_groups_cells',
+            display_name='AUC 5 Groups',
+            description='Group cells into 5 bins by total intensity (AUC)'
         ),
     }
 
@@ -87,7 +87,7 @@ class WorkflowConfigurationService:
         if not self.config.has('workflow.processing_tool'):
             self.config.set('workflow.processing_tool', 'cellpose')
         if not self.config.has('workflow.grouping_tool'):
-            self.config.set('workflow.grouping_tool', 'auc')
+            self.config.set('workflow.grouping_tool', 'auc_5_groups')
         self.config.save()
 
     # Segmentation tool management
@@ -196,7 +196,13 @@ class WorkflowConfigurationService:
 
     def get_grouping_tool(self) -> str:
         """Get the configured grouping tool key."""
-        return self.config.get('workflow.grouping_tool', 'auc')
+        tool_key = self.config.get('workflow.grouping_tool', 'auc_5_groups')
+        # Validate and reset if invalid (e.g., after renaming tools)
+        if tool_key not in self.GROUPING_TOOLS:
+            tool_key = 'auc_5_groups'
+            self.config.set('workflow.grouping_tool', tool_key)
+            self.config.save()
+        return tool_key
 
     def set_grouping_tool(self, tool_key: str) -> None:
         """

@@ -276,7 +276,7 @@ class AdvancedWorkflowStage(StageBase):
         # Persist chosen bins as new default for subsequent Group Cells steps
         self.default_bins = bins
 
-        if not self._ensure_extracted_cells_exist(registry, output_dir, **kwargs):
+        if not self._ensure_extracted_cells_exist(registry, **kwargs):
             return False
 
         from percell.application.image_processing_tasks import group_cells as _group_cells
@@ -291,8 +291,9 @@ class AdvancedWorkflowStage(StageBase):
             self.logger.error("group_cells failed")
         return ok
 
-    def _ensure_extracted_cells_exist(self, registry, output_dir, **kwargs) -> bool:
+    def _ensure_extracted_cells_exist(self, registry, **kwargs) -> bool:
         """Check for extracted cells; optionally run extract_cells if missing."""
+        output_dir = kwargs.get('output_dir')
         cells_dir = Path(output_dir) / "cells"
         has_cells = cells_dir.exists() and any(cells_dir.rglob("*.tif"))
         if has_cells:

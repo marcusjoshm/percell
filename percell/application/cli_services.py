@@ -32,7 +32,7 @@ def _any_stage_selected(args: argparse.Namespace) -> bool:
         "data_selection",
         "cellpose_segmentation",
         "process_cellpose_single_cell",
-        "auc_group_cells",
+        "auc_5_groups_cells",
         "semi_auto_threshold_grouped_cells",
         "full_auto_threshold_grouped_cells",
         "measure_roi_area",

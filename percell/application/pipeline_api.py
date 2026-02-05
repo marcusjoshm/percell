@@ -60,8 +60,8 @@ class Pipeline:
             stages.append("cellpose_segmentation")
         if getattr(self.args, "process_cellpose_single_cell", False):
             stages.append("process_cellpose_single_cell")
-        if getattr(self.args, "auc_group_cells", False):
-            stages.append("auc_group_cells")
+        if getattr(self.args, "auc_5_groups_cells", False):
+            stages.append("auc_5_groups_cells")
         if getattr(self.args, "semi_auto_threshold_grouped_cells", False):
             stages.append("semi_auto_threshold_grouped_cells")
         if getattr(self.args, "full_auto_threshold_grouped_cells", False):

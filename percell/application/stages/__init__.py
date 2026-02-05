@@ -9,7 +9,7 @@ Stages:
 - DataSelectionStage: Handles selection of conditions, regions, timepoints, and channels
 - SegmentationStage: Manages cell segmentation using Cellpose or similar tools
 - ProcessSingleCellDataStage: Processes individual cell data extraction
-- AUCGroupCellsStage: Groups cells by AUC intensity for batch thresholding
+- AUC5GroupsCellsStage: Groups cells into 5 bins by AUC for batch thresholding
 - ThresholdGroupedCellsStage: Handles thresholding for grouped cell analysis
 - MeasureROIAreaStage: Measures regions of interest areas
 - AnalysisStage: Performs final analysis and generates results
@@ -22,7 +22,7 @@ from __future__ import annotations
 from percell.application.stages.data_selection_stage import DataSelectionStage
 from percell.application.stages.segmentation_stage import SegmentationStage
 from percell.application.stages.process_single_cell_stage import ProcessSingleCellDataStage
-from percell.application.stages.auc_group_cells_stage import AUCGroupCellsStage
+from percell.application.stages.auc_5_groups_cells_stage import AUC5GroupsCellsStage
 from percell.application.stages.threshold_grouped_cells_stage import ThresholdGroupedCellsStage
 from percell.application.stages.full_auto_threshold_grouped_cells_stage import FullAutoThresholdGroupedCellsStage
 from percell.application.stages.measure_roi_area_stage import MeasureROIAreaStage
@@ -34,7 +34,7 @@ __all__ = [
     "DataSelectionStage",
     "SegmentationStage",
     "ProcessSingleCellDataStage",
-    "AUCGroupCellsStage",
+    "AUC5GroupsCellsStage",
     "ThresholdGroupedCellsStage",
     "FullAutoThresholdGroupedCellsStage",
     "MeasureROIAreaStage",
