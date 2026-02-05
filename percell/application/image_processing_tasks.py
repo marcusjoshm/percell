@@ -736,10 +736,12 @@ def _find_optimal_clusters_gmm(
     max_clusters: int = 10,
     min_clusters: int = 2,
 ) -> int:
-    """Find optimal number of clusters using GMM with BIC.
+    """Find optimal number of clusters using GMM with silhouette score.
 
     Uses Gaussian Mixture Models and selects the number of components
-    that minimizes the Bayesian Information Criterion (BIC).
+    that maximizes the silhouette score, which measures how well-separated
+    the clusters are. This is more robust than BIC alone, which tends to
+    favor too many clusters.
 
     Args:
         auc_values: 1D array of AUC values (sum of pixel intensities per cell)
@@ -750,6 +752,7 @@ def _find_optimal_clusters_gmm(
         Optimal number of clusters
     """
     from sklearn.mixture import GaussianMixture
+    from sklearn.metrics import silhouette_score
 
     # Reshape for sklearn (expects 2D array)
     data = auc_values.reshape(-1, 1)
@@ -762,16 +765,28 @@ def _find_optimal_clusters_gmm(
     if max_clusters < min_clusters:
         return min_clusters
 
-    best_bic = float('inf')
+    # Need at least 2 samples per cluster to compute silhouette
+    # so effective max is n_samples // 2
+    max_clusters = min(max_clusters, n_samples // 2)
+    if max_clusters < min_clusters:
+        return min_clusters
+
+    best_score = -1
     best_k = min_clusters
 
     for k in range(min_clusters, max_clusters + 1):
         try:
             gmm = GaussianMixture(n_components=k, random_state=42, n_init=3)
-            gmm.fit(data)
-            bic = gmm.bic(data)
-            if bic < best_bic:
-                best_bic = bic
+            labels = gmm.fit_predict(data)
+
+            # Check that we actually got k distinct clusters
+            unique_labels = len(set(labels))
+            if unique_labels < 2:
+                continue
+
+            score = silhouette_score(data, labels)
+            if score > best_score:
+                best_score = score
                 best_k = k
         except Exception:
             # If fitting fails for this k, skip it
