@@ -51,7 +51,7 @@ pyan3-callgraph-script.py
 
 # Data files (if they're large or confidential)
 # Uncomment if needed
-# data/
+data/
 # *.tif
 # *.csv
 
