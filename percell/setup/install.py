@@ -23,13 +23,28 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import argparse
 
-# Colors for output
+# Initialize colorama for Windows ANSI support
+try:
+    import colorama
+    colorama.init()
+    _colorama_available = True
+except ImportError:
+    _colorama_available = False
+
+# Colors for output (disable on Windows if colorama not available)
 class Colors:
-    RED = '\033[0;31m'
-    GREEN = '\033[0;32m'
-    YELLOW = '\033[1;33m'
-    BLUE = '\033[0;34m'
-    NC = '\033[0m'  # No Color
+    if sys.platform == 'win32' and not _colorama_available:
+        RED = ''
+        GREEN = ''
+        YELLOW = ''
+        BLUE = ''
+        NC = ''
+    else:
+        RED = '\033[0;31m'
+        GREEN = '\033[0;32m'
+        YELLOW = '\033[1;33m'
+        BLUE = '\033[0;34m'
+        NC = '\033[0m'  # No Color
 
 # Global variable for Python command
 python_cmd = 'python3.11'
@@ -428,7 +443,8 @@ def print_usage_instructions():
         # Windows instructions
         print("\n1. Run directly with Python:")
         print("   python -m percell.main.main")
-        print("\n2. Or use the batch wrapper:")
+        print("\n2. Or use the batch wrapper (run install_windows.py first):")
+        print("   python percell/setup/install_windows.py")
         print("   percell.bat")
         print("\n3. Or activate the virtual environment:")
         venv_activate = str(get_venv_activate_path("venv")).replace('/', '\\')
