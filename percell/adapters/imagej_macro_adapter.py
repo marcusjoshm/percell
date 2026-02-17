@@ -35,7 +35,7 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
     # Seconds to wait for output before assuming ImageJ has hung.
     # On Windows, ImageJ's Java VM often fails to terminate after a macro
     # completes, which blocks readline() indefinitely.
-    _OUTPUT_IDLE_TIMEOUT = 60
+    _OUTPUT_IDLE_TIMEOUT = 15
 
     def __init__(
         self,
