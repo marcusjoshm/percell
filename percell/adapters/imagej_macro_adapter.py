@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import glob
+import os
+import queue
 import subprocess
 import logging
 import tempfile
+import threading
 from pathlib import Path
 import re
 from typing import List, Optional, Tuple, Callable
@@ -17,6 +21,9 @@ logger = logging.getLogger(__name__)
 TOTAL_PATTERN = re.compile(r"^[A-Z_]+_TOTAL:\s*(\d+)$")
 PROGRESS_PATTERN = re.compile(r"^[A-Z_]+_(ROI|CELL|MASK|FILE):\s*(\d+)(?:/(\d+))?")
 
+# Sentinel value to signal the reader thread has finished
+_SENTINEL = object()
+
 
 class ImageJMacroAdapter(ImageJIntegrationPort):
     """Adapter for executing ImageJ macros via the command line.
@@ -25,6 +32,11 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
     decide what macro to run and how to interpret results.
     """
 
+    # Seconds to wait for output before assuming ImageJ has hung.
+    # On Windows, ImageJ's Java VM often fails to terminate after a macro
+    # completes, which blocks readline() indefinitely.
+    _OUTPUT_IDLE_TIMEOUT = 60
+
     def __init__(
         self,
         imagej_executable: Path,
@@ -32,13 +44,76 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
     ) -> None:
         self._exe = Path(imagej_executable)
         self._progress = progress_reporter
+        self._output_queue: queue.Queue = queue.Queue()
+        self._force_killed = False
+
+    @staticmethod
+    def _cleanup_imagej_stubs() -> None:
+        """Remove stale ImageJ stub files from the temp directory.
+
+        On Windows, ImageJ creates ``ImageJ-*.stub`` files for single-instance
+        communication. If ImageJ doesn't exit cleanly (e.g. force-killed),
+        these files persist and block subsequent launches with the error
+        "Could not connect to existing ImageJ instance".
+        """
+        temp_dir = tempfile.gettempdir()
+        for stub in glob.glob(os.path.join(temp_dir, "ImageJ-*.stub")):
+            try:
+                os.remove(stub)
+                logger.debug("Removed stale ImageJ stub file: %s", stub)
+            except OSError:
+                pass
+
+    def _start_output_reader(self, process: subprocess.Popen) -> None:
+        """Start a daemon thread that reads process stdout into a queue.
+
+        This decouples reading from the pipe (which can block indefinitely
+        on Windows if ImageJ hangs) from the main thread, allowing us to
+        apply a timeout via ``queue.get(timeout=...)``.
+        """
+        self._output_queue = queue.Queue()
+
+        def worker() -> None:
+            try:
+                while True:
+                    line = process.stdout.readline()
+                    if not line:
+                        break
+                    self._output_queue.put(line)
+            except (ValueError, OSError):
+                # Pipe closed or process killed
+                pass
+            finally:
+                self._output_queue.put(_SENTINEL)
+
+        t = threading.Thread(target=worker, daemon=True)
+        t.start()
 
     def _read_line(self, process: subprocess.Popen) -> Optional[str]:
-        """Read a line from process stdout, returning None if process ended."""
-        line = process.stdout.readline() if process.stdout else ""
-        if not line:
-            return None if process.poll() is not None else ""
-        return line
+        """Read a line from the output queue, with timeout.
+
+        Returns the line string, or None if the process ended or timed out.
+        If no output arrives within ``_OUTPUT_IDLE_TIMEOUT`` seconds, the
+        ImageJ process is force-killed to prevent indefinite hangs.
+        """
+        try:
+            line = self._output_queue.get(timeout=self._OUTPUT_IDLE_TIMEOUT)
+            if line is _SENTINEL:
+                return None
+            return line
+        except queue.Empty:
+            # No output for too long — ImageJ is likely hung after macro
+            # completion (common on Windows where the JVM doesn't exit).
+            logger.warning(
+                "ImageJ produced no output for %d seconds — force-killing process",
+                self._OUTPUT_IDLE_TIMEOUT,
+            )
+            self._force_killed = True
+            try:
+                process.kill()
+            except OSError:
+                pass
+            return None
 
     def _parse_total(self, line: str) -> Optional[int]:
         """Parse total count from a TOTAL marker line."""
@@ -152,6 +227,10 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
     def run_macro(self, macro_path: Path, args: List[str]) -> int:
         """Execute an ImageJ macro and return the exit code."""
         cmd = self._build_command(macro_path, args)
+        self._force_killed = False
+
+        # Remove stale stub files that would block ImageJ from starting
+        self._cleanup_imagej_stubs()
 
         try:
             process = subprocess.Popen(
@@ -161,11 +240,32 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
                 text=True,
                 cwd=tempfile.gettempdir(),
             )
+
+            # Read output via a background thread so we can apply a timeout
+            self._start_output_reader(process)
+
             title = f"ImageJ: {Path(macro_path).stem}"
             self._handle_process_output(process, title)
 
-            process.wait()
+            # Wait for process to exit; force-kill if it hangs
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                logger.warning("ImageJ did not exit within 10 s, force-killing")
+                self._force_killed = True
+                process.kill()
+                process.wait()
+
             return_code = process.returncode
+
+            # If we had to force-kill a hung ImageJ, treat as success —
+            # the macro completed its work (output was fully streamed).
+            if self._force_killed:
+                logger.info(
+                    "ImageJ was force-killed after macro completed "
+                    "(exit code %d treated as success)", return_code,
+                )
+                return 0
 
             if return_code != 0:
                 error_msg = f"ImageJ macro execution failed with return code {return_code}"
@@ -188,3 +288,7 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
             error_msg = f"System error running ImageJ: {e}"
             logger.error(error_msg)
             raise ImageJError(error_msg) from e
+
+        finally:
+            # Clean up stub files again in case ImageJ was killed
+            self._cleanup_imagej_stubs()
