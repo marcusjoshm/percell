@@ -24,6 +24,11 @@ PROGRESS_PATTERN = re.compile(r"^[A-Z_]+_(ROI|CELL|MASK|FILE):\s*(\d+)(?:/(\d+))
 # Sentinel value to signal the reader thread has finished
 _SENTINEL = object()
 
+# Macro completion marker printed by every .ijm macro as its last
+# meaningful output line.  The adapter watches for this to know
+# that the macro's work is done (even if the JVM hangs afterwards).
+MACRO_DONE_SENTINEL = "MACRO_DONE"
+
 
 class ImageJMacroAdapter(ImageJIntegrationPort):
     """Adapter for executing ImageJ macros via the command line.
@@ -32,10 +37,12 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
     decide what macro to run and how to interpret results.
     """
 
-    # Seconds to wait for output before assuming ImageJ has hung.
-    # On Windows, ImageJ's Java VM often fails to terminate after a macro
-    # completes, which blocks readline() indefinitely.
-    _OUTPUT_IDLE_TIMEOUT = 10
+    # Seconds to wait for additional output *after* the MACRO_DONE
+    # sentinel has been seen.  This is kept short because once the
+    # sentinel arrives, the macro's work is definitively done and we
+    # only need to give the JVM a moment to shut down gracefully
+    # (on Windows the JVM often hangs and must be force-killed).
+    _POST_SENTINEL_GRACE = 3
 
     def __init__(
         self,
@@ -46,6 +53,7 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
         self._progress = progress_reporter
         self._output_queue: queue.Queue = queue.Queue()
         self._force_killed = False
+        self._sentinel_seen = False
 
     @staticmethod
     def _cleanup_imagej_stubs() -> None:
@@ -90,23 +98,30 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
         t.start()
 
     def _read_line(self, process: subprocess.Popen) -> Optional[str]:
-        """Read a line from the output queue, with timeout.
+        """Read a line from the output queue.
 
-        Returns the line string, or None if the process ended or timed out.
-        If no output arrives within ``_OUTPUT_IDLE_TIMEOUT`` seconds, the
-        ImageJ process is force-killed to prevent indefinite hangs.
+        Before ``MACRO_DONE`` is seen, blocks indefinitely — the reader
+        thread will push ``_SENTINEL`` when the process exits or its
+        stdout closes, which unblocks this call.  After the sentinel,
+        uses a short grace period before force-killing the JVM (handles
+        Windows where the JVM often hangs after macro completion).
         """
+        timeout = self._POST_SENTINEL_GRACE if self._sentinel_seen else None
         try:
-            line = self._output_queue.get(timeout=self._OUTPUT_IDLE_TIMEOUT)
+            line = self._output_queue.get(timeout=timeout)
             if line is _SENTINEL:
                 return None
+            # Check for the macro-done sentinel
+            if line.strip() == MACRO_DONE_SENTINEL:
+                self._sentinel_seen = True
+                logger.debug("MACRO_DONE sentinel received")
             return line
         except queue.Empty:
-            # No output for too long — ImageJ is likely hung after macro
-            # completion (common on Windows where the JVM doesn't exit).
-            logger.warning(
-                "ImageJ produced no output for %d seconds — force-killing process",
-                self._OUTPUT_IDLE_TIMEOUT,
+            # Only reachable after sentinel (timeout=None never raises)
+            logger.info(
+                "Macro completed (sentinel seen); no further output "
+                "for %d s — force-killing hung JVM",
+                self._POST_SENTINEL_GRACE,
             )
             self._force_killed = True
             try:
@@ -228,6 +243,7 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
         """Execute an ImageJ macro and return the exit code."""
         cmd = self._build_command(macro_path, args)
         self._force_killed = False
+        self._sentinel_seen = False
 
         # Remove stale stub files that would block ImageJ from starting
         self._cleanup_imagej_stubs()
@@ -247,25 +263,44 @@ class ImageJMacroAdapter(ImageJIntegrationPort):
             title = f"ImageJ: {Path(macro_path).stem}"
             self._handle_process_output(process, title)
 
-            # Wait for process to exit; force-kill if it hangs
-            try:
-                process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                logger.warning("ImageJ did not exit within 10 s, force-killing")
-                self._force_killed = True
-                process.kill()
+            # Wait for process to exit.  If sentinel was seen the macro
+            # finished; give the JVM a short window then force-kill.
+            # Otherwise the process should already be gone (stdout closed).
+            if self._sentinel_seen and not self._force_killed:
+                try:
+                    process.wait(timeout=self._POST_SENTINEL_GRACE)
+                except subprocess.TimeoutExpired:
+                    logger.info(
+                        "ImageJ JVM did not exit within %d s after "
+                        "MACRO_DONE — force-killing",
+                        self._POST_SENTINEL_GRACE,
+                    )
+                    self._force_killed = True
+                    process.kill()
+                    process.wait()
+            else:
                 process.wait()
 
             return_code = process.returncode
 
-            # If we had to force-kill a hung ImageJ, treat as success —
-            # the macro completed its work (output was fully streamed).
+            # If we had to force-kill a hung ImageJ, treat as success
+            # ONLY when the MACRO_DONE sentinel was seen (macro
+            # definitively completed its work before the JVM hung).
             if self._force_killed:
-                logger.info(
-                    "ImageJ was force-killed after macro completed "
-                    "(exit code %d treated as success)", return_code,
-                )
-                return 0
+                if self._sentinel_seen:
+                    logger.info(
+                        "ImageJ was force-killed after MACRO_DONE "
+                        "(exit code %d treated as success)",
+                        return_code,
+                    )
+                    return 0
+                else:
+                    error_msg = (
+                        "ImageJ was force-killed and MACRO_DONE was "
+                        "never received — macro did not complete"
+                    )
+                    logger.error(error_msg)
+                    raise ImageJError(error_msg, return_code)
 
             if return_code != 0:
                 error_msg = f"ImageJ macro execution failed with return code {return_code}"

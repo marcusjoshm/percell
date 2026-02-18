@@ -95,7 +95,10 @@ setBatchMode(false);
 print("Cell extraction completed for " + roi_count + " cells");
 print("=== Extract Cells Macro Completed ===");
 
+// Signal macro completion to the Python adapter
+print("MACRO_DONE");
+
 // Auto-close ImageJ if requested
 if (auto_close) {
-    eval("script", "System.exit(0);");
-} 
+    run("Quit");
+}

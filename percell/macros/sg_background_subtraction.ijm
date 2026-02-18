@@ -173,3 +173,7 @@ print("=================================");
 print("SG processing complete!");
 print("Output saved to: " + outputBaseDir);
 print("=================================");
+
+// Signal macro completion to the Python adapter
+print("MACRO_DONE");
+run("Quit");

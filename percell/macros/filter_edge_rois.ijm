@@ -269,7 +269,10 @@ print("=== Filter Edge ROIs Macro Completed ===");
 // Turn off batch mode
 setBatchMode(false);
 
+// Signal macro completion to the Python adapter
+print("MACRO_DONE");
+
 // Auto-close ImageJ if requested
 if (auto_close) {
-    eval("script", "System.exit(0);");
+    run("Quit");
 }

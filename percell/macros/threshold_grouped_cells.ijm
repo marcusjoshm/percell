@@ -419,6 +419,9 @@ print("Thresholding of grouped cells completed.");
 print("Total bin files processed: " + binFileCount);
 print("=== Threshold Grouped Cells Macro Completed ===");
 
+// Signal macro completion to the Python adapter
+print("MACRO_DONE");
+
 // Auto-close ImageJ if requested
 if (auto_close) {
     print("Auto-close requested - closing ImageJ...");
